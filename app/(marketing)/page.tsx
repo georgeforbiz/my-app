@@ -270,12 +270,12 @@ const translations: Record<Locale, TranslationBundle> = {
     btnProtectProject: "Պաշտպանել իմ նախագիծը",
     btnSeeHow: "Տեսնել մեխանիզմը",
     btnStartProtected: "Սկսել պաշտպանված նախագիծ",
-    heroEyebrow: "Յուրաքանչյուր նախագիծ և յուրաքանչյուր վճարում` վերահսկելի պաշտպանության ներքո",
+    heroEyebrow: "Պաշտպանում ենք յուրաքանչյուր նախագիծը և յուրաքանչյուր վճարը",
     heroTitleBefore: "Պաշտպանեք ձեր ",
     heroTitleHighlight: "նախագծային գործարքները",
     heroTitleAfter: " Հայաստանում",
     heroSubtitle:
-      "Բացառեք կույր կանխավճարների ռիսկը և սկսեք աշխատանքը վերահսկելի իրավական շրջանակում. VSTAH-ը պահպանում է միջոցները մինչև աշխատանքի պաշտոնական հաստատումը։",
+      "Նախապես վճարման ռիսկ մի վերցրեք։ Մի սկսեք աշխատանքը առանց անվտանգության։ VSTAH-ը կողպում է միջոցները մինչև նախագիծը հաստատվի։",
     cardChip1: "Պաշտպանված նախագծային դեպոզիտ",
     cardChip2: "Թվային աշխատանքային պայմանագիր",
     projectLabel: "Նախագիծ",
@@ -409,12 +409,12 @@ const translations: Record<Locale, TranslationBundle> = {
     btnProtectProject: "Защитить проект",
     btnSeeHow: "Смотреть механизм",
     btnStartProtected: "Начать защищённый проект",
-    heroEyebrow: "Каждый проект и каждый платеж под управляемой защитой",
+    heroEyebrow: "Защищаем каждый проект и каждый платеж",
     heroTitleBefore: "Защитите ",
     heroTitleHighlight: "сделки по проекту",
     heroTitleAfter: " в Армении",
     heroSubtitle:
-      "Исключите риск необоснованной предоплаты и запускайте работы в защищенном правовом контуре: VSTAH удерживает средства до официального подтверждения этапов.",
+      "Не рискуйте предоплатой. Не начинайте работу без защиты. VSTAH удерживает средства, пока проект не будет утвержден.",
     cardChip1: "Защищенный проектный депозит",
     cardChip2: "Цифровой договор на выполнение работ",
     projectLabel: "Проект",
@@ -551,16 +551,16 @@ export default function Page() {
   const [activeHeroSlide, setActiveHeroSlide] = useState(0);
   const heroDotStyles = [
     {
-      active: "bg-[#EF4444] ring-2 ring-red-200/80",
-      inactive: "bg-red-200 hover:bg-red-300"
+      active: "bg-[#D90012] ring-2 ring-[#D90012]/65",
+      inactive: "bg-[#D90012]/70 hover:bg-[#D90012]"
     },
     {
-      active: "bg-[#2563EB] ring-2 ring-blue-200/80",
-      inactive: "bg-blue-200 hover:bg-blue-300"
+      active: "bg-[#0033A0] ring-2 ring-[#0033A0]/65",
+      inactive: "bg-[#0033A0]/70 hover:bg-[#0033A0]"
     },
     {
-      active: "bg-[#F59E0B] ring-2 ring-amber-200/80",
-      inactive: "bg-amber-200 hover:bg-amber-300"
+      active: "bg-[#F2A800] ring-2 ring-[#F2A800]/70",
+      inactive: "bg-[#F2A800]/75 hover:bg-[#F2A800]"
     }
   ] as const;
 
@@ -575,6 +575,7 @@ export default function Page() {
 
   const t = translations[locale];
   const heroChipsHyRu = locale === "hy" || locale === "ru";
+  const isHy = locale === "hy";
   const loginLabel = locale === "hy" ? "Մուտք" : locale === "ru" ? "Войти" : "Log in";
   const currentLangShort = langButtons.find((item) => item.code === locale)?.short ?? "EN";
 
@@ -740,19 +741,49 @@ export default function Page() {
               <p className="inline-flex w-fit max-w-full flex-wrap rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-medium leading-snug text-white/90 shadow-sm backdrop-blur-sm hyphens-none break-words md:text-sm">
                 {t.heroEyebrow}
               </p>
-              <h1 className="mt-6 text-balance text-3xl font-black leading-tight tracking-tight text-white hyphens-none break-words sm:mt-8 sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl">
-                {t.heroTitleBefore}
-                <span className="relative inline" style={{ color: ORANGE }}>
-                  <span className="relative z-10">{t.heroTitleHighlight}</span>
-                  <span
-                    className="absolute -bottom-1 left-0 right-0 h-[3px] rounded-full bg-gradient-to-r from-transparent via-orange-300/90 to-transparent"
-                    aria-hidden
-                  />
-                  <span className="absolute bottom-0 left-0 right-0 h-px bg-white/25" aria-hidden />
-                </span>
-                {t.heroTitleAfter}
+              <h1
+                className={`mt-6 font-black tracking-tight text-white hyphens-none sm:mt-8 ${
+                  isHy
+                    ? "text-[1.7rem] leading-[1.12] sm:text-[2rem] md:text-[2.35rem] lg:text-[2.9rem] xl:text-[3.3rem]"
+                    : "text-balance text-3xl leading-tight sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl"
+                }`}
+              >
+                {isHy ? (
+                  <>
+                    <span className="block">Պաշտպանեք</span>
+                    <span className="block">ձեր նախագծային</span>
+                    <span className="block">
+                      <span className="relative inline-block" style={{ color: ORANGE }}>
+                        <span className="relative z-10">գործարքները</span>
+                        <span
+                          className="absolute -bottom-1 left-0 right-0 h-[3px] rounded-full bg-gradient-to-r from-transparent via-orange-300/90 to-transparent"
+                          aria-hidden
+                        />
+                        <span className="absolute bottom-0 left-0 right-0 h-px bg-white/25" aria-hidden />
+                      </span>
+                    </span>
+                    <span className="block">Հայաստանում</span>
+                  </>
+                ) : (
+                  <>
+                    {t.heroTitleBefore}
+                    <span className="relative inline" style={{ color: ORANGE }}>
+                      <span className="relative z-10">{t.heroTitleHighlight}</span>
+                      <span
+                        className="absolute -bottom-1 left-0 right-0 h-[3px] rounded-full bg-gradient-to-r from-transparent via-orange-300/90 to-transparent"
+                        aria-hidden
+                      />
+                      <span className="absolute bottom-0 left-0 right-0 h-px bg-white/25" aria-hidden />
+                    </span>
+                    {t.heroTitleAfter}
+                  </>
+                )}
               </h1>
-              <p className="mt-4 w-full max-w-[800px] text-left text-sm font-medium leading-relaxed text-white/90 hyphens-none break-words sm:mt-6 sm:text-base md:text-lg lg:text-xl">
+              <p
+                className={`mt-4 w-full text-left text-sm font-medium leading-relaxed text-white/85 hyphens-none break-words sm:mt-6 sm:text-base md:text-lg lg:text-xl ${
+                  isHy ? "max-w-[640px]" : "max-w-[800px]"
+                }`}
+              >
                 {t.heroSubtitle}
               </p>
               <div className="mt-8 flex w-full flex-col gap-3 sm:mt-10 sm:flex-row sm:flex-wrap sm:items-center">
