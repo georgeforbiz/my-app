@@ -480,6 +480,21 @@ export default function Page() {
   const { language: locale, setLanguage: setLocale } = useLanguage();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [langMenuOpen, setLangMenuOpen] = useState(false);
+  const [activeHeroSlide, setActiveHeroSlide] = useState(0);
+  const heroDotStyles = [
+    {
+      active: "bg-[#EF4444] ring-2 ring-red-200/80",
+      inactive: "bg-red-200 hover:bg-red-300"
+    },
+    {
+      active: "bg-[#2563EB] ring-2 ring-blue-200/80",
+      inactive: "bg-blue-200 hover:bg-blue-300"
+    },
+    {
+      active: "bg-[#F59E0B] ring-2 ring-amber-200/80",
+      inactive: "bg-amber-200 hover:bg-amber-300"
+    }
+  ] as const;
 
   const langButtons = useMemo(
     () => [
@@ -711,66 +726,199 @@ export default function Page() {
               <div className="absolute -inset-px rounded-2xl bg-gradient-to-br from-slate-200/80 to-slate-100/50 blur-sm" aria-hidden />
               <div className="relative overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_20px_50px_-12px_rgba(15,23,42,0.12)] ring-1 ring-slate-900/[0.04]">
                 <div className="flex items-center gap-2 border-b border-slate-100 bg-slate-50/80 px-4 py-2.5 sm:px-5">
-                  <div className="flex gap-1.5">
-                    <span className="h-2 w-2 rounded-full bg-slate-300" />
-                    <span className="h-2 w-2 rounded-full bg-slate-200" />
-                    <span className="h-2 w-2 rounded-full bg-slate-200" />
+                  <div className="flex items-center gap-2.5">
+                    {[0, 1, 2].map((index) => (
+                      <button
+                        key={`hero-slide-dot-header-${index}`}
+                        type="button"
+                        aria-label={`Go to hero slide ${index + 1}`}
+                        aria-current={activeHeroSlide === index ? "true" : undefined}
+                        onClick={() => setActiveHeroSlide(index)}
+                        className={`h-3.5 w-3.5 rounded-full transition-all ${
+                          activeHeroSlide === index
+                            ? `scale-110 ${heroDotStyles[index].active}`
+                            : heroDotStyles[index].inactive
+                        }`}
+                      />
+                    ))}
                   </div>
                   <span className="flex-1 truncate text-center text-[11px] font-medium text-slate-400">vstah.app</span>
                 </div>
-                <div className="p-5 text-slate-900 sm:p-6">
-                  <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-5">
-                    <div>
-                      <p className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-slate-600">
-                        {t.projectLabel}{" "}
-                        <span className="text-slate-900">{t.projectId}</span>
-                      </p>
-                      <h2 className="mt-2 text-lg font-semibold tracking-tight text-slate-900 sm:text-xl">{t.projectTitle}</h2>
+                <div
+                  className="flex will-change-transform transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]"
+                  style={{ transform: `translateX(-${activeHeroSlide * 100}%)` }}
+                >
+                  <article className="w-full shrink-0">
+                    <div className="p-5 text-slate-900 sm:p-6">
+                      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-5">
+                        <div>
+                          <p className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-slate-600">
+                            {t.projectLabel}{" "}
+                            <span className="text-slate-900">{t.projectId}</span>
+                          </p>
+                          <h2 className="mt-2 text-lg font-semibold tracking-tight text-slate-900 sm:text-xl">{t.projectTitle}</h2>
+                        </div>
+                        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-600/15">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                          {t.projectStatus}
+                        </span>
+                      </div>
+                      <div className="mt-5 overflow-hidden rounded-xl bg-gradient-to-br from-[#1D4ED8] to-[#1E40AF] p-5 text-white shadow-inner sm:p-6">
+                        <p className="text-xs font-medium uppercase tracking-wider text-white/75">{t.fundsLabel}</p>
+                        <p className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl">
+                          450,000 <span className="text-xl font-semibold text-white/80 sm:text-2xl">֏</span>
+                        </p>
+                        <p className="mt-2 text-sm font-medium text-white/90">{t.lockedNote}</p>
+                      </div>
+                      <ul className="mt-5 space-y-2.5">
+                        <li className="flex items-center justify-between gap-3 rounded-xl border border-emerald-100 bg-emerald-50/60 px-3.5 py-3 sm:px-4">
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-slate-900">{t.stage1Name}</p>
+                            <p className="text-xs font-medium text-slate-500">{t.stage1Amount}</p>
+                          </div>
+                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-emerald-800">
+                            <Check className="h-3 w-3" strokeWidth={2.5} />
+                            {t.stage1State}
+                          </span>
+                        </li>
+                        <li className="flex items-center justify-between gap-3 rounded-xl border border-blue-100 bg-blue-50/50 px-3.5 py-3 sm:px-4">
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-slate-900">{t.stage2Name}</p>
+                            <p className="text-xs font-medium text-slate-500">{t.stage2Amount}</p>
+                          </div>
+                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[#1D4ED8]">
+                            <Lock className="h-3 w-3" strokeWidth={2.5} />
+                            {t.stage2State}
+                          </span>
+                        </li>
+                        <li className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 sm:px-4">
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-slate-900">{t.stage3Name}</p>
+                            <p className="text-xs font-medium text-slate-500">{t.stage3Amount}</p>
+                          </div>
+                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-slate-200/80 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-slate-600">
+                            <Clock className="h-3 w-3" strokeWidth={2.5} />
+                            {t.stage3State}
+                          </span>
+                        </li>
+                      </ul>
                     </div>
-                    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-600/15">
-                      <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                      {t.projectStatus}
-                    </span>
-                  </div>
-                  <div className="mt-5 overflow-hidden rounded-xl bg-gradient-to-br from-[#1D4ED8] to-[#1E40AF] p-5 text-white shadow-inner sm:p-6">
-                    <p className="text-xs font-medium uppercase tracking-wider text-white/75">{t.fundsLabel}</p>
-                    <p className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl">
-                      450,000 <span className="text-xl font-semibold text-white/80 sm:text-2xl">֏</span>
-                    </p>
-                    <p className="mt-2 text-sm font-medium text-white/90">{t.lockedNote}</p>
-                  </div>
-                  <ul className="mt-5 space-y-2.5">
-                    <li className="flex items-center justify-between gap-3 rounded-xl border border-emerald-100 bg-emerald-50/60 px-3.5 py-3 sm:px-4">
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-slate-900">{t.stage1Name}</p>
-                        <p className="text-xs font-medium text-slate-500">{t.stage1Amount}</p>
+                  </article>
+
+                  <article className="w-full shrink-0">
+                    <div className="p-5 text-slate-900 sm:p-6">
+                      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-5">
+                        <div>
+                          <p className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-slate-600">
+                            {t.projectLabel} <span className="text-slate-900">#AM-2842</span>
+                          </p>
+                          <h2 className="mt-2 text-lg font-semibold tracking-tight text-slate-900 sm:text-xl">{t.projectTitle}</h2>
+                        </div>
+                        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 ring-1 ring-amber-600/20">
+                          <Clock className="h-3.5 w-3.5" />
+                          Pending Deposit
+                        </span>
                       </div>
-                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-emerald-800">
-                        <Check className="h-3 w-3" strokeWidth={2.5} />
-                        {t.stage1State}
-                      </span>
-                    </li>
-                    <li className="flex items-center justify-between gap-3 rounded-xl border border-blue-100 bg-blue-50/50 px-3.5 py-3 sm:px-4">
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-slate-900">{t.stage2Name}</p>
-                        <p className="text-xs font-medium text-slate-500">{t.stage2Amount}</p>
+                      <div className="mt-5 overflow-hidden rounded-xl bg-gradient-to-br from-[#1D4ED8] to-[#1E40AF] p-4 text-white shadow-inner sm:p-5">
+                        <p className="text-xs font-medium uppercase tracking-wider text-white/75">Awaiting Funds in Escrow</p>
+                        <p className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl">
+                          450,000 <span className="text-xl font-semibold text-white/80 sm:text-2xl">֏</span>
+                        </p>
+                        <p className="mt-1.5 text-xs font-medium text-white/90">Deposit required before any release.</p>
                       </div>
-                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[#1D4ED8]">
-                        <Lock className="h-3 w-3" strokeWidth={2.5} />
-                        {t.stage2State}
-                      </span>
-                    </li>
-                    <li className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 sm:px-4">
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-slate-900">{t.stage3Name}</p>
-                        <p className="text-xs font-medium text-slate-500">{t.stage3Amount}</p>
+                      <div className="mt-4 space-y-2">
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="rounded-lg border border-blue-100 bg-blue-50/60 px-2.5 py-2">
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-blue-700">Demolition</p>
+                            <p className="mt-1 text-[11px] font-bold text-blue-900">Locked</p>
+                          </div>
+                          <div className="rounded-lg border border-blue-100 bg-blue-50/60 px-2.5 py-2">
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-blue-700">Plumbing</p>
+                            <p className="mt-1 text-[11px] font-bold text-blue-900">Locked</p>
+                          </div>
+                          <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2">
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-600">Finishing</p>
+                            <p className="mt-1 text-[11px] font-bold text-slate-700">Pending</p>
+                          </div>
+                        </div>
+                        <div className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5">
+                          <div className="mb-2 flex items-center justify-between">
+                            <p className="text-xs font-semibold text-slate-700">Setup Dashboard</p>
+                            <span className="text-[11px] font-semibold text-slate-500">0/3 released</span>
+                          </div>
+                          <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
+                            <div className="h-full w-[12%] rounded-full bg-[#1D4ED8]" />
+                          </div>
+                        </div>
                       </div>
-                      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-slate-200/80 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-slate-600">
-                        <Clock className="h-3 w-3" strokeWidth={2.5} />
-                        {t.stage3State}
-                      </span>
-                    </li>
-                  </ul>
+                      <button
+                        type="button"
+                        className="mt-4 inline-flex h-10 w-full items-center justify-center rounded-xl bg-[#DC2626] px-4 text-sm font-semibold text-white shadow-sm shadow-red-900/30 transition hover:bg-[#B91C1C]"
+                      >
+                        Deposit Funds
+                      </button>
+                    </div>
+                  </article>
+
+                  <article className="w-full shrink-0">
+                    <div className="p-5 text-slate-900 sm:p-6">
+                      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-5">
+                        <div>
+                          <p className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-slate-600">
+                            {t.projectLabel} <span className="text-slate-900">{t.projectId}</span>
+                          </p>
+                          <h2 className="mt-2 text-lg font-semibold tracking-tight text-slate-900 sm:text-xl">{t.projectTitle}</h2>
+                        </div>
+                        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-600/15">
+                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                          Completed
+                        </span>
+                      </div>
+                      <div className="mt-5 overflow-hidden rounded-xl bg-gradient-to-br from-[#1D4ED8] to-[#1E40AF] p-4 text-white shadow-inner sm:p-5">
+                        <p className="text-xs font-medium uppercase tracking-wider text-white/75">Total Transferred</p>
+                        <p className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl">
+                          450,000 <span className="text-xl font-semibold text-white/80 sm:text-2xl">֏</span>
+                        </p>
+                        <p className="mt-1.5 text-xs font-medium text-white/90">All milestones completed successfully.</p>
+                      </div>
+                      <div className="mt-4 space-y-2">
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="rounded-lg border border-emerald-100 bg-emerald-50/70 px-2.5 py-2">
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700">Demolition</p>
+                            <p className="mt-1 text-[11px] font-bold text-emerald-900">Released</p>
+                          </div>
+                          <div className="rounded-lg border border-emerald-100 bg-emerald-50/70 px-2.5 py-2">
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700">Plumbing</p>
+                            <p className="mt-1 text-[11px] font-bold text-emerald-900">Released</p>
+                          </div>
+                          <div className="rounded-lg border border-emerald-100 bg-emerald-50/70 px-2.5 py-2">
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700">Finishing</p>
+                            <p className="mt-1 text-[11px] font-bold text-emerald-900">Released</p>
+                          </div>
+                        </div>
+                        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5">
+                          <div className="mb-2 flex items-center justify-between">
+                            <p className="text-xs font-semibold text-emerald-900">Completion Dashboard</p>
+                            <span className="text-[11px] font-semibold text-emerald-700">100%</span>
+                          </div>
+                          <div className="h-1.5 overflow-hidden rounded-full bg-emerald-100">
+                            <div className="h-full w-full rounded-full bg-emerald-500" />
+                          </div>
+                        </div>
+                      </div>
+                      <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3.5 py-2">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-xs font-semibold text-emerald-900">Success: Contract completed</p>
+                          <button
+                            type="button"
+                            className="inline-flex items-center rounded-full bg-white px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800 ring-1 ring-emerald-200 transition hover:bg-emerald-100"
+                          >
+                            Leave Feedback
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </article>
                 </div>
               </div>
               <div className="absolute -bottom-2 left-1/2 z-10 w-[min(100%,22rem)] -translate-x-1/2 px-2 sm:w-full sm:max-w-sm">
