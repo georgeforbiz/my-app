@@ -103,6 +103,23 @@ type TranslationBundle = {
   footerPrivacy: string;
   footerFollow: string;
   tableCategory: string;
+  heroSlideAria: string;
+  langSwitcherAria: string;
+  menuAria: string;
+  completionDashboard: string;
+  successCompleted: string;
+  leaveFeedback: string;
+  awaitingFundsEscrow: string;
+  depositRequired: string;
+  setupDashboard: string;
+  totalTransferred: string;
+  allMilestonesCompleted: string;
+  milestoneDemolition: string;
+  milestonePlumbing: string;
+  milestoneFinishing: string;
+  stateLocked: string;
+  statePending: string;
+  stateReleased: string;
 };
 
 const translations: Record<Locale, TranslationBundle> = {
@@ -226,30 +243,47 @@ const translations: Record<Locale, TranslationBundle> = {
     footerTerms: "Terms of Service",
     footerPrivacy: "Privacy Policy",
     footerFollow: "Follow us",
-    tableCategory: "Topic"
+    tableCategory: "Topic",
+    heroSlideAria: "Go to hero slide",
+    langSwitcherAria: "Change language",
+    menuAria: "Menu",
+    completionDashboard: "Completion Dashboard",
+    successCompleted: "Success: Contract completed",
+    leaveFeedback: "Leave Feedback",
+    awaitingFundsEscrow: "Awaiting Funds in Escrow",
+    depositRequired: "Deposit required before any release.",
+    setupDashboard: "Setup Dashboard",
+    totalTransferred: "Total Transferred",
+    allMilestonesCompleted: "All milestones completed successfully.",
+    milestoneDemolition: "Demolition",
+    milestonePlumbing: "Plumbing",
+    milestoneFinishing: "Finishing",
+    stateLocked: "Locked",
+    statePending: "Pending",
+    stateReleased: "Released"
   },
   hy: {
     brand: "VSTAH.am",
     navHome: "Գլխավոր",
-    navHowItWorks: "Ինչպես է աշխատում",
-    btnCreateDeal: "Ստեղծել գործարք",
-    btnProtectProject: "Պաշտպանել նախագիծը",
-    btnSeeHow: "Ինչպես է աշխատում",
+    navHowItWorks: "Աշխատանքի սկզբունքը",
+    btnCreateDeal: "Բացել գործարք",
+    btnProtectProject: "Պաշտպանել իմ նախագիծը",
+    btnSeeHow: "Տեսնել մեխանիզմը",
     btnStartProtected: "Սկսել պաշտպանված նախագիծ",
-    heroEyebrow: "Պաշտպանում ենք յուրաքանչյուր նախագիծը և յուրաքանչյուր վճարը",
-    heroTitleBefore: "Ապահովեք ձեր ",
+    heroEyebrow: "Յուրաքանչյուր նախագիծ և յուրաքանչյուր վճարում` վերահսկելի պաշտպանության ներքո",
+    heroTitleBefore: "Պաշտպանեք ձեր ",
     heroTitleHighlight: "նախագծային գործարքները",
-    heroTitleAfter: " Հայաստանում։",
+    heroTitleAfter: " Հայաստանում",
     heroSubtitle:
-      "Նախապես վճարման ռիսկ մի վերցրեք։ Մի սկսեք աշխատանքը առանց անվտանգության։ VSTAH-ը կողպում է միջոցները մինչև նախագիծը հաստատվի։",
-    cardChip1: "Ապահով գործարքներ",
-    cardChip2: "Առանց ռիսկերի",
+      "Բացառեք կույր կանխավճարների ռիսկը և սկսեք աշխատանքը վերահսկելի իրավական շրջանակում. VSTAH-ը պահպանում է միջոցները մինչև աշխատանքի պաշտոնական հաստատումը։",
+    cardChip1: "Պաշտպանված նախագծային դեպոզիտ",
+    cardChip2: "Թվային աշխատանքային պայմանագիր",
     projectLabel: "Նախագիծ",
     projectId: "#AM-2841",
     projectTitle: "Բնակարանի վերանորոգում",
     projectStatus: "Ակտիվ",
-    fundsLabel: "Ապահով հաշվում",
-    lockedNote: "Կողպված է 3 փուլով",
+    fundsLabel: "Միջոցները էսկրոու հաշվին",
+    lockedNote: "Պահպանվում է 3 փուլով",
     stage1Name: "Քանդում և նախապատրաստում",
     stage1Amount: "150,000 ֏",
     stage1State: "Արձակված",
@@ -259,119 +293,136 @@ const translations: Record<Locale, TranslationBundle> = {
     stage3Name: "Վերջնահարդարում",
     stage3Amount: "100,000 ֏",
     stage3State: "Սպասում",
-    cardMediation: "Միջոցները ապահովված են և տեղապաշտպանված",
-    cardTagline1: "Կանգնեցրեք վեճերը։",
-    cardTagline2: "Սկսեք վերանորոգումը։",
-    feature1: "Նախապես ռիսկ չկա։",
-    feature2: "Չվճարված աշխատանք չկա։",
-    feature3: "Ստեղծված է Հայաստանի համար։",
+    cardMediation: "Միջոցները պաշտպանված են և կարգավորվում են ՀՀ իրավական դաշտում",
+    cardTagline1: "Կանխեք վեճերը։",
+    cardTagline2: "Առաջ մղեք նախագիծը։",
+    feature1: "Առանց կույր կանխավճարի ռիսկի։",
+    feature2: "Առանց չվճարված աշխատանքի։",
+    feature3: "Նախագծված է Հայաստանի շուկայի համար։",
     feature4: "Ապահով տեղական գործարքներ։",
     diffEyebrow: "Տարբերությունը",
-    diffTitle: "VSTAH-ի հետ՝ ընդդեմ առանց մեզ",
+    diffTitle: "VSTAH-ով և առանց VSTAH-ի",
     diffSubtitle:
-      "Կանխեք վեճերը մինչև դրանք կսկսվեն։ Տեսեք, ինչպես VSTAH-ը պաշտպանում է ձեր նախագիծը։",
+      "Կանխեք հակասությունները դեռ մեկնարկից առաջ։ Տեսեք, թե ինչպես է VSTAH-ը պաշտպանում ձեր նախագիծը։",
     recommended: "Առաջարկվող",
     colWith: "VSTAH-ով",
     colWithout: "Առանց մեզ",
-    diffWithoutEyebrow: "Ավանդական",
+    diffWithoutEyebrow: "Հին մոտեցում",
     comparisonRows: [
       {
-        label: "Գումարի պաշտպանություն",
-        withVstah: "Կանխավճարը կողպված է էսկրոուում մինչև աշխատանքի հաստատումը",
-        withoutUs: "Կանխիկը հանձնվում է և հուսում են լավագույնի վրա"
+        label: "Միջոցների պաշտպանություն",
+        withVstah: "Դեպոզիտը պահվում է էսկրոուում մինչև աշխատանքի հաստատումը",
+        withoutUs: "Գումարը փոխանցվում է նախապես` առանց երաշխիքի"
       },
       {
-        label: "Գրավոր պայմանագիր",
-        withVstah: "Թվային պայմանագիր՝ ստորագրված երկու կողմերից",
-        withoutUs: "Բանավոր խոստումներ և WhatsApp հաղորդագրություններ"
+        label: "Պայմանագրային հստակություն",
+        withVstah: "Թվային պայմանագիր` էլեկտրոնային հաստատմամբ երկու կողմերի կողմից",
+        withoutUs: "Բանավոր պայմանավորվածություններ և հաղորդագրություններ"
       },
       {
-        label: "Նախագծի փուլեր",
-        withVstah: "Վճարում յուրաքանչյուր ավարտված փուլի համար, արձակում հաստատումից հետո",
-        withoutUs: "Լրիվ վճարում նախապես կամ վեճ հետո"
+        label: "Փուլային վճարումներ",
+        withVstah: "Վճարումը կատարվում է յուրաքանչյուր ավարտված փուլի հաստատումից հետո",
+        withoutUs: "Ամբողջական կանխավճար կամ հետագա վեճ"
       },
       {
-        label: "Վեճեր",
-        withVstah: "Ներառված է հայկական իրավական միջնորդություն",
-        withoutUs: "Անձնական վեճեր, կորած ժամանակ և գումար"
+        label: "Վեճերի կառավարում",
+        withVstah: "Ներառված է ՀՀ իրավական միջնորդության գործընթաց",
+        withoutUs: "Անձնական հակասություններ, կորցված ժամանակ և միջոցներ"
       },
       {
         label: "Թափանցիկություն",
-        withVstah: "Յուրաքանչյուր փուլ գրանցված և ժամանակակետով",
-        withoutUs: "Խոսակցության խառնաշփոթ և թյուրիմացություններ"
+        withVstah: "Յուրաքանչյուր փուլ արձանագրվում է հստակ ժամնշմամբ",
+        withoutUs: "Կոմունիկացիոն խզումներ և թյուրըմբռնումներ"
       },
       {
-        label: "Վստահություն",
-        withVstah: "Երաշխավորված է հարթակով՝ ոչ թե խոսքերով",
-        withoutUs: "Կախված է նրանից, թե ում գիտեք"
+        label: "Վստահելիություն",
+        withVstah: "Պլատֆորմային երաշխիքներ, ոչ թե բանավոր խոստումներ",
+        withoutUs: "Կախված է անձնական կապերից"
       }
     ],
-    processEyebrow: "Գործընթացը",
-    processTitle: "Ինչպես է աշխատում",
+    processEyebrow: "Գործընթաց",
+    processTitle: "Ինչպես է դա աշխատում",
     processSubtitle:
-      "Չորս պարզ քայլ։ Չկա անորոշություն։ Երկու կողմն էլ ամբողջությամբ պաշտպանված են։",
+      "Չորս հստակ քայլ, զրո անորոշություն. երկու կողմն էլ ամբողջությամբ պաշտպանված են։",
     processSteps: [
       {
         step: "01",
-        title: "Ստեղծել նախագծի գործարքը",
-        desc: "Նշեք նախագծի ծավալը, փուլերը և ընդհանուր արժեքը րոպեների ընթացքում։"
+        title: "Ստեղծեք նախագծային գործարքը",
+        desc: "Մի քանի րոպեում սահմանեք աշխատանքի ծավալը, փուլերը և ընդհանուր բյուջեն։"
       },
       {
         step: "02",
-        title: "Ապահովեք միջոցները",
-        desc: "Գումարները կողպված են էսկրոուում։ Ապահով և թափանցիկ։"
+        title: "Պահպանեք միջոցները",
+        desc: "Միջոցները պահվում են էսկրոուում. անվտանգ և լիովին թափանցիկ։"
       },
       {
         step: "03",
-        title: "Աշխատանքը սկսվում է",
-        desc: "Սկսվում է լիակատար վստահությամբ, որ գումարը ապահովված է և սպասում է։"
+        title: "Սկսվում են աշխատանքները",
+        desc: "Կողմերը սկսում են լիարժեք վստահությամբ, որ միջոցները պաշտպանված են։"
       },
       {
         step: "04",
-        title: "Հաստատել և արձակել",
-        desc: "Վերանայեք յուրաքանչյուր ավարտված փուլը՝ գումարը արձակվում է միայն ձեր հաստատումից հետո։"
+        title: "Հաստատեք և ազատեք վճարումը",
+        desc: "Ստուգեք յուրաքանչյուր ավարտված փուլը. վճարումը բաց է թողնվում միայն հաստատումից հետո։"
       }
     ],
-    disputeEyebrow: "Վեճերի լուծում",
-    disputeTitle: "Եթե ինչ-որ բան սխալ է ընթանում մենք միջամտում ենք",
+    disputeEyebrow: "Վեճերի կարգավորում",
+    disputeTitle: "Եթե ընթացքը շեղվում է, մենք միանում ենք գործընթացին",
     disputeBody:
-      "Մեր հայկական իրավական փորձագետները միջնորդում են երբ նախագծերը բարդանում են։ Արդար ու արագ՝ հիմնված տեղական օրենքի վրա, որպեսզի երկու կողմերն էլ հասնեն լուծման։",
-    badge24h: "Արագ աջակցություն",
-    badge24hSub: "24 ժամվա պատասխան՝ եթե խնդիր առաջանա։",
-    badgeLaw: "Լիովին օրինական",
-    badgeLawSub: "100% համապատասխանում է Հայաստանի տեղական օրենքներին։",
-    badgeMed: "Արագ լուծում",
-    badgeMedSub: "Վեճերը լուծելու պարզ 3 քայլանի գործընթաց։",
-    footerTagline: "Անվտանգ գործարքներ հայկական տների համար՝ պաշտպանված վճարումներ սկսից մինչև վերջ։",
+      "Մեր հայ իրավաբան-միջնորդները ներգրավվում են բարդ իրավիճակներում և ապահովում հավասարակշռված լուծում` հիմնված Հայաստանի իրավունքի վրա։",
+    badge24h: "Օպերատիվ աջակցություն",
+    badge24hSub: "Խնդրի դեպքում` պատասխան մինչև 24 ժամում։",
+    badgeLaw: "Իրավական համապատասխանություն",
+    badgeLawSub: "100% համապատասխանություն ՀՀ գործող օրենսդրությանը։",
+    badgeMed: "Կառավարվող կարգավորում",
+    badgeMedSub: "Վեճերի կարգավորման հստակ 3-քայլանոց մեխանիզմ։",
+    footerTagline: "Վստահություն յուրաքանչյուր նախագծում` պաշտպանված վճարումներով սկզբից մինչև ավարտ։",
     footerRights: "© 2026 VSTAH.am։ Բոլոր իրավունքները պաշտպանված են։",
     footerPhoneLabel: "Հեռախոս",
-    footerTerms: "Պայմաններ",
+    footerTerms: "Ծառայության պայմաններ",
     footerPrivacy: "Գաղտնիության քաղաքականություն",
     footerFollow: "Հետևեք մեզ",
-    tableCategory: "Թեմա"
+    tableCategory: "Թեմա",
+    heroSlideAria: "Անցնել հերո սլայդին",
+    langSwitcherAria: "Փոխել լեզուն",
+    menuAria: "Մենյու",
+    completionDashboard: "Կատարման ցուցատախտակ",
+    successCompleted: "Հաջողված ավարտ. պայմանագիրն ավարտված է",
+    leaveFeedback: "Թողնել գնահատական",
+    awaitingFundsEscrow: "Միջոցները սպասման մեջ են էսկրոուում",
+    depositRequired: "Դեպոզիտը պահանջվում է մինչև ցանկացած վճարման բաց թողնում։",
+    setupDashboard: "Մեկնարկի ցուցատախտակ",
+    totalTransferred: "Ընդհանուր փոխանցված",
+    allMilestonesCompleted: "Բոլոր փուլերը հաջողությամբ ավարտված են։",
+    milestoneDemolition: "Քանդում",
+    milestonePlumbing: "Ջրմուղ",
+    milestoneFinishing: "Հարդարում",
+    stateLocked: "Կողպված",
+    statePending: "Սպասման մեջ",
+    stateReleased: "Արձակված"
   },
   ru: {
     brand: "VSTAH.am",
     navHome: "Главная",
-    navHowItWorks: "Как это работает",
-    btnCreateDeal: "Создать сделку",
+    navHowItWorks: "Принцип работы",
+    btnCreateDeal: "Открыть сделку",
     btnProtectProject: "Защитить проект",
-    btnSeeHow: "Как это работает",
+    btnSeeHow: "Смотреть механизм",
     btnStartProtected: "Начать защищённый проект",
-    heroEyebrow: "Защита проектов и платежей",
+    heroEyebrow: "Каждый проект и каждый платеж под управляемой защитой",
     heroTitleBefore: "Защитите ",
     heroTitleHighlight: "сделки по проекту",
-    heroTitleAfter: " в Армении.",
+    heroTitleAfter: " в Армении",
     heroSubtitle:
-      "Не платите вслепую и не начинайте без защиты: VSTAH удерживает средства до вашего утверждения работ по проекту.",
-    cardChip1: "Безопасные сделки",
-    cardChip2: "Без рисков",
+      "Исключите риск необоснованной предоплаты и запускайте работы в защищенном правовом контуре: VSTAH удерживает средства до официального подтверждения этапов.",
+    cardChip1: "Защищенный проектный депозит",
+    cardChip2: "Цифровой договор на выполнение работ",
     projectLabel: "Проект",
     projectId: "#AM-2841",
     projectTitle: "Ремонт квартиры",
     projectStatus: "Активен",
-    fundsLabel: "Средства в защите",
-    lockedNote: "Заблокировано на 3 этапа",
+    fundsLabel: "Средства в эскроу",
+    lockedNote: "Зафиксировано по 3 этапам",
     stage1Name: "Демонтаж и подготовка",
     stage1Amount: "150 000 ֏",
     stage1State: "Выплачено",
@@ -381,96 +432,113 @@ const translations: Record<Locale, TranslationBundle> = {
     stage3Name: "Финишная отделка",
     stage3Amount: "100 000 ֏",
     stage3State: "Ожидание",
-    cardMediation: "Средства защищены и под местной защитой",
-    cardTagline1: "Остановите споры.",
-    cardTagline2: "Начните ремонт.",
-    feature1: "Без риска предоплаты.",
-    feature2: "Без неоплаченных работ.",
-    feature3: "Создано для Армении.",
+    cardMediation: "Средства защищены и регулируются в правовом поле Армении",
+    cardTagline1: "Предотвратите споры.",
+    cardTagline2: "Ускорьте проект.",
+    feature1: "Без риска необоснованной предоплаты.",
+    feature2: "Без неоплаченного объема работ.",
+    feature3: "Разработано для рынка Армении.",
     feature4: "Защищённые локальные сделки.",
     diffEyebrow: "Разница",
-    diffTitle: "С VSTAH и без нас",
+    diffTitle: "С VSTAH и без VSTAH",
     diffSubtitle:
-      "Остановите споры до того, как они начнутся. Посмотрите, как VSTAH защищает ваш проект.",
+      "Предотвращайте конфликтные ситуации еще до старта. Посмотрите, как VSTAH защищает ваш проект.",
     recommended: "Рекомендуется",
     colWith: "С VSTAH",
     colWithout: "Без нас",
-    diffWithoutEyebrow: "По-старому",
+    diffWithoutEyebrow: "Традиционный подход",
     comparisonRows: [
       {
         label: "Защита средств",
-        withVstah: "Депозит в Эскроу до приёмки работ",
-        withoutUs: "Наличные в руки — и надежда на лучшее"
+        withVstah: "Депозит удерживается в эскроу до подтверждения выполненных работ",
+        withoutUs: "Средства передаются заранее без гарантии результата"
       },
       {
-        label: "Письменный договор",
-        withVstah: "Цифровой контракт с подписями обеих сторон",
-        withoutUs: "Устные обещания и переписки в WhatsApp"
+        label: "Договорная определенность",
+        withVstah: "Цифровой договор с электронным подтверждением обеих сторон",
+        withoutUs: "Устные договоренности и переписка в мессенджерах"
       },
       {
-        label: "Вехи проекта",
-        withVstah: "Оплата по завершённым этапам, выплата после одобрения",
-        withoutUs: "Полная предоплата или спор потом"
+        label: "Этапные платежи",
+        withVstah: "Оплата производится после подтверждения каждого завершенного этапа",
+        withoutUs: "Полная предоплата или спор по факту"
       },
       {
-        label: "Споры",
-        withVstah: "Включено правовое посредничество по Армении",
-        withoutUs: "Личные конфликты, потерянное время и деньги"
+        label: "Урегулирование споров",
+        withVstah: "Встроенный процесс правовой медиации в рамках законодательства Армении",
+        withoutUs: "Личные конфликты, потери времени и бюджета"
       },
       {
         label: "Прозрачность",
-        withVstah: "Каждый этап залогирован и с меткой времени",
-        withoutUs: "Недопонимание и ошибки в коммуникации"
+        withVstah: "Каждый этап фиксируется с временной отметкой",
+        withoutUs: "Коммуникационные разрывы и недопонимание"
       },
       {
-        label: "Доверие",
-        withVstah: "Гарантия платформы — не просто обещания",
-        withoutUs: "Зависит от того, кого вы знаете"
+        label: "Надежность",
+        withVstah: "Гарантии платформы вместо устных обещаний",
+        withoutUs: "Зависимость от личных связей"
       }
     ],
     processEyebrow: "Процесс",
     processTitle: "Как это работает",
     processSubtitle:
-      "Четыре простых шага. Без догадок. Обе стороны полностью защищены.",
+      "Четыре четких шага без неопределенности: обе стороны полностью защищены.",
     processSteps: [
       {
         step: "01",
-        title: "Создать сделку по проекту",
-        desc: "Задайте объём проекта, вехи и общую стоимость за считанные минуты."
+        title: "Создайте проектную сделку",
+        desc: "За несколько минут зафиксируйте объем работ, этапы и общий бюджет."
       },
       {
         step: "02",
-        title: "Защитите средства",
-        desc: "Средства блокируются в Эскроу. Безопасно и прозрачно."
+        title: "Разместите средства под защитой",
+        desc: "Средства удерживаются в эскроу: безопасно и прозрачно."
       },
       {
         step: "03",
-        title: "Начинаются работы",
-        desc: "Работа начинается с полной уверенностью: деньги защищены и уже ждут."
+        title: "Работы стартуют",
+        desc: "Стороны начинают проект с уверенностью, что средства защищены."
       },
       {
         step: "04",
-        title: "Одобрить и выплатить",
-        desc: "Проверьте каждый завершённый этап — средства выпускаются только после вашего одобрения."
+        title: "Подтвердите и разблокируйте оплату",
+        desc: "Проверяйте каждый завершенный этап: выплата происходит только после подтверждения."
       }
     ],
-    disputeEyebrow: "Разрешение споров",
-    disputeTitle: "Если что-то идёт не так мы подключаемся",
+    disputeEyebrow: "Урегулирование споров",
+    disputeTitle: "Если процесс отклоняется, мы оперативно подключаемся",
     disputeBody:
-      "Наши армянские юристы-медиаторы помогают, когда проекты усложняются. Честно и быстро по местному закону — чтобы обе стороны пришли к решению.",
-    badge24h: "Быстрая поддержка",
-    badge24hSub: "Ответ в течение 24 часов, если возникнет проблема.",
-    badgeLaw: "Полная легальность",
-    badgeLawSub: "100% соответствие местному законодательству Армении.",
-    badgeMed: "Быстрое решение",
-    badgeMedSub: "Простой процесс из 3 шагов для урегулирования споров.",
-    footerTagline: "Безопасные сделки для армянских домов — защищённые платежи от начала до сдачи.",
+      "Наши армянские юристы-медиаторы подключаются в сложных ситуациях и обеспечивают сбалансированное решение в рамках местного права.",
+    badge24h: "Оперативная поддержка",
+    badge24hSub: "При возникновении вопроса — ответ в течение 24 часов.",
+    badgeLaw: "Правовая чистота",
+    badgeLawSub: "100% соответствие действующему законодательству Армении.",
+    badgeMed: "Управляемая медиация",
+    badgeMedSub: "Понятный 3-шаговый процесс урегулирования разногласий.",
+    footerTagline: "Доверие в каждом проекте: защищенные платежи от старта до финального закрытия.",
     footerRights: "© 2026 VSTAH.am. Все права защищены.",
     footerPhoneLabel: "Телефон",
     footerTerms: "Условия использования",
     footerPrivacy: "Политика конфиденциальности",
     footerFollow: "Мы в соцсетях",
-    tableCategory: "Тема"
+    tableCategory: "Тема",
+    heroSlideAria: "Перейти к слайду героя",
+    langSwitcherAria: "Сменить язык",
+    menuAria: "Меню",
+    completionDashboard: "Панель завершения",
+    successCompleted: "Успешно: договор исполнен",
+    leaveFeedback: "Оставить отзыв",
+    awaitingFundsEscrow: "Средства ожидают размещения в эскроу",
+    depositRequired: "Для разблокировки выплат требуется внесение депозита.",
+    setupDashboard: "Панель запуска",
+    totalTransferred: "Итого переведено",
+    allMilestonesCompleted: "Все этапы успешно завершены.",
+    milestoneDemolition: "Демонтаж",
+    milestonePlumbing: "Сантехника",
+    milestoneFinishing: "Отделка",
+    stateLocked: "Заблокировано",
+    statePending: "Ожидание",
+    stateReleased: "Выплачено"
   }
 };
 
@@ -533,7 +601,7 @@ export default function Page() {
               <button
                 type="button"
                 onClick={() => setLangMenuOpen((o) => !o)}
-                aria-label="Change language"
+                aria-label={t.langSwitcherAria}
                 className="inline-flex h-11 items-center gap-2 rounded-2xl border border-slate-300 bg-white px-3 pr-4 text-slate-900 transition hover:border-slate-400"
               >
                 <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-300">
@@ -579,7 +647,7 @@ export default function Page() {
               <button
                 type="button"
                 onClick={() => setLangMenuOpen((o) => !o)}
-                aria-label="Change language"
+                aria-label={t.langSwitcherAria}
                 className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-2.5 text-slate-900"
               >
                 <Globe className="h-4 w-4" />
@@ -611,7 +679,7 @@ export default function Page() {
               type="button"
               className="rounded-xl border border-slate-300 bg-white p-2.5 text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
               aria-expanded={mobileOpen}
-              aria-label="Menu"
+              aria-label={t.menuAria}
               onClick={() => setMobileOpen((o) => !o)}
             >
               {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -684,7 +752,7 @@ export default function Page() {
                 </span>
                 {t.heroTitleAfter}
               </h1>
-              <p className="mt-4 w-full max-w-[800px] text-left text-sm leading-relaxed text-white/85 hyphens-none break-words sm:mt-6 sm:text-base md:text-lg lg:text-xl">
+              <p className="mt-4 w-full max-w-[800px] text-left text-sm font-medium leading-relaxed text-white/90 hyphens-none break-words sm:mt-6 sm:text-base md:text-lg lg:text-xl">
                 {t.heroSubtitle}
               </p>
               <div className="mt-8 flex w-full flex-col gap-3 sm:mt-10 sm:flex-row sm:flex-wrap sm:items-center">
@@ -731,7 +799,7 @@ export default function Page() {
                       <button
                         key={`hero-slide-dot-header-${index}`}
                         type="button"
-                        aria-label={`Go to hero slide ${index + 1}`}
+                        aria-label={`${t.heroSlideAria} ${index + 1}`}
                         aria-current={activeHeroSlide === index ? "true" : undefined}
                         onClick={() => setActiveHeroSlide(index)}
                         className={`h-3.5 w-3.5 rounded-full transition-all ${
@@ -820,30 +888,30 @@ export default function Page() {
                         </span>
                       </div>
                       <div className="mt-5 overflow-hidden rounded-xl bg-gradient-to-br from-[#1D4ED8] to-[#1E40AF] p-4 text-white shadow-inner sm:p-5">
-                        <p className="text-xs font-medium uppercase tracking-wider text-white/75">Awaiting Funds in Escrow</p>
+                        <p className="text-xs font-medium uppercase tracking-wider text-white/75">{t.awaitingFundsEscrow}</p>
                         <p className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl">
                           450,000 <span className="text-xl font-semibold text-white/80 sm:text-2xl">֏</span>
                         </p>
-                        <p className="mt-1.5 text-xs font-medium text-white/90">Deposit required before any release.</p>
+                        <p className="mt-1.5 text-xs font-medium text-white/90">{t.depositRequired}</p>
                       </div>
                       <div className="mt-4 space-y-2">
                         <div className="grid grid-cols-3 gap-2">
                           <div className="rounded-lg border border-blue-100 bg-blue-50/60 px-2.5 py-2">
-                            <p className="text-[10px] font-semibold uppercase tracking-wide text-blue-700">Demolition</p>
-                            <p className="mt-1 text-[11px] font-bold text-blue-900">Locked</p>
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-blue-700">{t.milestoneDemolition}</p>
+                            <p className="mt-1 text-[11px] font-bold text-blue-900">{t.stateLocked}</p>
                           </div>
                           <div className="rounded-lg border border-blue-100 bg-blue-50/60 px-2.5 py-2">
-                            <p className="text-[10px] font-semibold uppercase tracking-wide text-blue-700">Plumbing</p>
-                            <p className="mt-1 text-[11px] font-bold text-blue-900">Locked</p>
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-blue-700">{t.milestonePlumbing}</p>
+                            <p className="mt-1 text-[11px] font-bold text-blue-900">{t.stateLocked}</p>
                           </div>
                           <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2">
-                            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-600">Finishing</p>
-                            <p className="mt-1 text-[11px] font-bold text-slate-700">Pending</p>
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-600">{t.milestoneFinishing}</p>
+                            <p className="mt-1 text-[11px] font-bold text-slate-700">{t.statePending}</p>
                           </div>
                         </div>
                         <div className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5">
                           <div className="mb-2 flex items-center justify-between">
-                            <p className="text-xs font-semibold text-slate-700">Setup Dashboard</p>
+                            <p className="text-xs font-semibold text-slate-700">{t.setupDashboard}</p>
                             <span className="text-[11px] font-semibold text-slate-500">0/3 released</span>
                           </div>
                           <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
@@ -875,30 +943,30 @@ export default function Page() {
                         </span>
                       </div>
                       <div className="mt-5 overflow-hidden rounded-xl bg-gradient-to-br from-[#1D4ED8] to-[#1E40AF] p-4 text-white shadow-inner sm:p-5">
-                        <p className="text-xs font-medium uppercase tracking-wider text-white/75">Total Transferred</p>
+                        <p className="text-xs font-medium uppercase tracking-wider text-white/75">{t.totalTransferred}</p>
                         <p className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl">
                           450,000 <span className="text-xl font-semibold text-white/80 sm:text-2xl">֏</span>
                         </p>
-                        <p className="mt-1.5 text-xs font-medium text-white/90">All milestones completed successfully.</p>
+                        <p className="mt-1.5 text-xs font-medium text-white/90">{t.allMilestonesCompleted}</p>
                       </div>
                       <div className="mt-4 space-y-2">
                         <div className="grid grid-cols-3 gap-2">
                           <div className="rounded-lg border border-emerald-100 bg-emerald-50/70 px-2.5 py-2">
-                            <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700">Demolition</p>
-                            <p className="mt-1 text-[11px] font-bold text-emerald-900">Released</p>
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700">{t.milestoneDemolition}</p>
+                            <p className="mt-1 text-[11px] font-bold text-emerald-900">{t.stateReleased}</p>
                           </div>
                           <div className="rounded-lg border border-emerald-100 bg-emerald-50/70 px-2.5 py-2">
-                            <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700">Plumbing</p>
-                            <p className="mt-1 text-[11px] font-bold text-emerald-900">Released</p>
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700">{t.milestonePlumbing}</p>
+                            <p className="mt-1 text-[11px] font-bold text-emerald-900">{t.stateReleased}</p>
                           </div>
                           <div className="rounded-lg border border-emerald-100 bg-emerald-50/70 px-2.5 py-2">
-                            <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700">Finishing</p>
-                            <p className="mt-1 text-[11px] font-bold text-emerald-900">Released</p>
+                            <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700">{t.milestoneFinishing}</p>
+                            <p className="mt-1 text-[11px] font-bold text-emerald-900">{t.stateReleased}</p>
                           </div>
                         </div>
                         <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5">
                           <div className="mb-2 flex items-center justify-between">
-                            <p className="text-xs font-semibold text-emerald-900">Completion Dashboard</p>
+                            <p className="text-xs font-semibold text-emerald-900">{t.completionDashboard}</p>
                             <span className="text-[11px] font-semibold text-emerald-700">100%</span>
                           </div>
                           <div className="h-1.5 overflow-hidden rounded-full bg-emerald-100">
@@ -908,12 +976,12 @@ export default function Page() {
                       </div>
                       <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3.5 py-2">
                         <div className="flex items-center justify-between gap-3">
-                          <p className="text-xs font-semibold text-emerald-900">Success: Contract completed</p>
+                          <p className="text-xs font-semibold text-emerald-900">{t.successCompleted}</p>
                           <button
                             type="button"
                             className="inline-flex items-center rounded-full bg-white px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800 ring-1 ring-emerald-200 transition hover:bg-emerald-100"
                           >
-                            Leave Feedback
+                            {t.leaveFeedback}
                           </button>
                         </div>
                       </div>
@@ -940,7 +1008,7 @@ export default function Page() {
             ].map(({ text, icon: Icon }, index) => (
               <div
                 key={`feature-${index}`}
-                className="flex min-h-[4.75rem] w-full min-w-0 max-w-none items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50 p-4 shadow-sm md:min-h-[5rem] md:p-5"
+                className="flex min-h-[4.75rem] w-full min-w-0 max-w-none items-center gap-3 rounded-2xl border border-slate-100 bg-gradient-to-br from-slate-50 to-white p-4 shadow-sm ring-1 ring-slate-100/70 md:min-h-[5rem] md:p-5"
               >
                 <span
                   className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl text-white shadow-md"
@@ -948,7 +1016,7 @@ export default function Page() {
                 >
                   <Icon className="h-6 w-6" />
                 </span>
-                <p className="min-w-0 flex-1 break-words pt-1 font-bold leading-snug text-[clamp(12px,1.2vw,16px)]">{text}</p>
+                <p className="min-w-0 flex-1 break-words pt-1 font-extrabold leading-snug text-[clamp(12px,1.2vw,16px)]">{text}</p>
               </div>
             ))}
           </div>
@@ -960,7 +1028,7 @@ export default function Page() {
             <h2 className="mt-3 text-center text-3xl font-black tracking-tight md:text-4xl" style={{ color: NAVY }}>
               {t.diffTitle}
             </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-center text-base text-slate-600 md:text-lg">{t.diffSubtitle}</p>
+            <p className="mx-auto mt-4 max-w-2xl text-center text-base font-medium text-slate-700 md:text-lg">{t.diffSubtitle}</p>
 
             {/* Narrow screens: stacked cards */}
             <div className="mt-10 flex flex-col gap-5 md:hidden">
@@ -1074,7 +1142,7 @@ export default function Page() {
             <h2 className="mt-3 text-center text-3xl font-black tracking-tight md:text-4xl" style={{ color: NAVY }}>
               {t.processTitle}
             </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-center text-base text-slate-600 md:text-lg">{t.processSubtitle}</p>
+            <p className="mx-auto mt-4 max-w-2xl text-center text-base font-medium text-slate-700 md:text-lg">{t.processSubtitle}</p>
 
             <div className="relative mt-14">
               <div className="pointer-events-none absolute left-[8%] right-[8%] top-8 hidden h-1 rounded-full opacity-40 lg:block" style={{ background: `linear-gradient(90deg, transparent, ${NAVY}, transparent)` }} aria-hidden />
@@ -1108,7 +1176,7 @@ export default function Page() {
           <div className="relative mx-auto max-w-3xl px-4 text-center md:px-6">
             <p className="text-xs font-black uppercase tracking-[0.25em] text-white/70">{t.disputeEyebrow}</p>
             <h2 className="mt-4 text-3xl font-black leading-tight text-white md:text-4xl">{t.disputeTitle}</h2>
-            <p className="mt-5 text-base leading-relaxed text-white/85 md:text-lg">{t.disputeBody}</p>
+            <p className="mt-5 text-base font-medium leading-relaxed text-white/90 md:text-lg">{t.disputeBody}</p>
             <div className="mt-8 flex justify-center">
               <OrangeButton href="/register?next=%2Fdashboard">{t.btnStartProtected}</OrangeButton>
             </div>
