@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Archive, Check, Copy, Download, ExternalLink, FilePlus2, LayoutDashboard, Loader2, Plus, Trash2 } from "lucide-react";
+import { Archive, Check, Copy, Download, ExternalLink, FilePlus2, Globe, LayoutDashboard, Loader2, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/auth-context";
 import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
@@ -309,6 +309,7 @@ export default function DashboardPage() {
   const [copiedAgreementId, setCopiedAgreementId] = useState("");
   const [clientSearch, setClientSearch] = useState("");
   const [successAgreementId, setSuccessAgreementId] = useState("");
+  const [langMenuOpen, setLangMenuOpen] = useState(false);
 
   const [clientName, setClientName] = useState("");
   const [projectTitle, setProjectTitle] = useState("");
@@ -657,35 +658,62 @@ export default function DashboardPage() {
           </div>
         </aside>
 
-        <main className="min-w-0 flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+        <main className="min-w-0 flex-1 overflow-y-auto p-4 pb-24 md:p-6 md:pb-6 lg:p-8">
           <div className="mx-auto max-w-7xl space-y-6">
-            <header className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <header className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 md:gap-3">
                   <h2 className="text-2xl font-black text-[#0033A0]">{view === "archive" ? tx.archivedTitle : tx.agreementsTitle}</h2>
-                  <div className="flex items-center gap-1 rounded-lg border border-slate-200 p-1">
-                    <span className="px-2 text-xs font-semibold text-slate-500">{tx.language}</span>
-                    {(["en", "hy", "ru"] as const).map((code) => (
-                      <button
-                        key={code}
-                        type="button"
-                        onClick={() => setLang(code)}
-                        className="rounded-md px-2 py-1 text-xs font-bold uppercase"
-                        style={{ backgroundColor: lang === code ? "#F2A800" : "transparent", color: lang === code ? "#111827" : "#64748B" }}
-                      >
-                        {code}
-                      </button>
-                    ))}
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setLangMenuOpen((prev) => !prev)}
+                      className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-700"
+                      aria-label="Open language switcher"
+                    >
+                      <Globe className="h-4 w-4" />
+                    </button>
+                    {langMenuOpen ? (
+                      <div className="absolute left-0 top-10 z-20 min-w-[94px] rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg">
+                        {(["en", "hy", "ru"] as const).map((code) => (
+                          <button
+                            key={code}
+                            type="button"
+                            onClick={() => {
+                              setLang(code);
+                              setLangMenuOpen(false);
+                            }}
+                            className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs font-semibold uppercase ${
+                              lang === code ? "bg-slate-100 text-slate-900" : "text-slate-600 hover:bg-slate-50"
+                            }`}
+                          >
+                            {code}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
                 </div>
                 <button
                   type="button"
                   onClick={() => setView("create")}
-                  className="inline-flex items-center gap-2 rounded-xl bg-[#F2A800] px-4 py-2 text-sm font-bold text-slate-900"
+                  className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#F2A800] px-4 py-2 text-sm font-bold text-slate-900"
                 >
                   <Plus className="h-4 w-4" />
                   {tx.createNewAgreement}
                 </button>
+              </div>
+              <div className="mt-3 border-t border-slate-100 pt-3 lg:hidden">
+                <div className="mt-2 flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2">
+                  <p className="min-w-0 truncate text-xs text-slate-600">{tx.signedInAs}: {user.email}</p>
+                  <button
+                    type="button"
+                    onClick={() => void signOut().then(() => router.replace("/login?next=%2Fdashboard"))}
+                    className="inline-flex min-h-9 shrink-0 items-center rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700"
+                  >
+                    {tx.logout}
+                  </button>
+                </div>
               </div>
             </header>
 
@@ -711,7 +739,7 @@ export default function DashboardPage() {
                       <p className="mt-1 text-sm text-slate-600">{tx.emptySubtitle}</p>
                     </div>
                   ) : (
-                    <div className="overflow-x-auto">
+                    <div>
                       {showClientSearch ? (
                         <div className="mb-3">
                           <input
@@ -722,99 +750,124 @@ export default function DashboardPage() {
                           />
                         </div>
                       ) : null}
-                      <table className="min-w-full text-left text-sm">
-                        <thead>
-                          <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
-                            <th className="px-3 py-2">{tx.clientName}</th>
-                            <th className="px-3 py-2">{tx.price}</th>
-                            <th className="px-3 py-2">{tx.releaseProgress}</th>
-                            <th className="px-3 py-2">{tx.status}</th>
-                            <th className="px-3 py-2">
-                              <span className="sr-only">{tx.viewLink} / {tx.copyLink} / {tx.download}</span>
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {filteredListed.map((item) => (
-                            <tr key={item.id} className="border-b border-slate-100">
-                              <td className="px-3 py-3 font-semibold">{item.client_name}</td>
-                              <td className="px-3 py-3">{formatAMD(Number(item.total_price))}</td>
-                              <td className="px-3 py-3">
-                                {(() => {
-                                  const progress = getReleaseProgress(item);
-                                  return (
-                                    <div className="min-w-[190px]">
-                                      <p className="mb-1 text-xs font-semibold text-slate-600">
-                                        {formatAMD(progress.released)} / {formatAMD(Number(item.total_price || 0))} {tx.releasedOfTotal}
-                                      </p>
-                                      <p className="mb-1 text-[11px] font-semibold text-slate-500">
-                                        {tx.vault}: {formatAMD(progress.escrow)} | {tx.waiting}: {formatAMD(progress.pending)}
-                                      </p>
-                                      <div className="h-2 w-full rounded-full bg-slate-200">
-                                        <div
-                                          className="h-2 rounded-full bg-orange-500 transition-all"
-                                          style={{ width: `${progress.pct}%` }}
-                                        />
-                                      </div>
-                                    </div>
-                                  );
-                                })()}
-                              </td>
-                              <td className="px-3 py-3">
-                                {(() => {
-                                  const derived = getDerivedStatus(item);
-                                  const showSignedIndicator = item.status === "signed" && derived !== "paid" && derived !== "completed";
-                                  const paid = item.payment_status === "released" || derived === "paid";
-                                  const escrow =
-                                    item.payment_status === "escrow_held" ||
-                                    getEscrowHeldMilestoneAmount(item) > 0;
-                                  const signedMark = item.status === "signed" || item.status === "completed";
-                                  return (
-                                    <div className="space-y-1">
-                                      <div className="flex flex-wrap items-center gap-1.5 text-base leading-none" aria-hidden>
-                                        {paid ? (
-                                          <span title={tx.paid}>✅</span>
-                                        ) : (
-                                          <>
-                                            {signedMark ? <span title={tx.signed}>✍️</span> : null}
-                                            {escrow ? <span title={tx.fundsSecured}>🔒</span> : null}
-                                          </>
-                                        )}
-                                      </div>
-                                      <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${statusBadge[derived]}`}>
-                                        {statusText[derived]}
-                                      </span>
-                                      {showSignedIndicator ? (
-                                        <p className="text-xs font-semibold text-slate-500">{tx.signatureSigned}</p>
-                                      ) : null}
-                                    </div>
-                                  );
-                                })()}
-                              </td>
-                              <td className="px-3 py-3">
-                                <div className="flex items-center gap-2">
-                                  <button type="button" onClick={() => openAgreementLink(item.id)} className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.viewLink} title={tx.viewLink}>
-                                    <ExternalLink className="h-4 w-4" />
-                                  </button>
-                                  <button type="button" onClick={() => void copyAgreementLink(item.id)} className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.copyLink} title={tx.copyLink}>
-                                    <Copy className="h-4 w-4" />
-                                  </button>
-                                  <button type="button" onClick={() => downloadAgreementPdf(item)} className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.download} title={tx.download}>
-                                    <Download className="h-4 w-4" />
-                                  </button>
+                      <div className="space-y-3 md:hidden">
+                        {filteredListed.map((item) => {
+                          const progress = getReleaseProgress(item);
+                          const derived = getDerivedStatus(item);
+                          const showSignedIndicator = item.status === "signed" && derived !== "paid" && derived !== "completed";
+                          const paid = item.payment_status === "released" || derived === "paid";
+                          const escrow = item.payment_status === "escrow_held" || getEscrowHeldMilestoneAmount(item) > 0;
+                          const signedMark = item.status === "signed" || item.status === "completed";
+                          return (
+                            <article key={item.id} className="rounded-xl border border-slate-200 p-3">
+                              <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                  <p className="truncate text-sm font-bold text-slate-900">{item.client_name}</p>
+                                  <p className="mt-0.5 text-sm text-slate-600">{formatAMD(Number(item.total_price))}</p>
                                 </div>
-                              </td>
+                                <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${statusBadge[derived]}`}>{statusText[derived]}</span>
+                              </div>
+                              <div className="mt-2">
+                                <p className="mb-1 text-xs font-semibold text-slate-600">{formatAMD(progress.released)} / {formatAMD(Number(item.total_price || 0))} {tx.releasedOfTotal}</p>
+                                <p className="mb-1 text-[11px] font-semibold text-slate-500">{tx.vault}: {formatAMD(progress.escrow)} | {tx.waiting}: {formatAMD(progress.pending)}</p>
+                                <div className="h-2 w-full rounded-full bg-slate-200">
+                                  <div className="h-2 rounded-full bg-orange-500 transition-all" style={{ width: `${progress.pct}%` }} />
+                                </div>
+                              </div>
+                              <div className="mt-2 flex flex-wrap items-center gap-1.5 text-base leading-none" aria-hidden>
+                                {paid ? <span title={tx.paid}>✅</span> : (<>{signedMark ? <span title={tx.signed}>✍️</span> : null}{escrow ? <span title={tx.fundsSecured}>🔒</span> : null}</>)}
+                              </div>
+                              {showSignedIndicator ? <p className="mt-1 text-xs font-semibold text-slate-500">{tx.signatureSigned}</p> : null}
+                              <div className="mt-3 grid grid-cols-3 gap-2">
+                                <button type="button" onClick={() => openAgreementLink(item.id)} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.viewLink} title={tx.viewLink}><ExternalLink className="h-4 w-4" /></button>
+                                <button type="button" onClick={() => void copyAgreementLink(item.id)} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.copyLink} title={tx.copyLink}><Copy className="h-4 w-4" /></button>
+                                <button type="button" onClick={() => downloadAgreementPdf(item)} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.download} title={tx.download}><Download className="h-4 w-4" /></button>
+                              </div>
+                            </article>
+                          );
+                        })}
+                        {filteredListed.length === 0 ? <p className="py-4 text-center text-sm text-slate-500">{tx.noSearchResults}</p> : null}
+                      </div>
+                      <div className="hidden overflow-x-auto md:block">
+                        <table className="min-w-full text-left text-sm">
+                          <thead>
+                            <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
+                              <th className="px-3 py-2">{tx.clientName}</th>
+                              <th className="px-3 py-2">{tx.price}</th>
+                              <th className="px-3 py-2">{tx.releaseProgress}</th>
+                              <th className="px-3 py-2">{tx.status}</th>
+                              <th className="px-3 py-2">
+                                <span className="sr-only">{tx.viewLink} / {tx.copyLink} / {tx.download}</span>
+                              </th>
                             </tr>
-                          ))}
-                          {filteredListed.length === 0 ? (
-                            <tr>
-                              <td colSpan={5} className="px-3 py-6 text-center text-sm text-slate-500">
-                                {tx.noSearchResults}
-                              </td>
-                            </tr>
-                          ) : null}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody>
+                            {filteredListed.map((item) => (
+                              <tr key={item.id} className="border-b border-slate-100">
+                                <td className="px-3 py-3 font-semibold">{item.client_name}</td>
+                                <td className="px-3 py-3">{formatAMD(Number(item.total_price))}</td>
+                                <td className="px-3 py-3">
+                                  {(() => {
+                                    const progress = getReleaseProgress(item);
+                                    return (
+                                      <div className="min-w-[190px]">
+                                        <p className="mb-1 text-xs font-semibold text-slate-600">
+                                          {formatAMD(progress.released)} / {formatAMD(Number(item.total_price || 0))} {tx.releasedOfTotal}
+                                        </p>
+                                        <p className="mb-1 text-[11px] font-semibold text-slate-500">
+                                          {tx.vault}: {formatAMD(progress.escrow)} | {tx.waiting}: {formatAMD(progress.pending)}
+                                        </p>
+                                        <div className="h-2 w-full rounded-full bg-slate-200">
+                                          <div className="h-2 rounded-full bg-orange-500 transition-all" style={{ width: `${progress.pct}%` }} />
+                                        </div>
+                                      </div>
+                                    );
+                                  })()}
+                                </td>
+                                <td className="px-3 py-3">
+                                  {(() => {
+                                    const derived = getDerivedStatus(item);
+                                    const showSignedIndicator = item.status === "signed" && derived !== "paid" && derived !== "completed";
+                                    const paid = item.payment_status === "released" || derived === "paid";
+                                    const escrow = item.payment_status === "escrow_held" || getEscrowHeldMilestoneAmount(item) > 0;
+                                    const signedMark = item.status === "signed" || item.status === "completed";
+                                    return (
+                                      <div className="space-y-1">
+                                        <div className="flex flex-wrap items-center gap-1.5 text-base leading-none" aria-hidden>
+                                          {paid ? (
+                                            <span title={tx.paid}>✅</span>
+                                          ) : (
+                                            <>
+                                              {signedMark ? <span title={tx.signed}>✍️</span> : null}
+                                              {escrow ? <span title={tx.fundsSecured}>🔒</span> : null}
+                                            </>
+                                          )}
+                                        </div>
+                                        <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${statusBadge[derived]}`}>
+                                          {statusText[derived]}
+                                        </span>
+                                        {showSignedIndicator ? <p className="text-xs font-semibold text-slate-500">{tx.signatureSigned}</p> : null}
+                                      </div>
+                                    );
+                                  })()}
+                                </td>
+                                <td className="px-3 py-3">
+                                  <div className="flex items-center gap-2">
+                                    <button type="button" onClick={() => openAgreementLink(item.id)} className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.viewLink} title={tx.viewLink}><ExternalLink className="h-4 w-4" /></button>
+                                    <button type="button" onClick={() => void copyAgreementLink(item.id)} className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.copyLink} title={tx.copyLink}><Copy className="h-4 w-4" /></button>
+                                    <button type="button" onClick={() => downloadAgreementPdf(item)} className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.download} title={tx.download}><Download className="h-4 w-4" /></button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                            {filteredListed.length === 0 ? (
+                              <tr>
+                                <td colSpan={5} className="px-3 py-6 text-center text-sm text-slate-500">{tx.noSearchResults}</td>
+                              </tr>
+                            ) : null}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
                   )}
                 </section>
@@ -881,51 +934,67 @@ export default function DashboardPage() {
                 {archived.length === 0 ? (
                   <p className="mt-3 text-sm text-slate-600">{tx.noCompleted}</p>
                 ) : (
-                  <div className="mt-4 overflow-x-auto">
-                    <table className="min-w-full text-left text-sm">
-                      <thead>
-                        <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
-                          <th className="px-3 py-2">{tx.clientName}</th>
-                          <th className="px-3 py-2">{tx.price}</th>
-                          <th className="px-3 py-2">{tx.status}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {archived.map((item) => (
-                          <tr key={item.id} className="border-b border-slate-100">
-                            <td className="px-3 py-3 font-semibold">{item.client_name}</td>
-                            <td className="px-3 py-3">{formatAMD(Number(item.total_price))}</td>
-                            <td className="px-3 py-3">
-                              {(() => {
-                                const derived = getDerivedStatus(item);
-                                const paid = item.payment_status === "released" || derived === "paid";
-                                const escrow =
-                                  item.payment_status === "escrow_held" ||
-                                  getEscrowHeldMilestoneAmount(item) > 0;
-                                const signedMark = item.status === "signed" || item.status === "completed";
-                                return (
-                                  <div className="space-y-1">
-                                    <div className="flex flex-wrap items-center gap-1.5 text-base leading-none" aria-hidden>
-                                      {paid ? (
-                                        <span title={tx.paid}>✅</span>
-                                      ) : (
-                                        <>
-                                          {signedMark ? <span title={tx.signed}>✍️</span> : null}
-                                          {escrow ? <span title={tx.fundsSecured}>🔒</span> : null}
-                                        </>
-                                      )}
-                                    </div>
-                                    <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${statusBadge[derived]}`}>
-                                      {statusText[derived]}
-                                    </span>
-                                  </div>
-                                );
-                              })()}
-                            </td>
+                  <div className="mt-4">
+                    <div className="space-y-3 md:hidden">
+                      {archived.map((item) => {
+                        const derived = getDerivedStatus(item);
+                        const paid = item.payment_status === "released" || derived === "paid";
+                        const escrow = item.payment_status === "escrow_held" || getEscrowHeldMilestoneAmount(item) > 0;
+                        const signedMark = item.status === "signed" || item.status === "completed";
+                        return (
+                          <article key={item.id} className="rounded-xl border border-slate-200 p-3">
+                            <p className="truncate text-sm font-bold text-slate-900">{item.client_name}</p>
+                            <p className="mt-0.5 text-sm text-slate-600">{formatAMD(Number(item.total_price))}</p>
+                            <div className="mt-2 flex flex-wrap items-center gap-1.5 text-base leading-none" aria-hidden>
+                              {paid ? <span title={tx.paid}>✅</span> : (<>{signedMark ? <span title={tx.signed}>✍️</span> : null}{escrow ? <span title={tx.fundsSecured}>🔒</span> : null}</>)}
+                            </div>
+                            <span className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${statusBadge[derived]}`}>{statusText[derived]}</span>
+                          </article>
+                        );
+                      })}
+                    </div>
+                    <div className="hidden overflow-x-auto md:block">
+                      <table className="min-w-full text-left text-sm">
+                        <thead>
+                          <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
+                            <th className="px-3 py-2">{tx.clientName}</th>
+                            <th className="px-3 py-2">{tx.price}</th>
+                            <th className="px-3 py-2">{tx.status}</th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                        </thead>
+                        <tbody>
+                          {archived.map((item) => (
+                            <tr key={item.id} className="border-b border-slate-100">
+                              <td className="px-3 py-3 font-semibold">{item.client_name}</td>
+                              <td className="px-3 py-3">{formatAMD(Number(item.total_price))}</td>
+                              <td className="px-3 py-3">
+                                {(() => {
+                                  const derived = getDerivedStatus(item);
+                                  const paid = item.payment_status === "released" || derived === "paid";
+                                  const escrow = item.payment_status === "escrow_held" || getEscrowHeldMilestoneAmount(item) > 0;
+                                  const signedMark = item.status === "signed" || item.status === "completed";
+                                  return (
+                                    <div className="space-y-1">
+                                      <div className="flex flex-wrap items-center gap-1.5 text-base leading-none" aria-hidden>
+                                        {paid ? (
+                                          <span title={tx.paid}>✅</span>
+                                        ) : (
+                                          <>
+                                            {signedMark ? <span title={tx.signed}>✍️</span> : null}
+                                            {escrow ? <span title={tx.fundsSecured}>🔒</span> : null}
+                                          </>
+                                        )}
+                                      </div>
+                                      <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${statusBadge[derived]}`}>{statusText[derived]}</span>
+                                    </div>
+                                  );
+                                })()}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
                 )}
               </section>
@@ -933,6 +1002,28 @@ export default function DashboardPage() {
           </div>
         </main>
       </div>
+
+      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 px-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)] pt-2 backdrop-blur lg:hidden">
+        <div className="grid grid-cols-3 gap-2">
+          {[
+            { id: "overview" as const, label: tx.overview, icon: LayoutDashboard },
+            { id: "create" as const, label: tx.createNewAgreement, icon: FilePlus2 },
+            { id: "archive" as const, label: tx.archive, icon: Archive }
+          ].map(({ id, label, icon: Icon }) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => setView(id)}
+              className={`inline-flex min-h-11 items-center justify-center gap-1 rounded-xl border px-2 py-2 text-xs font-semibold ${
+                view === id ? "border-[#0033A0] bg-[#0033A0] text-white" : "border-slate-300 bg-white text-slate-700"
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              <span className="truncate">{label}</span>
+            </button>
+          ))}
+        </div>
+      </nav>
 
       {successAgreementId ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4">
