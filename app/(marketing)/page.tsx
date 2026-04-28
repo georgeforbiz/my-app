@@ -661,10 +661,10 @@ export default function Page() {
       </header>
 
       <main className="flex-1" style={{ backgroundColor: NAVY }}>
-        <section className="relative w-full min-w-0 overflow-hidden border-b border-white/10 pb-16 pt-10 md:pb-24 md:pt-14">
+        <section className="relative h-auto min-h-screen w-full min-w-0 overflow-hidden border-b border-white/10 pb-12 pt-8 md:pb-24 md:pt-14">
           <div className="pointer-events-none absolute -left-32 top-0 h-96 w-96 rounded-full bg-white/[0.06] blur-3xl" aria-hidden />
           <div className="pointer-events-none absolute -right-24 bottom-0 h-80 w-80 rounded-full bg-orange-400/10 blur-3xl" aria-hidden />
-          <div className="relative mx-auto grid w-full max-w-[1200px] min-w-0 gap-12 px-4 md:grid-cols-2 md:items-center md:gap-16 lg:gap-20 md:px-6">
+          <div className="relative mx-auto grid w-full max-w-[1200px] min-w-0 gap-8 px-4 sm:gap-10 md:grid-cols-2 md:items-center md:gap-16 lg:gap-20 md:px-6">
             <div
               lang={heroChipsHyRu ? locale : undefined}
               className="flex min-w-0 w-full flex-col justify-center text-left"
@@ -672,7 +672,7 @@ export default function Page() {
               <p className="inline-flex w-fit max-w-full flex-wrap rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-medium leading-snug text-white/90 shadow-sm backdrop-blur-sm hyphens-none break-words md:text-sm">
                 {t.heroEyebrow}
               </p>
-              <h1 className="mt-8 text-balance text-4xl font-black leading-tight tracking-tight text-white hyphens-none break-words sm:text-5xl lg:text-6xl xl:text-7xl">
+              <h1 className="mt-6 text-balance text-3xl font-black leading-tight tracking-tight text-white hyphens-none break-words sm:mt-8 sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl">
                 {t.heroTitleBefore}
                 <span className="relative inline" style={{ color: ORANGE }}>
                   <span className="relative z-10">{t.heroTitleHighlight}</span>
@@ -684,21 +684,21 @@ export default function Page() {
                 </span>
                 {t.heroTitleAfter}
               </h1>
-              <p className="mt-6 w-full max-w-[800px] text-left text-lg leading-relaxed text-white/85 hyphens-none break-words md:text-xl">
+              <p className="mt-4 w-full max-w-[800px] text-left text-sm leading-relaxed text-white/85 hyphens-none break-words sm:mt-6 sm:text-base md:text-lg lg:text-xl">
                 {t.heroSubtitle}
               </p>
-              <div className="mt-10 flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+              <div className="mt-8 flex w-full flex-col gap-3 sm:mt-10 sm:flex-row sm:flex-wrap sm:items-center">
                 <Link
                   href="/register?next=%2Fdashboard"
-                  className="inline-flex h-12 items-center justify-center rounded-xl bg-[#DC2626] px-8 text-sm font-semibold text-white shadow-sm shadow-red-900/30 transition hover:bg-[#B91C1C] sm:h-12 sm:text-base"
+                  className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-[#DC2626] px-6 text-sm font-semibold text-white shadow-sm shadow-red-900/30 transition hover:bg-[#B91C1C] sm:h-12 sm:w-auto sm:px-8 sm:text-base"
                 >
                   {t.btnProtectProject}
                 </Link>
-                <OutlineLightButton href="/#difference" className="h-12 border-white/40 px-8 sm:h-12">
+                <OutlineLightButton href="/#difference" className="h-11 w-full border-white/40 px-6 sm:h-12 sm:w-auto sm:px-8">
                   {t.btnSeeHow}
                 </OutlineLightButton>
               </div>
-              <ul className="mt-10 flex w-full min-w-0 max-w-full flex-wrap justify-start gap-4 text-sm text-white/90">
+              <ul className="mt-8 flex w-full min-w-0 max-w-full flex-wrap justify-start gap-3 text-sm text-white/90 sm:mt-10 sm:gap-4">
                 <li className="flex max-w-full items-center gap-2.5">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 text-orange-200 shadow-sm ring-1 ring-white/20">
                     <Shield className="h-4 w-4 shrink-0 text-orange-200" strokeWidth={2} />
@@ -722,7 +722,7 @@ export default function Page() {
               </ul>
             </div>
 
-            <div className="relative pb-14 lg:pb-12">
+            <div className="relative w-full min-w-0 pb-10 sm:pb-14 lg:pb-12">
               <div className="absolute -inset-px rounded-2xl bg-gradient-to-br from-slate-200/80 to-slate-100/50 blur-sm" aria-hidden />
               <div className="relative overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04),0_20px_50px_-12px_rgba(15,23,42,0.12)] ring-1 ring-slate-900/[0.04]">
                 <div className="flex items-center gap-2 border-b border-slate-100 bg-slate-50/80 px-4 py-2.5 sm:px-5">
