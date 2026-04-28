@@ -1,0 +1,74 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+    --vstah-navy: #003366;
+    --vstah-navy-dark: #00264d;
+    --vstah-surface: #f8fafc;
+  }
+
+  html {
+    -webkit-tap-highlight-color: transparent;
+    scrollbar-gutter: stable;
+  }
+
+  html,
+  body {
+    margin: 0;
+    min-height: 100%;
+  }
+
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.03em;
+  }
+}
+
+body {
+  min-height: 100vh;
+  overflow-x: hidden;
+  background: #ffffff;
+  color: #0f172a;
+  font-feature-settings: "ss01" on, "cv01" on;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+@layer components {
+  .vstah-hero-mesh {
+    background-color: var(--vstah-navy);
+    background-image:
+      radial-gradient(ellipse 120% 80% at 0% 0%, rgba(255, 255, 255, 0.14), transparent 45%),
+      radial-gradient(ellipse 90% 70% at 100% 20%, rgba(148, 163, 184, 0.12), transparent 50%),
+      radial-gradient(ellipse 60% 50% at 50% 100%, rgba(0, 38, 77, 0.85), transparent 55%),
+      linear-gradient(165deg, var(--vstah-navy) 0%, #0c2744 40%, #0f172a 100%);
+  }
+
+  .vstah-grid-pattern {
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+    background-size: 48px 48px;
+  }
+
+  .vstah-card-shine {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .vstah-card-shine::after {
+    content: "";
+    position: absolute;
+    inset: -40% -60% auto 40%;
+    height: 200%;
+    transform: rotate(18deg);
+    background: linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, 0.12) 50%, transparent 60%);
+    pointer-events: none;
+  }
+}
