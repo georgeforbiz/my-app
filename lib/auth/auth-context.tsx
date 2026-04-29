@@ -16,7 +16,9 @@ import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
 
 export type AuthUser = { id: string; email: string; source: "supabase" | "mock" };
 export type SignUpMetadata = {
-  full_name_or_business_name: string;
+  full_name: string;
+  business_name: string;
+  full_name_or_business_name?: string;
   phone_number: string;
   service_category: "General Contractor" | "Renovations" | "Electricity" | "Cleaning" | "Other";
   service_area: string;

@@ -23,7 +23,8 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [fullNameOrBusinessName, setFullNameOrBusinessName] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [businessName, setBusinessName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
   const [serviceArea, setServiceArea] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +42,8 @@ export default function RegisterPage() {
           passwordTooShort: "Գաղտնաբառը պետք է լինի առնվազն 6 նիշ։",
           completeDetails: "Խնդրում ենք լրացնել ծառայություն մատուցողի բոլոր պարտադիր տվյալները։",
           confirmEmail: "Ստուգեք ձեր էլ․ փոստը, հաստատեք էլ․ հասցեն և վերադարձեք մուտք գործելու համար։",
-          fullNameOrBusinessName: "Ամբողջ անուն / Բիզնեսի անվանում",
+          fullName: "Ամբողջ անուն",
+          businessName: "Բիզնեսի անվանում",
           phoneNumber: "Հեռախոսահամար",
           serviceCategory: "Ծառայության կատեգորիա",
           selectService: "Ընտրել ծառայությունը",
@@ -63,7 +65,8 @@ export default function RegisterPage() {
             passwordTooShort: "Пароль должен содержать минимум 6 символов.",
             completeDetails: "Пожалуйста, заполните все обязательные данные исполнителя.",
             confirmEmail: "Проверьте почту, подтвердите email и вернитесь для входа.",
-            fullNameOrBusinessName: "Полное имя / Название бизнеса",
+            fullName: "Полное имя",
+            businessName: "Название бизнеса",
             phoneNumber: "Номер телефона",
             serviceCategory: "Категория услуги",
             selectService: "Выберите услугу",
@@ -84,7 +87,8 @@ export default function RegisterPage() {
             passwordTooShort: "Password must be at least 6 characters.",
             completeDetails: "Please fill in all required service provider details.",
             confirmEmail: "Check your inbox and confirm your email, then return here to log in.",
-            fullNameOrBusinessName: "Full Name / Business Name",
+            fullName: "Full Name",
+            businessName: "Business Name",
             phoneNumber: "Phone Number",
             serviceCategory: "Service Category",
             selectService: "Select service",
@@ -121,7 +125,7 @@ export default function RegisterPage() {
       setError(tx.completeDetails);
       return;
     }
-    if (!fullNameOrBusinessName.trim() || !phoneNumber.trim() || !serviceArea.trim()) {
+    if (!fullName.trim() || !businessName.trim() || !phoneNumber.trim() || !serviceArea.trim()) {
       setError(tx.completeDetails);
       return;
     }
@@ -129,7 +133,10 @@ export default function RegisterPage() {
     setPending(true);
     try {
       const res = await signUp(email, password, {
-        full_name_or_business_name: fullNameOrBusinessName.trim(),
+        full_name: fullName.trim(),
+        business_name: businessName.trim(),
+        // Keep legacy metadata for backward compatibility in existing flows.
+        full_name_or_business_name: `${businessName.trim()} (${fullName.trim()})`,
         phone_number: phoneNumber.trim(),
         service_category: DEFAULT_SERVICE_CATEGORY,
         service_area: serviceArea.trim()
@@ -154,17 +161,32 @@ export default function RegisterPage() {
     <VstahShell eyebrow={tx.eyebrow} title={tx.title} subtitle={tx.subtitle}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         <div className="grid gap-5 md:grid-cols-2">
-          <div className="md:col-span-2">
-            <label htmlFor="fullNameOrBusinessName" className="block text-sm font-semibold text-slate-700">
-              {tx.fullNameOrBusinessName}
+          <div>
+            <label htmlFor="fullName" className="block text-sm font-semibold text-slate-700">
+              {tx.fullName}
             </label>
             <input
-              id="fullNameOrBusinessName"
+              id="fullName"
+              type="text"
+              autoComplete="name"
+              required
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 outline-none transition focus:border-[#0033A0]/40 focus:ring-4 focus:ring-[#0033A0]/15"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="businessName" className="block text-sm font-semibold text-slate-700">
+              {tx.businessName}
+            </label>
+            <input
+              id="businessName"
               type="text"
               autoComplete="organization"
               required
-              value={fullNameOrBusinessName}
-              onChange={(e) => setFullNameOrBusinessName(e.target.value)}
+              value={businessName}
+              onChange={(e) => setBusinessName(e.target.value)}
               className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 outline-none transition focus:border-[#0033A0]/40 focus:ring-4 focus:ring-[#0033A0]/15"
             />
           </div>

@@ -8,6 +8,12 @@ export type NormalizedAgreement = {
   id: string;
   provider_id: string;
   provider_name: string;
+  /** From agreements.full_name (or legacy provider_full_name). */
+  full_name?: string;
+  /** From agreements.business_name (or legacy provider_business_name). */
+  business_name?: string;
+  provider_full_name?: string;
+  provider_business_name?: string;
   client_name: string;
   project_title: string;
   service_area: string;
@@ -75,10 +81,17 @@ export function normalizeAgreementRow(row: Record<string, unknown>): NormalizedA
     milestones = legacy.milestones;
   }
 
+  const fullName = String(row.full_name ?? row.provider_full_name ?? "").trim();
+  const businessName = String(row.business_name ?? row.provider_business_name ?? "").trim();
+
   return {
     id: String(row.id ?? ""),
     provider_id: String(row.provider_id ?? ""),
     provider_name: String(row.provider_name ?? "").trim(),
+    full_name: fullName || undefined,
+    business_name: businessName || undefined,
+    provider_full_name: String(row.provider_full_name ?? "").trim() || undefined,
+    provider_business_name: String(row.provider_business_name ?? "").trim() || undefined,
     client_name: String(row.client_name ?? ""),
     project_title,
     service_area: String(row.service_area ?? "").trim(),
@@ -120,13 +133,17 @@ export async function insertAgreementWithSchemaFallback(
     projectTitle: string;
     serviceArea: string;
     providerName: string;
+    /** agreements.full_name — from signup / profile metadata */
+    full_name?: string | null;
+    /** agreements.business_name — from signup / profile metadata */
+    business_name?: string | null;
     customTerms: string;
     totalPrice: number;
     paymentType: PaymentType;
     milestones: Milestone[];
   }
 ): Promise<{ id?: string; error?: string }> {
-  const modern = {
+  const modernBase = {
     provider_id: params.providerId,
     client_name: params.clientName,
     project_title: params.projectTitle,
@@ -144,14 +161,62 @@ export async function insertAgreementWithSchemaFallback(
         : [],
     status: "pending" as const
   };
+  const namesOnly = {
+    full_name: params.full_name ?? null,
+    business_name: params.business_name ?? null
+  };
+  const legacyNames = {
+    provider_full_name: params.full_name ?? null,
+    provider_business_name: params.business_name ?? null
+  };
+  const modernWithProviderDetails = {
+    ...modernBase,
+    ...namesOnly,
+    ...legacyNames
+  };
+  const modernWithCanonicalNames = { ...modernBase, ...namesOnly };
 
-  const { data: modernData, error: modernError } = await supabase
+  let { data: modernData, error: modernError } = await supabase
     .from("agreements")
-    .insert(modern)
+    .insert(modernWithProviderDetails)
     .select("id")
     .single();
 
+  if (modernError && isMissingColumnOrSchemaCacheError(modernError.message)) {
+    ({ data: modernData, error: modernError } = await supabase
+      .from("agreements")
+      .insert(modernWithCanonicalNames)
+      .select("id")
+      .single());
+  }
+
+  if (modernError && isMissingColumnOrSchemaCacheError(modernError.message)) {
+    ({ data: modernData, error: modernError } = await supabase
+      .from("agreements")
+      .insert(modernBase)
+      .select("id")
+      .single());
+  }
+
   if (!modernError && modernData?.id) {
+    if (params.full_name || params.business_name) {
+      const { error: patchError } = await supabase
+        .from("agreements")
+        .update({
+          full_name: params.full_name ?? null,
+          business_name: params.business_name ?? null
+        })
+        .eq("id", modernData.id as string);
+      if (patchError && isMissingColumnOrSchemaCacheError(patchError.message)) {
+        await supabase
+          .from("agreements")
+          .update({
+            provider_full_name: params.full_name ?? null,
+            provider_business_name: params.business_name ?? null
+          })
+          .eq("id", modernData.id as string);
+      }
+    }
     return { id: modernData.id as string };
   }
 
@@ -185,6 +250,25 @@ export async function insertAgreementWithSchemaFallback(
     .single();
 
   if (!legacyError && legacyData?.id) {
+    if (params.full_name || params.business_name) {
+      const id = legacyData.id as string;
+      const { error: patchError } = await supabase
+        .from("agreements")
+        .update({
+          full_name: params.full_name ?? null,
+          business_name: params.business_name ?? null
+        })
+        .eq("id", id);
+      if (patchError && isMissingColumnOrSchemaCacheError(patchError.message)) {
+        await supabase
+          .from("agreements")
+          .update({
+            provider_full_name: params.full_name ?? null,
+            provider_business_name: params.business_name ?? null
+          })
+          .eq("id", id);
+      }
+    }
     return { id: legacyData.id as string };
   }
 

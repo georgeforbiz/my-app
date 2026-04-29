@@ -570,7 +570,26 @@ export default function DashboardPage() {
     }
 
     setCreating(true);
-    const providerName = user.email?.split("@")[0] || "Service Provider";
+    await supabase.auth.refreshSession();
+    const { data: authData } = await supabase.auth.getUser();
+    const userMetadata = (authData.user?.user_metadata ?? {}) as Record<string, unknown>;
+
+    let full_name = String(userMetadata.full_name ?? userMetadata.fullName ?? "").trim();
+    let business_name = String(userMetadata.business_name ?? userMetadata.businessName ?? "").trim();
+    if (!full_name && !business_name) {
+      const legacy = String(userMetadata.full_name_or_business_name ?? "").trim();
+      if (legacy) {
+        const m = legacy.match(/^(.+?)\s*\((.+)\)\s*$/);
+        if (m) {
+          business_name = m[1].trim();
+          full_name = m[2].trim();
+        } else {
+          full_name = legacy;
+        }
+      }
+    }
+
+    const providerName = business_name || full_name || user.email?.split("@")[0] || "Service Provider";
     const customTermsText =
       contractTerms.trim() ||
       buildDefaultTerms({
@@ -582,6 +601,8 @@ export default function DashboardPage() {
     const result = await insertAgreementWithSchemaFallback(supabase, {
       providerId: user.id,
       providerName,
+      full_name,
+      business_name,
       clientName: clientName.trim(),
       projectTitle: projectTitle.trim(),
       serviceArea: serviceArea.trim(),
