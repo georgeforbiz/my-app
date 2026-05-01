@@ -20,8 +20,19 @@ function parseLangCookie(): Language | null {
   return v === "en" || v === "hy" || v === "ru" ? v : null;
 }
 
-export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguageState] = useState<Language>("en");
+export function LanguageProvider({
+  children,
+  initialLanguage = "en"
+}: {
+  children: ReactNode;
+  /** Cookie-derived default from the server layout — keeps SSR/hydration aligned with `<html lang>`. */
+  initialLanguage?: Language;
+}) {
+  const [language, setLanguageState] = useState<Language>(() =>
+    initialLanguage === "en" || initialLanguage === "hy" || initialLanguage === "ru"
+      ? initialLanguage
+      : "en"
+  );
 
   useEffect(() => {
     try {

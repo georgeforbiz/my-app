@@ -9,7 +9,7 @@ export function DocumentMeta() {
   const { language } = useLanguage();
 
   useEffect(() => {
-    const m = SITE_METADATA[language];
+    const m = SITE_METADATA[language] ?? SITE_METADATA.en;
     document.title = m.title;
     let el = document.querySelector('meta[name="description"]');
     if (!el) {

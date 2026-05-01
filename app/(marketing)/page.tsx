@@ -9,16 +9,14 @@ import type { Language } from "@/lib/i18n/locales";
 import {
   AlertTriangle,
   ArrowRight,
-  Building2,
   Check,
-  ChevronDown,
   CircleCheck,
   Clock,
   Facebook,
   FileText,
   Globe,
   Hammer,
-  House,
+  Flag,
   Instagram,
   Landmark,
   ListOrdered,
@@ -27,6 +25,7 @@ import {
   Phone,
   Scale,
   Shield,
+  ShieldCheck,
   Wallet,
   X
 } from "lucide-react";
@@ -120,6 +119,22 @@ type TranslationBundle = {
   stateLocked: string;
   statePending: string;
   stateReleased: string;
+  agreementPreviewTitle: string;
+  pendingDeposit: string;
+  clientLabel: string;
+  serviceAreaLabel: string;
+  termsSnapshot: string;
+  termsSnapshotText: string;
+  depositFunds: string;
+  providerDashboardTitle: string;
+  agreementsTrackedMonth: string;
+  finalPayoutCompleted: string;
+  fundsSecuredEscrow: string;
+  awaitingClientDeposit: string;
+  statusPaid: string;
+  statusSecured: string;
+  completed: string;
+  releaseProgress: string;
 };
 
 const translations: Record<Locale, TranslationBundle> = {
@@ -131,12 +146,12 @@ const translations: Record<Locale, TranslationBundle> = {
     btnProtectProject: "Protect My Project",
     btnSeeHow: "See how it works",
     btnStartProtected: "Start a protected project",
-    heroEyebrow: "Protecting Every Project, Every Payment",
+    heroEyebrow: "Build Professional Trust. Get Paid on Time.",
     heroTitleBefore: "Secure Your ",
     heroTitleHighlight: "Project Deals",
     heroTitleAfter: " in Armenia.",
     heroSubtitle:
-      "Don't risk payments upfront. Don't start work without security. VSTAH locks the funds until the project is approved.",
+      "Stop chasing payments. Start working with certainty. VSTAH ensures your funds are locked and ready for release.",
     cardChip1: "Secured Project Deposit",
     cardChip2: "Digital Work Agreement",
     projectLabel: "Project",
@@ -157,86 +172,86 @@ const translations: Record<Locale, TranslationBundle> = {
     cardMediation: "Funds Secured & Locally Protected",
     cardTagline1: "Stop the disputes.",
     cardTagline2: "Start the renovation.",
-    feature1: "No Upfront Risk.",
-    feature2: "No Unpaid Work.",
+    feature1: "Verified Funds.",
+    feature2: "Guaranteed Payouts.",
     feature3: "Built for Armenia.",
-    feature4: "Secured Local Deals.",
+    feature4: "Secure Deals.",
     diffEyebrow: "The difference",
     diffTitle: "With VSTAH vs. Without Us",
     diffSubtitle:
       "Stop the arguments before they start. See how VSTAH protects your project.",
-    recommended: "Recommended",
+    recommended: "(Recommended)",
     colWith: "With VSTAH",
     colWithout: "Without Us",
-    diffWithoutEyebrow: "Old way",
+    diffWithoutEyebrow: "(Old way)",
     comparisonRows: [
       {
-        label: "Funds protection",
-        withVstah: "Deposit locked in escrow until work approved",
-        withoutUs: "Cash handed over, hope for the best"
+        label: "Payment Security",
+        withVstah: "Funds locked in escrow before you start",
+        withoutUs: "Hoping the client pays after work"
       },
       {
-        label: "Written agreement",
-        withVstah: "Digital contract signed by both parties",
-        withoutUs: "Verbal promises & WhatsApp messages"
+        label: "Digital Agreement",
+        withVstah: "Professional contract signed by both parties",
+        withoutUs: "Verbal promises and WhatsApp messages"
       },
       {
         label: "Project Milestones",
-        withVstah: "Pay per completed stage, release on approval",
-        withoutUs: "Full payment upfront or dispute after"
+        withVstah: "Get paid per completed stage",
+        withoutUs: "Waiting for full payment at the end"
       },
       {
         label: "Disputes",
-        withVstah: "Armenian legal mediation included",
-        withoutUs: "Personal arguments, wasted time & money"
+        withVstah: "Funds secured until local mediation ends",
+        withoutUs: "Personal arguments and wasted time"
       },
       {
         label: "Transparency",
-        withVstah: "Every stage logged & timestamped",
-        withoutUs: "Miscommunication & misunderstandings"
+        withVstah: "Full proof of work with timestamps",
+        withoutUs: "Miscommunication and misunderstandings"
       },
       {
-        label: "Trust",
-        withVstah: "Guaranteed by the platform — not promises",
+        label: "Professionalism",
+        withVstah: "Guaranteed by system, not just promises",
         withoutUs: "Depends on who you know"
       }
     ],
     processEyebrow: "The process",
     processTitle: "How it works",
     processSubtitle:
-      "Four simple steps. Zero guesswork. Both sides are fully protected.",
+      "Four simple steps. Zero guesswork. Professional deals, fully secured.",
     processSteps: [
       {
         step: "01",
         title: "Create Project Deal",
-        desc: "Define the project scope, milestones, and total cost in minutes."
+        desc: "Set the scope, milestones, and costs in minutes."
       },
       {
         step: "02",
-        title: "Secure the Funds",
-        desc: "Funds are locked in escrow. Secure and transparent."
+        title: "Verify Secured Funds",
+        desc: "Funds are locked in escrow. Money is ready before you start."
       },
       {
         step: "03",
-        title: "Work Begins",
-        desc: "Work starts with full confidence the money is secured and waiting."
+        title: "Work with Confidence",
+        desc: "Start the project knowing the payment is guaranteed and waiting."
       },
       {
         step: "04",
-        title: "Approve & Release",
-        desc: "Review each completed stage funds are released only after your approval."
+        title: "Automatic Milestone Payouts",
+        desc: "Get paid instantly as each stage is completed and approved."
       }
     ],
-    disputeEyebrow: "Dispute resolution",
-    disputeTitle: "If something goes wrong we step in",
+    disputeEyebrow: "Dispute Resolution",
+    disputeTitle: "We protect your business if things go sideways.",
     disputeBody:
-      "Our Armenian legal experts mediate when projects get complicated. Fair fast and based on local law so both sides reach a resolution.",
+      "Our Armenian experts mediate to ensure you get paid for the work you've done. Fair, fast, and 100% based on local law to reach a professional resolution.",
     badge24h: "Fast Support",
-    badge24hSub: "24h response time if any issue comes up.",
+    badge24hSub: "24h response time to address any issues and keep your project moving.",
     badgeLaw: "Fully Legal",
-    badgeLawSub: "100% compliant with local Armenian laws.",
-    badgeMed: "Quick Fix",
-    badgeMedSub: "Simple 3 step process to resolve disagreements.",
+    badgeLawSub: "100% compliant with Armenian law, providing a solid legal foundation for every deal.",
+    badgeMed: "Quick Resolution",
+    badgeMedSub: "Simple 3-step process to settle disagreements without wasting time or money.",
     footerTagline: "Building Trust in Every Project",
     footerRights: "© 2026 VSTAH.am. All rights reserved.",
     footerPhoneLabel: "Phone",
@@ -260,7 +275,23 @@ const translations: Record<Locale, TranslationBundle> = {
     milestoneFinishing: "Finishing",
     stateLocked: "Locked",
     statePending: "Pending",
-    stateReleased: "Released"
+    stateReleased: "Released",
+    agreementPreviewTitle: "Agreement Preview",
+    pendingDeposit: "Pending Deposit",
+    clientLabel: "Client",
+    serviceAreaLabel: "Service Area",
+    termsSnapshot: "Terms Snapshot",
+    termsSnapshotText: "Secured funds are released automatically upon milestone completion.",
+    depositFunds: "Deposit Funds",
+    providerDashboardTitle: "Provider Dashboard",
+    agreementsTrackedMonth: "18 agreements tracked this month",
+    finalPayoutCompleted: "Final payout completed",
+    fundsSecuredEscrow: "Funds secured in escrow",
+    awaitingClientDeposit: "Awaiting client deposit",
+    statusPaid: "Paid",
+    statusSecured: "Secured",
+    completed: "Completed",
+    releaseProgress: "Release progress"
   },
   hy: {
     brand: "VSTAH.am",
@@ -270,12 +301,12 @@ const translations: Record<Locale, TranslationBundle> = {
     btnProtectProject: "Պաշտպանել իմ նախագիծը",
     btnSeeHow: "Տեսնել մեխանիզմը",
     btnStartProtected: "Սկսել պաշտպանված նախագիծ",
-    heroEyebrow: "Պաշտպանում ենք յուրաքանչյուր նախագիծը և յուրաքանչյուր վճարը",
+    heroEyebrow: "Կառուցում ենք մասնագիտական վստահություն։ Վճարումները՝ ժամանակին։",
     heroTitleBefore: "Պաշտպանեք ձեր ",
     heroTitleHighlight: "նախագծային գործարքները",
     heroTitleAfter: " Հայաստանում",
     heroSubtitle:
-      "Նախապես վճարման ռիսկ մի վերցրեք։ Մի սկսեք աշխատանքը առանց անվտանգության։ VSTAH-ը կողպում է միջոցները մինչև նախագիծը հաստատվի։",
+      "Դադարեք վճարումներ հետապնդել։ Աշխատեք վստահությամբ։ VSTAH-ը պահում է միջոցները և պատրաստում թողարկման համար։",
     cardChip1: "Պաշտպանված նախագծային դեպոզիտ",
     cardChip2: "Թվային աշխատանքային պայմանագիր",
     projectLabel: "Նախագիծ",
@@ -296,86 +327,86 @@ const translations: Record<Locale, TranslationBundle> = {
     cardMediation: "Միջոցները պաշտպանված են և կարգավորվում են ՀՀ իրավական դաշտում",
     cardTagline1: "Կանխեք վեճերը։",
     cardTagline2: "Առաջ մղեք նախագիծը։",
-    feature1: "Առանց կույր կանխավճարի ռիսկի։",
-    feature2: "Առանց չվճարված աշխատանքի։",
+    feature1: "Հաստատված միջոցներ։",
+    feature2: "Երաշխավորված վճարումներ։",
     feature3: "Նախագծված է Հայաստանի շուկայի համար։",
-    feature4: "Ապահով տեղական գործարքներ։",
+    feature4: "Ապահով գործարքներ։",
     diffEyebrow: "Տարբերությունը",
     diffTitle: "VSTAH-ով և առանց VSTAH-ի",
     diffSubtitle:
       "Կանխեք հակասությունները դեռ մեկնարկից առաջ։ Տեսեք, թե ինչպես է VSTAH-ը պաշտպանում ձեր նախագիծը։",
-    recommended: "Առաջարկվող",
+    recommended: "(Առաջարկվող)",
     colWith: "VSTAH-ով",
     colWithout: "Առանց մեզ",
-    diffWithoutEyebrow: "Հին մոտեցում",
+    diffWithoutEyebrow: "(Հին մոտեցում)",
     comparisonRows: [
       {
-        label: "Միջոցների պաշտպանություն",
-        withVstah: "Դեպոզիտը պահվում է էսկրոուում մինչև աշխատանքի հաստատումը",
-        withoutUs: "Գումարը փոխանցվում է նախապես` առանց երաշխիքի"
+        label: "Վճարման անվտանգություն",
+        withVstah: "Միջոցները կողպվում են էսկրոուում մինչև մեկնարկը",
+        withoutUs: "Մնում է հույս դնել, որ պատվիրատուն կվճարի հետո"
       },
       {
-        label: "Պայմանագրային հստակություն",
-        withVstah: "Թվային պայմանագիր` էլեկտրոնային հաստատմամբ երկու կողմերի կողմից",
-        withoutUs: "Բանավոր պայմանավորվածություններ և հաղորդագրություններ"
+        label: "Թվային պայմանագիր",
+        withVstah: "Մասնագիտական պայմանագիր՝ երկու կողմի հաստատմամբ",
+        withoutUs: "Բանավոր խոստումներ և WhatsApp հաղորդագրություններ"
       },
       {
-        label: "Փուլային վճարումներ",
-        withVstah: "Վճարումը կատարվում է յուրաքանչյուր ավարտված փուլի հաստատումից հետո",
-        withoutUs: "Ամբողջական կանխավճար կամ հետագա վեճ"
+        label: "Նախագծի փուլեր",
+        withVstah: "Վճարում՝ յուրաքանչյուր ավարտված փուլի համար",
+        withoutUs: "Սպասում ամբողջ վճարմանը վերջում"
       },
       {
-        label: "Վեճերի կառավարում",
-        withVstah: "Ներառված է ՀՀ իրավական միջնորդության գործընթաց",
-        withoutUs: "Անձնական հակասություններ, կորցված ժամանակ և միջոցներ"
+        label: "Վեճեր",
+        withVstah: "Միջոցները պաշտպանված են մինչև տեղական միջնորդության ավարտը",
+        withoutUs: "Անձնական վեճեր և կորցրած ժամանակ"
       },
       {
         label: "Թափանցիկություն",
-        withVstah: "Յուրաքանչյուր փուլ արձանագրվում է հստակ ժամնշմամբ",
+        withVstah: "Աշխատանքի լիարժեք ապացույց՝ ժամային նշումներով",
         withoutUs: "Կոմունիկացիոն խզումներ և թյուրըմբռնումներ"
       },
       {
-        label: "Վստահելիություն",
-        withVstah: "Պլատֆորմային երաշխիքներ, ոչ թե բանավոր խոստումներ",
+        label: "Պրոֆեսիոնալիզմ",
+        withVstah: "Երաշխավորված է համակարգով, ոչ թե խոստումներով",
         withoutUs: "Կախված է անձնական կապերից"
       }
     ],
     processEyebrow: "Գործընթաց",
     processTitle: "Ինչպես է դա աշխատում",
     processSubtitle:
-      "Չորս հստակ քայլ, զրո անորոշություն. երկու կողմն էլ ամբողջությամբ պաշտպանված են։",
+      "Չորս պարզ քայլ, զրո անորոշություն։ Պրոֆեսիոնալ գործարքներ՝ լիովին պաշտպանված։",
     processSteps: [
       {
         step: "01",
         title: "Ստեղծեք նախագծային գործարքը",
-        desc: "Մի քանի րոպեում սահմանեք աշխատանքի ծավալը, փուլերը և ընդհանուր բյուջեն։"
+        desc: "Մի քանի րոպեում սահմանեք ծավալը, փուլերն ու արժեքը։"
       },
       {
         step: "02",
-        title: "Պահպանեք միջոցները",
-        desc: "Միջոցները պահվում են էսկրոուում. անվտանգ և լիովին թափանցիկ։"
+        title: "Ստուգեք պաշտպանված միջոցները",
+        desc: "Միջոցները կողպված են էսկրոուում․ գումարը պատրաստ է մինչև մեկնարկը։"
       },
       {
         step: "03",
-        title: "Սկսվում են աշխատանքները",
-        desc: "Կողմերը սկսում են լիարժեք վստահությամբ, որ միջոցները պաշտպանված են։"
+        title: "Աշխատեք վստահությամբ",
+        desc: "Սկսեք նախագիծը՝ իմանալով, որ վճարումը երաշխավորված է։"
       },
       {
         step: "04",
-        title: "Հաստատեք և ազատեք վճարումը",
-        desc: "Ստուգեք յուրաքանչյուր ավարտված փուլը. վճարումը բաց է թողնվում միայն հաստատումից հետո։"
+        title: "Ավտոմատ փուլային վճարումներ",
+        desc: "Ստացեք վճարումը անմիջապես՝ յուրաքանչյուր փուլի ավարտից ու հաստատումից հետո։"
       }
     ],
     disputeEyebrow: "Վեճերի կարգավորում",
-    disputeTitle: "Եթե ընթացքը շեղվում է, մենք միանում ենք գործընթացին",
+    disputeTitle: "Մենք պաշտպանում ենք ձեր բիզնեսը, եթե ընթացքը շեղվում է։",
     disputeBody:
-      "Մեր հայ իրավաբան-միջնորդները ներգրավվում են բարդ իրավիճակներում և ապահովում հավասարակշռված լուծում` հիմնված Հայաստանի իրավունքի վրա։",
+      "Մեր հայ մասնագետները միջնորդում են, որ դուք ստանաք ձեր կատարած աշխատանքի վճարումը։ Արդար, արագ և 100%՝ տեղական իրավունքի հիմքով։",
     badge24h: "Օպերատիվ աջակցություն",
-    badge24hSub: "Խնդրի դեպքում` պատասխան մինչև 24 ժամում։",
+    badge24hSub: "24 ժամում արձագանք՝ հարցերը լուծելու և նախագիծը շարունակելու համար։",
     badgeLaw: "Իրավական համապատասխանություն",
-    badgeLawSub: "100% համապատասխանություն ՀՀ գործող օրենսդրությանը։",
-    badgeMed: "Կառավարվող կարգավորում",
-    badgeMedSub: "Վեճերի կարգավորման հստակ 3-քայլանոց մեխանիզմ։",
+    badgeLawSub: "100% համապատասխան ՀՀ օրենսդրությանը՝ յուրաքանչյուր գործարքի համար ամուր իրավական հիմքով։",
+    badgeMed: "Արագ կարգավորում",
+    badgeMedSub: "Պարզ 3-քայլանոց գործընթաց՝ վեճերը լուծելու առանց ժամանակ ու գումար կորցնելու։",
     footerTagline: "Վստահություն յուրաքանչյուր նախագծում` պաշտպանված վճարումներով սկզբից մինչև ավարտ։",
     footerRights: "© 2026 VSTAH.am։ Բոլոր իրավունքները պաշտպանված են։",
     footerPhoneLabel: "Հեռախոս",
@@ -399,7 +430,23 @@ const translations: Record<Locale, TranslationBundle> = {
     milestoneFinishing: "Հարդարում",
     stateLocked: "Կողպված",
     statePending: "Սպասման մեջ",
-    stateReleased: "Արձակված"
+    stateReleased: "Արձակված",
+    agreementPreviewTitle: "Պայմանագրի նախադիտում",
+    pendingDeposit: "Սպասվող դեպոզիտ",
+    clientLabel: "Հաճախորդ",
+    serviceAreaLabel: "Սպասարկման տարածք",
+    termsSnapshot: "Պայմանների ամփոփում",
+    termsSnapshotText: "Պաշտպանված միջոցները ազատվում են ավտոմատ՝ փուլի ավարտից հետո։",
+    depositFunds: "Դեպոզիտ անել միջոցները",
+    providerDashboardTitle: "Մատակարարի վահանակ",
+    agreementsTrackedMonth: "18 պայմանագիր՝ ընթացիկ ամսում",
+    finalPayoutCompleted: "Վերջնական վճարումը ավարտված է",
+    fundsSecuredEscrow: "Միջոցները ապահովված են էսկրոուում",
+    awaitingClientDeposit: "Սպասում է հաճախորդի դեպոզիտին",
+    statusPaid: "Վճարված",
+    statusSecured: "Ապահովված",
+    completed: "Ավարտված",
+    releaseProgress: "Ազատման ընթացք"
   },
   ru: {
     brand: "VSTAH.am",
@@ -409,12 +456,12 @@ const translations: Record<Locale, TranslationBundle> = {
     btnProtectProject: "Защитить проект",
     btnSeeHow: "Смотреть механизм",
     btnStartProtected: "Начать защищённый проект",
-    heroEyebrow: "Защищаем каждый проект и каждый платеж",
+    heroEyebrow: "Укрепляем профессиональное доверие. Оплата — вовремя.",
     heroTitleBefore: "Защитите ",
     heroTitleHighlight: "сделки по проекту",
     heroTitleAfter: " в Армении",
     heroSubtitle:
-      "Не рискуйте предоплатой. Не начинайте работу без защиты. VSTAH удерживает средства, пока проект не будет утвержден.",
+      "Хватит догонять оплату. Работайте с уверенностью. VSTAH фиксирует средства и готовит их к выплате.",
     cardChip1: "Защищенный проектный депозит",
     cardChip2: "Цифровой договор на выполнение работ",
     projectLabel: "Проект",
@@ -435,86 +482,86 @@ const translations: Record<Locale, TranslationBundle> = {
     cardMediation: "Средства защищены и регулируются в правовом поле Армении",
     cardTagline1: "Предотвратите споры.",
     cardTagline2: "Ускорьте проект.",
-    feature1: "Без риска необоснованной предоплаты.",
-    feature2: "Без неоплаченного объема работ.",
+    feature1: "Подтвержденные средства.",
+    feature2: "Гарантированные выплаты.",
     feature3: "Разработано для рынка Армении.",
-    feature4: "Защищённые локальные сделки.",
+    feature4: "Защищенные сделки.",
     diffEyebrow: "Разница",
     diffTitle: "С VSTAH и без VSTAH",
     diffSubtitle:
       "Предотвращайте конфликтные ситуации еще до старта. Посмотрите, как VSTAH защищает ваш проект.",
-    recommended: "Рекомендуется",
+    recommended: "(Рекомендуется)",
     colWith: "С VSTAH",
     colWithout: "Без нас",
-    diffWithoutEyebrow: "Традиционный подход",
+    diffWithoutEyebrow: "(Старый подход)",
     comparisonRows: [
       {
-        label: "Защита средств",
-        withVstah: "Депозит удерживается в эскроу до подтверждения выполненных работ",
-        withoutUs: "Средства передаются заранее без гарантии результата"
+        label: "Безопасность оплаты",
+        withVstah: "Средства фиксируются в эскроу до старта работ",
+        withoutUs: "Остается надеяться, что клиент заплатит после"
       },
       {
-        label: "Договорная определенность",
-        withVstah: "Цифровой договор с электронным подтверждением обеих сторон",
-        withoutUs: "Устные договоренности и переписка в мессенджерах"
+        label: "Цифровой договор",
+        withVstah: "Профессиональный договор с подтверждением обеих сторон",
+        withoutUs: "Устные обещания и переписка в WhatsApp"
       },
       {
-        label: "Этапные платежи",
-        withVstah: "Оплата производится после подтверждения каждого завершенного этапа",
-        withoutUs: "Полная предоплата или спор по факту"
+        label: "Этапы проекта",
+        withVstah: "Оплата за каждый завершенный этап",
+        withoutUs: "Ожидание полной оплаты в конце"
       },
       {
-        label: "Урегулирование споров",
-        withVstah: "Встроенный процесс правовой медиации в рамках законодательства Армении",
-        withoutUs: "Личные конфликты, потери времени и бюджета"
+        label: "Споры",
+        withVstah: "Средства защищены до завершения локальной медиации",
+        withoutUs: "Личные конфликты и потеря времени"
       },
       {
         label: "Прозрачность",
-        withVstah: "Каждый этап фиксируется с временной отметкой",
-        withoutUs: "Коммуникационные разрывы и недопонимание"
+        withVstah: "Полное подтверждение работ с временными метками",
+        withoutUs: "Недопонимание и сбои в коммуникации"
       },
       {
-        label: "Надежность",
-        withVstah: "Гарантии платформы вместо устных обещаний",
+        label: "Профессионализм",
+        withVstah: "Гарантируется системой, а не обещаниями",
         withoutUs: "Зависимость от личных связей"
       }
     ],
     processEyebrow: "Процесс",
     processTitle: "Как это работает",
     processSubtitle:
-      "Четыре четких шага без неопределенности: обе стороны полностью защищены.",
+      "Четыре простых шага. Ноль неопределенности. Профессиональные сделки под полной защитой.",
     processSteps: [
       {
         step: "01",
         title: "Создайте проектную сделку",
-        desc: "За несколько минут зафиксируйте объем работ, этапы и общий бюджет."
+        desc: "За несколько минут задайте объем, этапы и стоимость."
       },
       {
         step: "02",
-        title: "Разместите средства под защитой",
-        desc: "Средства удерживаются в эскроу: безопасно и прозрачно."
+        title: "Проверьте защищенные средства",
+        desc: "Средства зафиксированы в эскроу. Деньги готовы до старта."
       },
       {
         step: "03",
-        title: "Работы стартуют",
-        desc: "Стороны начинают проект с уверенностью, что средства защищены."
+        title: "Работайте с уверенностью",
+        desc: "Начинайте проект, зная, что оплата гарантирована и ожидает."
       },
       {
         step: "04",
-        title: "Подтвердите и разблокируйте оплату",
-        desc: "Проверяйте каждый завершенный этап: выплата происходит только после подтверждения."
+        title: "Автоматические выплаты по этапам",
+        desc: "Получайте оплату сразу после завершения и подтверждения каждого этапа."
       }
     ],
     disputeEyebrow: "Урегулирование споров",
-    disputeTitle: "Если процесс отклоняется, мы оперативно подключаемся",
+    disputeTitle: "Мы защищаем ваш бизнес, если что-то идет не так.",
     disputeBody:
-      "Наши армянские юристы-медиаторы подключаются в сложных ситуациях и обеспечивают сбалансированное решение в рамках местного права.",
+      "Наши армянские эксперты медиируют, чтобы вы получили оплату за выполненную работу. Справедливо, быстро и на 100% по местному праву.",
     badge24h: "Оперативная поддержка",
-    badge24hSub: "При возникновении вопроса — ответ в течение 24 часов.",
+    badge24hSub: "Ответ в течение 24 часов, чтобы быстро решить вопросы и двигать проект дальше.",
     badgeLaw: "Правовая чистота",
-    badgeLawSub: "100% соответствие действующему законодательству Армении.",
-    badgeMed: "Управляемая медиация",
-    badgeMedSub: "Понятный 3-шаговый процесс урегулирования разногласий.",
+    badgeLawSub: "100% соответствие законодательству Армении и надежная правовая база для каждой сделки.",
+    badgeMed: "Быстрое урегулирование",
+    badgeMedSub: "Простой 3-шаговый процесс, чтобы закрывать споры без потери времени и денег.",
     footerTagline: "Доверие в каждом проекте: защищенные платежи от старта до финального закрытия.",
     footerRights: "© 2026 VSTAH.am. Все права защищены.",
     footerPhoneLabel: "Телефон",
@@ -538,7 +585,23 @@ const translations: Record<Locale, TranslationBundle> = {
     milestoneFinishing: "Отделка",
     stateLocked: "Заблокировано",
     statePending: "Ожидание",
-    stateReleased: "Выплачено"
+    stateReleased: "Выплачено",
+    agreementPreviewTitle: "Предпросмотр соглашения",
+    pendingDeposit: "Ожидается депозит",
+    clientLabel: "Клиент",
+    serviceAreaLabel: "Регион услуг",
+    termsSnapshot: "Сводка условий",
+    termsSnapshotText: "Защищенные средства автоматически выплачиваются после завершения этапа.",
+    depositFunds: "Внести депозит",
+    providerDashboardTitle: "Панель исполнителя",
+    agreementsTrackedMonth: "18 соглашений в этом месяце",
+    finalPayoutCompleted: "Финальная выплата завершена",
+    fundsSecuredEscrow: "Средства защищены в эскроу",
+    awaitingClientDeposit: "Ожидается депозит клиента",
+    statusPaid: "Оплачено",
+    statusSecured: "Защищено",
+    completed: "Завершено",
+    releaseProgress: "Прогресс выплат"
   }
 };
 
@@ -573,12 +636,12 @@ export default function Page() {
     []
   );
 
-  const t = translations[locale];
+  const t: TranslationBundle = translations[locale] ?? translations.en;
   const heroChipsHyRu = locale === "hy" || locale === "ru";
   const isHy = locale === "hy";
   const loginLabel = locale === "hy" ? "Մուտք" : locale === "ru" ? "Войти" : "Log in";
-  const currentLangShort = langButtons.find((item) => item.code === locale)?.short ?? "EN";
-
+  const createDealCtaClass =
+    "inline-flex items-center justify-center rounded-xl bg-[#DC2626] px-4 py-2.5 text-sm font-extrabold text-slate-900 shadow-lg shadow-red-900/35 transition hover:bg-[#B91C1C] hover:brightness-110";
   return (
     <div className="flex min-h-screen flex-col bg-white text-slate-900">
       <header className="sticky top-0 z-50 border-b border-black/10 bg-white shadow-lg shadow-black/10">
@@ -603,13 +666,11 @@ export default function Page() {
                 type="button"
                 onClick={() => setLangMenuOpen((o) => !o)}
                 aria-label={t.langSwitcherAria}
-                className="inline-flex h-11 items-center gap-2 rounded-2xl border border-slate-300 bg-white px-3 pr-4 text-slate-900 transition hover:border-slate-400"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-slate-900 transition hover:opacity-85"
               >
-                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-300">
+                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#F2A800] via-[#D90012] to-[#0033A0] text-white shadow-sm">
                   <Globe className="h-5 w-5" />
                 </span>
-                <span className="text-sm font-bold">{currentLangShort}</span>
-                <ChevronDown className={`h-5 w-5 transition ${langMenuOpen ? "rotate-180" : ""}`} />
               </button>
               {langMenuOpen ? (
                 <div className="absolute right-0 top-12 z-50 min-w-[180px] rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
@@ -638,8 +699,8 @@ export default function Page() {
             >
               {loginLabel}
             </Link>
-            <OrangeButton href="/register?next=%2Fdashboard" className="px-5 py-2.5 text-sm sm:px-6 sm:py-3">
-              {t.btnCreateDeal}
+            <OrangeButton href="/register?next=%2Fdashboard" className={`${createDealCtaClass} px-6 py-3 text-base sm:px-7 sm:py-3.5`}>
+              + {t.btnCreateDeal}
             </OrangeButton>
           </div>
 
@@ -649,11 +710,11 @@ export default function Page() {
                 type="button"
                 onClick={() => setLangMenuOpen((o) => !o)}
                 aria-label={t.langSwitcherAria}
-                className="inline-flex h-10 items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-2.5 text-slate-900"
+                className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white text-slate-900"
               >
-                <Globe className="h-4 w-4" />
-                <span className="text-xs font-semibold">{currentLangShort}</span>
-                <ChevronDown className={`h-4 w-4 transition ${langMenuOpen ? "rotate-180" : ""}`} />
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-[#F2A800] via-[#D90012] to-[#0033A0] text-white shadow-sm">
+                  <Globe className="h-4 w-4" />
+                </span>
               </button>
               {langMenuOpen ? (
                 <div className="absolute left-0 top-10 z-50 min-w-[150px] rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
@@ -719,9 +780,9 @@ export default function Page() {
                 <Link
                   href="/register?next=%2Fdashboard"
                   onClick={() => setMobileOpen(false)}
-                  className="inline-flex h-10 items-center justify-center rounded-xl bg-[#F2A800] text-sm font-bold text-slate-900"
+                  className={`${createDealCtaClass} h-11 text-base`}
                 >
-                  {t.btnCreateDeal}
+                  + {t.btnCreateDeal}
                 </Link>
               </div>
             </div>
@@ -833,15 +894,19 @@ export default function Page() {
                         aria-label={`${t.heroSlideAria} ${index + 1}`}
                         aria-current={activeHeroSlide === index ? "true" : undefined}
                         onClick={() => setActiveHeroSlide(index)}
-                        className={`h-3.5 w-3.5 rounded-full transition-all ${
-                          activeHeroSlide === index
-                            ? `scale-110 ${heroDotStyles[index].active}`
-                            : heroDotStyles[index].inactive
-                        }`}
-                      />
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-full"
+                      >
+                        <span
+                          className={`h-3.5 w-3.5 rounded-full transition-all ${
+                            activeHeroSlide === index
+                              ? `scale-110 ${heroDotStyles[index].active}`
+                              : heroDotStyles[index].inactive
+                          }`}
+                        />
+                      </button>
                     ))}
                   </div>
-                  <span className="flex-1 truncate text-center text-[11px] font-medium text-slate-400">vstah.app</span>
+                  <span className="ml-auto text-right text-[11px] font-medium text-slate-400">vstah.app</span>
                 </div>
                 <div
                   className="flex will-change-transform transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]"
@@ -906,55 +971,61 @@ export default function Page() {
 
                   <article className="w-full shrink-0">
                     <div className="p-5 text-slate-900 sm:p-6">
-                      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-5">
+                      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-4">
                         <div>
                           <p className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-slate-600">
                             {t.projectLabel} <span className="text-slate-900">#AM-2842</span>
                           </p>
-                          <h2 className="mt-2 text-lg font-semibold tracking-tight text-slate-900 sm:text-xl">{t.projectTitle}</h2>
+                          <h2 className="mt-2 text-lg font-semibold tracking-tight text-slate-900 sm:text-xl">{t.agreementPreviewTitle}</h2>
                         </div>
                         <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 ring-1 ring-amber-600/20">
                           <Clock className="h-3.5 w-3.5" />
-                          Pending Deposit
+                          {t.pendingDeposit}
                         </span>
                       </div>
-                      <div className="mt-5 overflow-hidden rounded-xl bg-gradient-to-br from-[#1D4ED8] to-[#1E40AF] p-4 text-white shadow-inner sm:p-5">
+
+                      <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+                        <div className="flex items-center justify-between">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t.clientLabel}</p>
+                          <p className="text-xs font-semibold text-slate-700">Aram Petrosyan</p>
+                        </div>
+                        <div className="mt-2 flex items-center justify-between">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t.serviceAreaLabel}</p>
+                          <p className="text-xs font-semibold text-slate-700">Yerevan</p>
+                        </div>
+                        <div className="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
+                          <p className="text-[11px] font-semibold text-slate-500">{t.termsSnapshot}</p>
+                          <p className="mt-1 text-xs text-slate-700">{t.termsSnapshotText}</p>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 grid grid-cols-3 gap-2">
+                        <div className="rounded-lg border border-blue-100 bg-blue-50/60 px-2.5 py-2">
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-blue-700">{t.milestoneDemolition}</p>
+                          <p className="mt-1 text-[11px] font-bold text-blue-900">{t.stateLocked}</p>
+                        </div>
+                        <div className="rounded-lg border border-blue-100 bg-blue-50/60 px-2.5 py-2">
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-blue-700">{t.milestonePlumbing}</p>
+                          <p className="mt-1 text-[11px] font-bold text-blue-900">{t.stateLocked}</p>
+                        </div>
+                        <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2">
+                          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-600">{t.milestoneFinishing}</p>
+                          <p className="mt-1 text-[11px] font-bold text-slate-700">{t.statePending}</p>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 overflow-hidden rounded-xl bg-gradient-to-br from-[#1D4ED8] to-[#1E40AF] p-4 text-white shadow-inner sm:p-5">
                         <p className="text-xs font-medium uppercase tracking-wider text-white/75">{t.awaitingFundsEscrow}</p>
                         <p className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl">
                           450,000 <span className="text-xl font-semibold text-white/80 sm:text-2xl">֏</span>
                         </p>
                         <p className="mt-1.5 text-xs font-medium text-white/90">{t.depositRequired}</p>
                       </div>
-                      <div className="mt-4 space-y-2">
-                        <div className="grid grid-cols-3 gap-2">
-                          <div className="rounded-lg border border-blue-100 bg-blue-50/60 px-2.5 py-2">
-                            <p className="text-[10px] font-semibold uppercase tracking-wide text-blue-700">{t.milestoneDemolition}</p>
-                            <p className="mt-1 text-[11px] font-bold text-blue-900">{t.stateLocked}</p>
-                          </div>
-                          <div className="rounded-lg border border-blue-100 bg-blue-50/60 px-2.5 py-2">
-                            <p className="text-[10px] font-semibold uppercase tracking-wide text-blue-700">{t.milestonePlumbing}</p>
-                            <p className="mt-1 text-[11px] font-bold text-blue-900">{t.stateLocked}</p>
-                          </div>
-                          <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2">
-                            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-600">{t.milestoneFinishing}</p>
-                            <p className="mt-1 text-[11px] font-bold text-slate-700">{t.statePending}</p>
-                          </div>
-                        </div>
-                        <div className="rounded-xl border border-slate-200 bg-white px-3.5 py-2.5">
-                          <div className="mb-2 flex items-center justify-between">
-                            <p className="text-xs font-semibold text-slate-700">{t.setupDashboard}</p>
-                            <span className="text-[11px] font-semibold text-slate-500">0/3 released</span>
-                          </div>
-                          <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
-                            <div className="h-full w-[12%] rounded-full bg-[#1D4ED8]" />
-                          </div>
-                        </div>
-                      </div>
                       <button
                         type="button"
                         className="mt-4 inline-flex h-10 w-full items-center justify-center rounded-xl bg-[#DC2626] px-4 text-sm font-semibold text-white shadow-sm shadow-red-900/30 transition hover:bg-[#B91C1C]"
                       >
-                        Deposit Funds
+                        {t.depositFunds}
                       </button>
                     </div>
                   </article>
@@ -966,54 +1037,62 @@ export default function Page() {
                           <p className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-slate-600">
                             {t.projectLabel} <span className="text-slate-900">{t.projectId}</span>
                           </p>
-                          <h2 className="mt-2 text-lg font-semibold tracking-tight text-slate-900 sm:text-xl">{t.projectTitle}</h2>
+                          <h2 className="mt-2 text-lg font-semibold tracking-tight text-slate-900 sm:text-xl">{t.providerDashboardTitle}</h2>
                         </div>
                         <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-600/15">
                           <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                          Completed
+                          {t.completed}
                         </span>
                       </div>
+
                       <div className="mt-5 overflow-hidden rounded-xl bg-gradient-to-br from-[#1D4ED8] to-[#1E40AF] p-4 text-white shadow-inner sm:p-5">
                         <p className="text-xs font-medium uppercase tracking-wider text-white/75">{t.totalTransferred}</p>
                         <p className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl">
-                          450,000 <span className="text-xl font-semibold text-white/80 sm:text-2xl">֏</span>
+                          2,450,000 <span className="text-xl font-semibold text-white/80 sm:text-2xl">֏</span>
                         </p>
-                        <p className="mt-1.5 text-xs font-medium text-white/90">{t.allMilestonesCompleted}</p>
+                        <p className="mt-1.5 text-xs font-medium text-white/90">{t.agreementsTrackedMonth}</p>
                       </div>
-                      <div className="mt-4 space-y-2">
-                        <div className="grid grid-cols-3 gap-2">
-                          <div className="rounded-lg border border-emerald-100 bg-emerald-50/70 px-2.5 py-2">
-                            <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700">{t.milestoneDemolition}</p>
-                            <p className="mt-1 text-[11px] font-bold text-emerald-900">{t.stateReleased}</p>
+
+                      <ul className="mt-5 space-y-2.5">
+                        <li className="flex items-center justify-between gap-3 rounded-xl border border-emerald-100 bg-emerald-50/60 px-3.5 py-3 sm:px-4">
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-slate-900">Agreement #AM-2841</p>
+                            <p className="text-xs font-medium text-slate-500">{t.finalPayoutCompleted}</p>
                           </div>
-                          <div className="rounded-lg border border-emerald-100 bg-emerald-50/70 px-2.5 py-2">
-                            <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700">{t.milestonePlumbing}</p>
-                            <p className="mt-1 text-[11px] font-bold text-emerald-900">{t.stateReleased}</p>
+                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-emerald-800">
+                            <Check className="h-3 w-3" strokeWidth={2.5} />
+                            {t.statusPaid}
+                          </span>
+                        </li>
+                        <li className="flex items-center justify-between gap-3 rounded-xl border border-blue-100 bg-blue-50/50 px-3.5 py-3 sm:px-4">
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-slate-900">Agreement #AM-2843</p>
+                            <p className="text-xs font-medium text-slate-500">{t.fundsSecuredEscrow}</p>
                           </div>
-                          <div className="rounded-lg border border-emerald-100 bg-emerald-50/70 px-2.5 py-2">
-                            <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700">{t.milestoneFinishing}</p>
-                            <p className="mt-1 text-[11px] font-bold text-emerald-900">{t.stateReleased}</p>
+                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[#1D4ED8]">
+                            <Lock className="h-3 w-3" strokeWidth={2.5} />
+                            {t.statusSecured}
+                          </span>
+                        </li>
+                        <li className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 sm:px-4">
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-slate-900">Agreement #AM-2844</p>
+                            <p className="text-xs font-medium text-slate-500">{t.awaitingClientDeposit}</p>
                           </div>
+                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-slate-200/80 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-slate-600">
+                            <Clock className="h-3 w-3" strokeWidth={2.5} />
+                            {t.statePending}
+                          </span>
+                        </li>
+                      </ul>
+
+                      <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5">
+                        <div className="mb-2 flex items-center justify-between">
+                          <p className="text-xs font-semibold text-emerald-900">{t.releaseProgress}</p>
+                          <span className="text-[11px] font-semibold text-emerald-700">72%</span>
                         </div>
-                        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5">
-                          <div className="mb-2 flex items-center justify-between">
-                            <p className="text-xs font-semibold text-emerald-900">{t.completionDashboard}</p>
-                            <span className="text-[11px] font-semibold text-emerald-700">100%</span>
-                          </div>
-                          <div className="h-1.5 overflow-hidden rounded-full bg-emerald-100">
-                            <div className="h-full w-full rounded-full bg-emerald-500" />
-                          </div>
-                        </div>
-                      </div>
-                      <div className="mt-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3.5 py-2">
-                        <div className="flex items-center justify-between gap-3">
-                          <p className="text-xs font-semibold text-emerald-900">{t.successCompleted}</p>
-                          <button
-                            type="button"
-                            className="inline-flex items-center rounded-full bg-white px-2.5 py-0.5 text-[11px] font-semibold text-emerald-800 ring-1 ring-emerald-200 transition hover:bg-emerald-100"
-                          >
-                            {t.leaveFeedback}
-                          </button>
+                        <div className="h-1.5 overflow-hidden rounded-full bg-emerald-100">
+                          <div className="h-full w-[72%] rounded-full bg-emerald-500" />
                         </div>
                       </div>
                     </div>
@@ -1032,10 +1111,10 @@ export default function Page() {
         <section className="border-y border-white/10 bg-white py-12 text-slate-900 md:py-16">
           <div className="mx-auto grid w-full max-w-none grid-cols-1 gap-4 px-4 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4 lg:gap-6 md:px-6">
             {[
-              { text: t.feature1, icon: Shield },
+              { text: t.feature1, icon: ShieldCheck },
               { text: t.feature2, icon: Wallet },
-              { text: t.feature3, icon: Building2 },
-              { text: t.feature4, icon: House }
+              { text: t.feature3, icon: Flag },
+              { text: t.feature4, icon: Shield }
             ].map(({ text, icon: Icon }, index) => (
               <div
                 key={`feature-${index}`}
@@ -1204,7 +1283,7 @@ export default function Page() {
 
         <section className="relative overflow-hidden py-16 md:py-24" style={{ backgroundColor: NAVY }}>
           <div className="pointer-events-none absolute inset-0 opacity-10" style={{ backgroundImage: `radial-gradient(circle at 20% 20%, ${RED}, transparent 40%)` }} aria-hidden />
-          <div className="relative mx-auto max-w-3xl px-4 text-center md:px-6">
+          <div className="relative mx-auto max-w-5xl px-4 text-center md:px-6">
             <p className="text-xs font-black uppercase tracking-[0.25em] text-white/70">{t.disputeEyebrow}</p>
             <h2 className="mt-4 text-3xl font-black leading-tight text-white md:text-4xl">{t.disputeTitle}</h2>
             <p className="mt-5 text-base font-medium leading-relaxed text-white/90 md:text-lg">{t.disputeBody}</p>
@@ -1219,12 +1298,14 @@ export default function Page() {
               ].map(({ main, sub, icon: Icon }, idx) => (
                 <div
                   key={`dispute-badge-${idx}`}
-                  className="flex min-h-[11rem] min-w-0 flex-col items-center overflow-hidden rounded-2xl border border-white/20 bg-white/10 px-4 py-4 text-white backdrop-blur-sm sm:min-h-[12.5rem]"
+                  className="flex min-h-[12rem] min-w-0 flex-col items-center rounded-2xl border border-white/20 bg-white/10 px-4 py-4 text-white backdrop-blur-sm sm:min-h-[13rem]"
                 >
                   <Icon className="h-6 w-6 shrink-0" style={{ color: ORANGE }} />
-                  <p className="mt-2 text-center text-xl font-black leading-tight sm:text-2xl">{main}</p>
+                  <p className={`mt-2 text-center font-black leading-tight [overflow-wrap:anywhere] ${isHy ? "text-base sm:text-lg" : "text-lg sm:text-xl"}`}>
+                    {main}
+                  </p>
                   <p
-                    className="mt-2 min-w-0 max-w-full text-center text-xs font-medium leading-snug text-white/85 line-clamp-4 sm:text-sm"
+                    className="mt-2 min-w-0 max-w-full text-center text-xs font-medium leading-snug text-white/85 [overflow-wrap:anywhere] sm:text-sm"
                     title={sub}
                   >
                     {sub}

@@ -8,7 +8,7 @@ import { termsLegal } from "@/lib/i18n/legal-static";
 
 export default function TermsPage() {
   const { language } = useLanguage();
-  const t = termsLegal[language];
+  const t = termsLegal[language] ?? termsLegal.en;
 
   useEffect(() => {
     document.title = t.documentTitle;

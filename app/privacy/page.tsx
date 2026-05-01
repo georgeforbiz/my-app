@@ -8,7 +8,7 @@ import { privacyLegal } from "@/lib/i18n/legal-static";
 
 export default function PrivacyPage() {
   const { language } = useLanguage();
-  const t = privacyLegal[language];
+  const t = privacyLegal[language] ?? privacyLegal.en;
 
   useEffect(() => {
     document.title = t.documentTitle;

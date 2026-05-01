@@ -155,10 +155,11 @@ export default function AgreementClientPage() {
           depositMilestoneFailed: "Չհաջողվեց դեպոզիտ կատարել այս փուլի համար։ Փորձեք կրկին։",
           releasePaymentFailed: "Չհաջողվեց արձակել վճարումը։ Փորձեք կրկին։",
           depositEscrowFailed: "Չհաջողվեց դեպոզիտ անել էսկրոուում։ Փորձեք կրկին։",
-          openDispute: "Բացել վեճ",
-          reportProblem: "Բողոքարկել",
           includesProtectionFee: "Ներառում է VSTAH պաշտպանական վճարը",
-          escrowLegalNote: "Էսկրոու ծառայությունները կարգավորվում են Հայաստանի Հանրապետության օրենքներով։"
+          escrowLegalNote: "Էսկրոու ծառայությունները կարգավորվում են Հայաստանի Հանրապետության օրենքներով։",
+          reportProblemLabel: "Հաղորդել խնդրի մասին",
+          reportProblemPlaceholder: "Կարճ նկարագրեք խնդիրը (կոճակը դեռ ակտիվ չէ)...",
+          reportProblemCta: "Ուղարկել (շուտով)"
         }
       : language === "ru"
         ? {
@@ -229,10 +230,11 @@ export default function AgreementClientPage() {
             depositMilestoneFailed: "Не удалось внести депозит за этот этап. Попробуйте снова.",
             releasePaymentFailed: "Не удалось выплатить средства. Попробуйте снова.",
             depositEscrowFailed: "Не удалось внести средства в Эскроу. Попробуйте снова.",
-            openDispute: "Открыть спор",
-            reportProblem: "Сообщить о проблеме",
             includesProtectionFee: "Включает комиссию защиты VSTAH",
-            escrowLegalNote: "Эскроу-услуги регулируются законодательством Республики Армения."
+            escrowLegalNote: "Эскроу-услуги регулируются законодательством Республики Армения.",
+            reportProblemLabel: "Сообщить о проблеме",
+            reportProblemPlaceholder: "Кратко опишите проблему (кнопка пока не активна)...",
+            reportProblemCta: "Отправить (скоро)"
           }
         : {
             loading: "Loading agreement...",
@@ -301,10 +303,11 @@ export default function AgreementClientPage() {
             depositMilestoneFailed: "Failed to deposit funds for this milestone. Please try again.",
             releasePaymentFailed: "Failed to release payment. Please try again.",
             depositEscrowFailed: "Failed to deposit funds to escrow. Please try again.",
-            openDispute: "Open Dispute",
-            reportProblem: "Report a Problem",
             includesProtectionFee: "Includes VSTAH Protection Fee",
-            escrowLegalNote: "Escrow services are governed by the laws of the Republic of Armenia."
+            escrowLegalNote: "Escrow services are governed by the laws of the Republic of Armenia.",
+            reportProblemLabel: "Report a Problem",
+            reportProblemPlaceholder: "Briefly describe the issue (button is not active yet)...",
+            reportProblemCta: "Submit (coming soon)"
           };
 
   const [agreement, setAgreement] = useState<Agreement | null>(null);
@@ -685,20 +688,6 @@ export default function AgreementClientPage() {
   const providerFields = resolveProviderNameFields(agreement);
   const serviceAreaDisplay = agreement.service_area?.trim() || "Armenia";
   const readableAgreementId = `VSTAH-${new Date(agreement.created_at).getFullYear()}-${agreement.id.split("-")[0].toUpperCase()}`;
-  const disputeSubject = `Agreement ${readableAgreementId}`;
-  const disputeBody = [
-    "Hello VSTAH Support,",
-    "",
-    "I would like to report a problem with this agreement.",
-    "",
-    `Agreement reference: ${readableAgreementId}`,
-    `Agreement ID: ${agreement.id}`,
-    "",
-    "Please describe the issue in detail:",
-    "",
-    "Thank you."
-  ].join("\n");
-
   return (
     <main key={routeKey} className="min-h-screen bg-slate-100 px-3 py-6 md:px-6 md:py-10">
       <div ref={printableRef} className="relative mx-auto w-full max-w-[880px] rounded-md border border-slate-200 bg-white px-4 py-5 shadow-[0_8px_30px_rgba(15,23,42,0.08)] md:px-10 md:py-9">
@@ -795,7 +784,6 @@ export default function AgreementClientPage() {
           <p className="text-sm font-semibold text-slate-800">
             {tx.total}: {money(Number(agreement.total_price || 0))} ֏
           </p>
-          <p className="mt-1 break-words text-xs text-slate-500 [overflow-wrap:anywhere]">Final price includes VSTAH protection</p>
         </div>
 
         {agreement.payment_type === "milestones" ? (
@@ -819,13 +807,6 @@ export default function AgreementClientPage() {
                           <span className="inline-flex rounded-full border border-blue-200 bg-blue-100 px-2 py-0.5 text-xs font-semibold text-[#0033A0]">
                             {tx.escrowHeld}
                           </span>
-                          <button
-                            type="button"
-                            onClick={() => window.open(`mailto:support@vstah.am?subject=${encodeURIComponent(`Dispute for ${readableAgreementId} - Milestone ${i + 1}`)}`, "_blank")}
-                            className="rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-800 transition hover:bg-amber-100"
-                          >
-                            {tx.openDispute}
-                          </button>
                           {agreement.status === "signed" ? (
                             <button
                               type="button"
@@ -951,13 +932,20 @@ export default function AgreementClientPage() {
           </div>
         ) : null}
         <p className="mt-4 break-words text-center text-xs text-slate-500 [overflow-wrap:anywhere]">{tx.escrowLegalNote}</p>
-        <div className="mt-4 flex justify-center">
-          <a
-            href={`mailto:support@vstah.am?subject=${encodeURIComponent(disputeSubject)}&body=${encodeURIComponent(disputeBody)}`}
-            className="inline-flex items-center rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-600 transition hover:bg-red-50 hover:text-red-700"
+        <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:p-4">
+          <p className="text-sm font-semibold text-slate-800">{tx.reportProblemLabel}</p>
+          <textarea
+            rows={3}
+            placeholder={tx.reportProblemPlaceholder}
+            className="mt-2 w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none"
+          />
+          <button
+            type="button"
+            disabled
+            className="mt-3 inline-flex cursor-not-allowed items-center rounded-lg border border-slate-300 bg-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 opacity-80"
           >
-            {tx.reportProblem}
-          </a>
+            {tx.reportProblemCta}
+          </button>
         </div>
       </div>
     </main>

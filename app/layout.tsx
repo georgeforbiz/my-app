@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { LANG_COOKIE } from "@/lib/i18n/constants";
+import type { Language } from "@/lib/i18n/locales";
 import { SITE_METADATA } from "@/lib/i18n/site-metadata";
 import { RootProviders } from "./root-providers";
 
@@ -20,13 +21,13 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = cookies();
   const cookieLang = cookieStore.get(LANG_COOKIE)?.value;
-  const htmlLang =
-    cookieLang === "hy" || cookieLang === "ru" ? cookieLang : ("en" as const);
+  const htmlLang: Language =
+    cookieLang === "hy" || cookieLang === "ru" ? cookieLang : "en";
 
   return (
     <html lang={htmlLang} suppressHydrationWarning className="scroll-smooth">
       <body className={`${inter.variable} min-h-screen bg-white font-sans text-slate-800 antialiased`}>
-        <RootProviders>{children}</RootProviders>
+        <RootProviders initialLanguage={htmlLang}>{children}</RootProviders>
       </body>
     </html>
   );
