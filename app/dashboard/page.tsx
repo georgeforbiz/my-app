@@ -832,16 +832,24 @@ export default function DashboardPage() {
                           const signedMark = item.status === "signed" || item.status === "completed";
                           return (
                             <article key={item.id} className="rounded-xl border border-slate-200 p-3">
-                              <div className="flex items-start justify-between gap-3">
-                                <div className="min-w-0">
-                                  <p className="truncate text-sm font-bold text-slate-900">{item.client_name}</p>
-                                  <p className="mt-0.5 text-sm text-slate-600">{formatAMD(toFinalPayout(Number(item.total_price)))}</p>
+                              <div className="space-y-2">
+                                <div className="grid grid-cols-1 gap-2">
+                                  <div className="min-w-0">
+                                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{tx.clientName}</p>
+                                    <p className="break-words text-sm font-bold text-slate-900">{item.client_name}</p>
+                                  </div>
+                                  <div>
+                                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{tx.price}</p>
+                                    <p className="mt-0.5 font-mono text-sm font-semibold text-slate-800">{formatAMD(toFinalPayout(Number(item.total_price)))}</p>
+                                  </div>
                                 </div>
-                                <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${statusBadge[derived]}`}>{statusText[derived]}</span>
+                                <div>
+                                  <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${statusBadge[derived]}`}>{statusText[derived]}</span>
+                                </div>
                               </div>
-                              <div className="mt-2">
-                                <p className="mb-1 text-xs font-semibold text-slate-600">{formatAMD(toFinalPayout(progress.released))} / {formatAMD(toFinalPayout(Number(item.total_price || 0)))} {tx.releasedOfTotal}</p>
-                                <p className="mb-1 text-[11px] font-semibold text-slate-500">{tx.vault}: {formatAMD(toFinalPayout(progress.escrow))} | {tx.waiting}: {formatAMD(toFinalPayout(progress.pending))}</p>
+                              <div className="mt-3">
+                                <p className="mb-1 break-words text-xs font-semibold text-slate-600">{formatAMD(toFinalPayout(progress.released))} / {formatAMD(toFinalPayout(Number(item.total_price || 0)))} {tx.releasedOfTotal}</p>
+                                <p className="mb-1 break-words text-[11px] font-semibold text-slate-500">{tx.vault}: {formatAMD(toFinalPayout(progress.escrow))} | {tx.waiting}: {formatAMD(toFinalPayout(progress.pending))}</p>
                                 <div className="h-2 w-full rounded-full bg-slate-200">
                                   <div className="h-2 rounded-full bg-orange-500 transition-all" style={{ width: `${progress.pct}%` }} />
                                 </div>
@@ -1047,12 +1055,32 @@ export default function DashboardPage() {
                         const signedMark = item.status === "signed" || item.status === "completed";
                         return (
                           <article key={item.id} className="rounded-xl border border-slate-200 p-3">
-                            <p className="truncate text-sm font-bold text-slate-900">{item.client_name}</p>
-                            <p className="mt-0.5 text-sm text-slate-600">{formatAMD(toFinalPayout(Number(item.total_price)))}</p>
-                            <div className="mt-2 flex flex-wrap items-center gap-1.5 text-base leading-none" aria-hidden>
-                              {paid ? <span title={tx.paid}>✅</span> : (<>{signedMark ? <span title={tx.signed}>✍️</span> : null}{escrow ? <span title={tx.fundsSecured}>🔒</span> : null}</>)}
+                            <div className="space-y-2">
+                              <div>
+                                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{tx.clientName}</p>
+                                <p className="break-words text-sm font-bold text-slate-900">{item.client_name}</p>
+                              </div>
+                              <div>
+                                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{tx.agreementIdCol}</p>
+                                <p className="font-mono text-xs font-semibold tracking-wide text-slate-700">
+                                  {formatAgreementNumber(item.id, item.created_at)}
+                                </p>
+                              </div>
+                              <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{tx.completionDateCol}</p>
+                                  <p className="text-sm text-slate-700">{new Date(item.created_at).toLocaleDateString()}</p>
+                                </div>
+                                <div>
+                                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{tx.finalPayoutNetCol}</p>
+                                  <p className="font-mono text-sm font-semibold text-slate-800">{formatAMD(toFinalPayout(Number(item.total_price)))}</p>
+                                </div>
+                              </div>
+                              <div className="mt-2 flex flex-wrap items-center gap-1.5 text-base leading-none" aria-hidden>
+                                {paid ? <span title={tx.paid}>✅</span> : (<>{signedMark ? <span title={tx.signed}>✍️</span> : null}{escrow ? <span title={tx.fundsSecured}>🔒</span> : null}</>)}
+                              </div>
+                              <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${statusBadge[derived]}`}>{statusText[derived]}</span>
                             </div>
-                            <span className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${statusBadge[derived]}`}>{statusText[derived]}</span>
                           </article>
                         );
                       })}
