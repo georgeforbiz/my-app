@@ -33,7 +33,7 @@ export function VstahShell({
       <header
         className="sticky top-0 z-40 border-b border-black/10 bg-white shadow-lg shadow-black/10"
       >
-        <div className="mx-auto flex h-[76px] max-w-[1440px] items-center justify-between gap-3 px-4 md:h-[84px] md:px-6">
+        <div className="mx-auto flex h-[76px] w-full min-w-0 max-w-[min(100%,90rem)] items-center justify-between gap-3 px-4 md:h-[84px] md:px-6">
           <Link href="/" className="flex shrink-0 items-center gap-2.5 text-slate-900">
             <img src="/logo-vstah-clean.png" alt="VSTAH logo" className="h-10 w-10 md:h-11 md:w-11" />
             <span className="text-lg font-bold tracking-tight md:text-xl">VSTAH.am</span>

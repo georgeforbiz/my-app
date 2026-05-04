@@ -643,9 +643,9 @@ export default function Page() {
   const createDealCtaClass =
     "inline-flex items-center justify-center rounded-xl bg-[#F2A800] px-4 py-2.5 text-sm font-extrabold text-slate-900 shadow-lg shadow-amber-800/25 transition hover:bg-[#D99000] hover:brightness-105";
   return (
-    <div className="flex min-h-screen flex-col bg-white text-slate-900">
+    <div className="flex min-h-screen w-full min-w-0 max-w-[100%] flex-col overflow-x-clip bg-white text-slate-900">
       <header className="sticky top-0 z-50 border-b border-black/10 bg-white shadow-lg shadow-black/10">
-        <div className="mx-auto flex h-[76px] max-w-[1440px] items-center justify-between gap-3 px-4 md:h-[84px] md:px-6">
+        <div className="mx-auto flex h-[76px] w-full min-w-0 max-w-[min(100%,90rem)] items-center justify-between gap-2 px-3 sm:gap-3 sm:px-4 md:h-[84px] md:px-6">
           <Link href="/" className="flex shrink-0 items-center gap-2.5 text-slate-900">
             <img src="/logo-vstah-clean.png" alt="VSTAH logo" className="h-10 w-10 md:h-11 md:w-11" />
             <span className="text-lg font-bold tracking-tight md:text-xl">{t.brand}</span>
@@ -790,11 +790,18 @@ export default function Page() {
         ) : null}
       </header>
 
-      <main className="flex-1" style={{ backgroundColor: NAVY }}>
-        <section className="relative h-auto min-h-screen w-full min-w-0 overflow-hidden border-b border-white/10 pb-12 pt-8 md:pb-24 md:pt-14">
-          <div className="pointer-events-none absolute -left-32 top-0 h-96 w-96 rounded-full bg-white/[0.06] blur-3xl" aria-hidden />
-          <div className="pointer-events-none absolute -right-24 bottom-0 h-80 w-80 rounded-full bg-orange-400/10 blur-3xl" aria-hidden />
-          <div className="relative mx-auto grid w-full max-w-[1200px] min-w-0 gap-8 px-4 sm:gap-10 md:grid-cols-2 md:items-center md:gap-16 lg:gap-20 md:px-6">
+      <main className="min-w-0 flex-1 overflow-x-clip" style={{ backgroundColor: NAVY }}>
+        <section className="relative h-auto min-h-screen w-full min-w-0 overflow-x-clip border-b border-white/10 pb-12 pt-8 md:overflow-hidden md:pb-24 md:pt-14">
+          {/* Tighten off-viewport blurs on small screens — full -left-32 / -right-24 widens iOS scroll width */}
+          <div
+            className="pointer-events-none absolute -left-16 top-0 h-64 w-64 rounded-full bg-white/[0.06] blur-3xl sm:-left-24 sm:h-80 sm:w-80 md:-left-32 md:h-96 md:w-96"
+            aria-hidden
+          />
+          <div
+            className="pointer-events-none absolute -right-8 bottom-0 h-64 w-64 rounded-full bg-orange-400/10 blur-3xl sm:-right-16 sm:h-72 sm:w-72 md:-right-24 md:h-80 md:w-80"
+            aria-hidden
+          />
+          <div className="relative mx-auto grid w-full min-w-0 max-w-[min(100%,75rem)] gap-8 px-4 sm:gap-10 md:grid-cols-2 md:items-center md:gap-16 lg:gap-20 md:px-6">
             <div
               lang={heroChipsHyRu ? locale : undefined}
               className="flex min-w-0 w-full flex-col justify-center text-left"
@@ -803,7 +810,7 @@ export default function Page() {
                 {t.heroEyebrow}
               </p>
               <h1
-                className={`mt-6 font-black tracking-tight text-white hyphens-none sm:mt-8 ${
+                className={`mt-6 min-w-0 break-words font-black tracking-tight text-white hyphens-none sm:mt-8 ${
                   isHy
                     ? "text-[1.7rem] leading-[1.12] sm:text-[2rem] md:text-[2.35rem] lg:text-[2.9rem] xl:text-[3.3rem]"
                     : "text-balance text-3xl leading-tight sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl"
@@ -908,11 +915,12 @@ export default function Page() {
                   </div>
                   <span className="ml-auto text-right text-[11px] font-medium text-slate-400">vstah.app</span>
                 </div>
-                <div
-                  className="flex will-change-transform transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]"
-                  style={{ transform: `translateX(-${activeHeroSlide * 100}%)` }}
-                >
-                  <article className="w-full shrink-0">
+                <div className="w-full min-w-0 overflow-hidden">
+                  <div
+                    className="flex w-full will-change-transform transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]"
+                    style={{ transform: `translateX(-${activeHeroSlide * 100}%)` }}
+                  >
+                  <article className="w-full min-w-0 shrink-0 grow-0 basis-full">
                     <div className="p-5 text-slate-900 sm:p-6">
                       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-5">
                         <div>
@@ -969,7 +977,7 @@ export default function Page() {
                     </div>
                   </article>
 
-                  <article className="w-full shrink-0">
+                  <article className="w-full min-w-0 shrink-0 grow-0 basis-full">
                     <div className="p-5 text-slate-900 sm:p-6">
                       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-4">
                         <div>
@@ -1030,7 +1038,7 @@ export default function Page() {
                     </div>
                   </article>
 
-                  <article className="w-full shrink-0">
+                  <article className="w-full min-w-0 shrink-0 grow-0 basis-full">
                     <div className="p-5 text-slate-900 sm:p-6">
                       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-5">
                         <div>
@@ -1097,6 +1105,7 @@ export default function Page() {
                       </div>
                     </div>
                   </article>
+                  </div>
                 </div>
               </div>
               <div className="absolute -bottom-2 left-1/2 z-10 w-[min(100%,22rem)] -translate-x-1/2 px-2 sm:w-full sm:max-w-sm">

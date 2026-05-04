@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
 import { Inter } from "next/font/google";
 import "./globals.css";
@@ -18,6 +18,13 @@ export const metadata: Metadata = {
   description: SITE_METADATA.en.description
 };
 
+/** Device-width scaling + safe-area support for notched iPhones (pairs with global overflow-x rules). */
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover"
+};
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const cookieStore = cookies();
   const cookieLang = cookieStore.get(LANG_COOKIE)?.value;
@@ -26,8 +33,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <html lang={htmlLang} suppressHydrationWarning className="scroll-smooth">
-      <body className={`${inter.variable} min-h-screen bg-white font-sans text-slate-800 antialiased`}>
-        <RootProviders initialLanguage={htmlLang}>{children}</RootProviders>
+      <body
+        className={`${inter.variable} min-h-screen min-w-0 w-full max-w-full overflow-x-hidden bg-white font-sans text-slate-800 antialiased`}
+      >
+        <div className="site-root min-h-screen min-w-0 w-full max-w-full overflow-x-clip">
+          <RootProviders initialLanguage={htmlLang}>{children}</RootProviders>
+        </div>
       </body>
     </html>
   );

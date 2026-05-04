@@ -890,7 +890,7 @@ export default function DashboardPage() {
                                   {(() => {
                                     const progress = getReleaseProgress(item);
                                     return (
-                                      <div className="min-w-[190px]">
+                                      <div className="min-w-0 w-full max-w-[11.875rem]">
                                         <p className="mb-1 text-xs font-semibold text-slate-600">
                                           {formatAMD(toFinalPayout(progress.released))} / {formatAMD(toFinalPayout(Number(item.total_price || 0)))} {tx.releasedOfTotal}
                                         </p>

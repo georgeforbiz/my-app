@@ -13,12 +13,47 @@
   html {
     -webkit-tap-highlight-color: transparent;
     scrollbar-gutter: stable;
+    margin: 0;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    overscroll-behavior-x: none;
+    position: relative;
+    /* iOS: reduce horizontal rubber-band when nested content is wider */
+    -webkit-text-size-adjust: 100%;
   }
 
-  html,
+  @supports (overflow: clip) {
+    html {
+      overflow-x: clip;
+    }
+  }
+
+  @media (max-width: 480px) {
+    html {
+      scrollbar-gutter: auto;
+    }
+  }
+
   body {
     margin: 0;
-    min-height: 100%;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+    overscroll-behavior-x: none;
+    /* Prefer % over 100vw — avoids occasional horizontal overflow from vw vs scrollbar on some engines */
+  }
+
+  @supports (overflow: clip) {
+    body {
+      overflow-x: clip;
+    }
+  }
+
+  img,
+  video {
+    max-width: 100%;
+    height: auto;
   }
 
   h1,
@@ -30,7 +65,8 @@
 
 body {
   min-height: 100vh;
-  overflow-x: hidden;
+  min-height: 100dvh;
+  min-height: -webkit-fill-available;
   background: #ffffff;
   color: #0f172a;
   font-feature-settings: "ss01" on, "cv01" on;
