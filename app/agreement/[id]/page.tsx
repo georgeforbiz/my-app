@@ -14,7 +14,17 @@ async function postAgreementAction(
   agreementId: string,
   subpath: "/sign" | "/deposit" | "/release",
   body: Record<string, unknown> = {}
-): Promise<{ ok: boolean; status: number; error?: string; code?: string; alreadySigned?: boolean }> {
+): Promise<{
+  ok: boolean;
+  status: number;
+  error?: string;
+  code?: string;
+  alreadySigned?: boolean;
+  /** Request included a valid data-URL signature string (API accepted it for `client_signature`). */
+  signatureSaved?: boolean;
+  /** Confirmed non-empty `client_signature` on the row returned by PostgREST after update. */
+  signatureStored?: boolean;
+}> {
   const res = await fetch(`/api/agreement/${encodeURIComponent(agreementId)}${subpath}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -25,6 +35,8 @@ async function postAgreementAction(
     code?: string;
     ok?: boolean;
     alreadySigned?: boolean;
+    signatureSaved?: boolean;
+    signatureStored?: boolean;
   };
   return { ok: res.ok, status: res.status, ...data };
 }
@@ -47,6 +59,7 @@ type Agreement = {
   milestones: { title: string; amount: number; status?: "pending" | "escrow_held" | "released" }[] | null;
   status: AgreementStatus;
   payment_status: "pending" | "escrow_held" | "released";
+  client_signature?: string;
   created_at: string;
 };
 
@@ -109,6 +122,7 @@ export default function AgreementClientPage() {
           signAndAccept: "Ստորագրել և ընդունել պայմանագիրը",
           signedSuccess: "Պայմանագիրը հաջողությամբ ստորագրվեց։ Մատակարարը ծանուցվել է։",
           signedByClient: "Ստորագրել է հաճախորդը",
+          clientSignature: "Հաճախորդի ստորագրություն",
           signFailed: "Չհաջողվեց ստորագրել պայմանագիրը։ Փորձեք կրկին։",
           signBlocked:
             "Պահեստը թույլ չի տալիս պահել ստորագրությունը։ Սերվերում ավելացրեք SUPABASE_SERVICE_ROLE_KEY կամ թարմացրեք Supabase RLS քաղաքականությունները։",
@@ -156,10 +170,7 @@ export default function AgreementClientPage() {
           releasePaymentFailed: "Չհաջողվեց արձակել վճարումը։ Փորձեք կրկին։",
           depositEscrowFailed: "Չհաջողվեց դեպոզիտ անել էսկրոուում։ Փորձեք կրկին։",
           includesProtectionFee: "Ներառում է VSTAH պաշտպանական վճարը",
-          escrowLegalNote: "Էսկրոու ծառայությունները կարգավորվում են Հայաստանի Հանրապետության օրենքներով։",
-          reportProblemLabel: "Հաղորդել խնդրի մասին",
-          reportProblemPlaceholder: "Կարճ նկարագրեք խնդիրը (կոճակը դեռ ակտիվ չէ)...",
-          reportProblemCta: "Ուղարկել (շուտով)"
+          escrowLegalNote: "Էսկրոու ծառայությունները կարգավորվում են Հայաստանի Հանրապետության օրենքներով։"
         }
       : language === "ru"
         ? {
@@ -184,6 +195,7 @@ export default function AgreementClientPage() {
             signAndAccept: "Подписать и принять соглашение",
             signedSuccess: "Соглашение успешно подписано! Исполнитель уведомлен.",
             signedByClient: "Подписано клиентом",
+          clientSignature: "Подпись клиента",
             signFailed: "Не удалось подписать соглашение. Попробуйте снова.",
             signBlocked:
               "База данных блокирует обновление. Добавьте SUPABASE_SERVICE_ROLE_KEY на сервер или настройте политики RLS в Supabase.",
@@ -231,10 +243,7 @@ export default function AgreementClientPage() {
             releasePaymentFailed: "Не удалось выплатить средства. Попробуйте снова.",
             depositEscrowFailed: "Не удалось внести средства в Эскроу. Попробуйте снова.",
             includesProtectionFee: "Включает комиссию защиты VSTAH",
-            escrowLegalNote: "Эскроу-услуги регулируются законодательством Республики Армения.",
-            reportProblemLabel: "Сообщить о проблеме",
-            reportProblemPlaceholder: "Кратко опишите проблему (кнопка пока не активна)...",
-            reportProblemCta: "Отправить (скоро)"
+            escrowLegalNote: "Эскроу-услуги регулируются законодательством Республики Армения."
           }
         : {
             loading: "Loading agreement...",
@@ -258,6 +267,7 @@ export default function AgreementClientPage() {
             signAndAccept: "Sign & Accept Agreement",
             signedSuccess: "Agreement Signed Successfully! The provider has been notified.",
             signedByClient: "Signed by client",
+            clientSignature: "Client signature",
             signFailed: "Failed to sign agreement. Please try again.",
             signBlocked:
               "Signing could not be saved (database blocked the update). Add SUPABASE_SERVICE_ROLE_KEY to your server env, or adjust Supabase RLS policies for agreements.",
@@ -304,10 +314,7 @@ export default function AgreementClientPage() {
             releasePaymentFailed: "Failed to release payment. Please try again.",
             depositEscrowFailed: "Failed to deposit funds to escrow. Please try again.",
             includesProtectionFee: "Includes VSTAH Protection Fee",
-            escrowLegalNote: "Escrow services are governed by the laws of the Republic of Armenia.",
-            reportProblemLabel: "Report a Problem",
-            reportProblemPlaceholder: "Briefly describe the issue (button is not active yet)...",
-            reportProblemCta: "Submit (coming soon)"
+            escrowLegalNote: "Escrow services are governed by the laws of the Republic of Armenia."
           };
 
   const [agreement, setAgreement] = useState<Agreement | null>(null);
@@ -334,6 +341,7 @@ export default function AgreementClientPage() {
       return;
     }
 
+    // Includes `client_signature` when the column exists; mapped in normalizeAgreementRow.
     const { data, error: fetchError } = await supabase
       .from("agreements")
       .select("*")
@@ -473,11 +481,16 @@ export default function AgreementClientPage() {
 
     setSigning(true);
     setActionError("");
-    const signature = canvasRef.current?.toDataURL("image/png") ?? null;
+    const drawnSignature = canvasRef.current?.toDataURL("image/png") ?? null;
+    const signature =
+      typeof drawnSignature === "string" && drawnSignature.startsWith("data:image/") ? drawnSignature : null;
 
     const res = await postAgreementAction(agreement.id, "/sign", { signature: signature ?? undefined });
     if (!res.ok && !res.alreadySigned) {
-      const fallback = await tryClientUpdate({ status: "signed" });
+      const fallback = await tryClientUpdate({
+        status: "signed",
+        client_signature: signature
+      });
       if (!fallback.ok) {
         setActionError(res.error || fallback.error || tx.signBlocked);
         setSigning(false);
@@ -685,6 +698,10 @@ export default function AgreementClientPage() {
 
   const signed = agreement.status === "signed" || agreement.status === "completed";
   const paymentReleased = agreement.payment_status === "released";
+  const signatureImage =
+    typeof agreement.client_signature === "string" && agreement.client_signature.startsWith("data:image/")
+      ? agreement.client_signature
+      : null;
   const providerFields = resolveProviderNameFields(agreement);
   const serviceAreaDisplay = agreement.service_area?.trim() || "Armenia";
   const readableAgreementId = `VSTAH-${new Date(agreement.created_at).getFullYear()}-${agreement.id.split("-")[0].toUpperCase()}`;
@@ -785,6 +802,30 @@ export default function AgreementClientPage() {
             {tx.total}: {money(Number(agreement.total_price || 0))} ֏
           </p>
         </div>
+
+        {signatureImage && signed ? (
+          <section
+            className="mt-8 overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_4px_24px_-4px_rgba(15,23,42,0.12)] ring-1 ring-slate-900/[0.04]"
+            aria-label={tx.clientSignature}
+          >
+            <div className="flex flex-wrap items-end justify-between gap-3 border-b border-slate-100 bg-gradient-to-r from-[#0033A0]/[0.07] to-slate-50/80 px-4 py-4 sm:px-6">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[#0033A0]">{tx.clientSignature}</p>
+                <p className="mt-1 text-base font-bold text-slate-900">{agreement.client_name}</p>
+              </div>
+            </div>
+            <div className="bg-[linear-gradient(to_bottom,#f8fafc_0%,#ffffff_100%)] px-4 py-6 sm:px-8 sm:py-8">
+              <div className="relative mx-auto max-w-lg rounded-xl bg-white p-6 shadow-inner ring-1 ring-slate-200/90 sm:p-8">
+                <div className="pointer-events-none absolute inset-x-8 bottom-6 border-b border-slate-300/90 sm:inset-x-10 sm:bottom-8" aria-hidden />
+                <img
+                  src={signatureImage}
+                  alt={`${agreement.client_name} — ${tx.clientSignature}`}
+                  className="relative z-[1] mx-auto block h-auto max-h-36 w-auto max-w-full object-contain sm:max-h-40"
+                />
+              </div>
+            </div>
+          </section>
+        ) : null}
 
         {agreement.payment_type === "milestones" ? (
           <section className="mt-6 rounded border border-slate-200 p-4">
@@ -932,21 +973,6 @@ export default function AgreementClientPage() {
           </div>
         ) : null}
         <p className="mt-4 break-words text-center text-xs text-slate-500 [overflow-wrap:anywhere]">{tx.escrowLegalNote}</p>
-        <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3 sm:p-4">
-          <p className="text-sm font-semibold text-slate-800">{tx.reportProblemLabel}</p>
-          <textarea
-            rows={3}
-            placeholder={tx.reportProblemPlaceholder}
-            className="mt-2 w-full resize-none rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 outline-none"
-          />
-          <button
-            type="button"
-            disabled
-            className="mt-3 inline-flex cursor-not-allowed items-center rounded-lg border border-slate-300 bg-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-600 opacity-80"
-          >
-            {tx.reportProblemCta}
-          </button>
-        </div>
       </div>
     </main>
   );

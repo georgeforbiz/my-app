@@ -41,12 +41,22 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     // no JSON body
   }
 
+  const normalizedSignature =
+    typeof signature === "string" && /^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(signature.trim())
+      ? signature.trim()
+      : null;
+
+  const updatePayload: Record<string, unknown> = { status: "signed" };
+  if (normalizedSignature) {
+    updatePayload.client_signature = normalizedSignature;
+  }
+
   const { data: updatedRows, error: statusError } = await supabase
     .from("agreements")
-    .update({ status: "signed" })
+    .update(updatePayload)
     .eq("id", agreementId)
     .eq("status", "pending")
-    .select("id,status");
+    .select("id,status,client_signature");
 
   if (statusError) {
     return NextResponse.json({ error: statusError.message }, { status: 500 });
@@ -61,9 +71,13 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     );
   }
 
-  if (signature) {
-    await supabase.from("agreements").update({ client_signature: signature }).eq("id", agreementId);
-  }
+  const updatedRow = updatedRows[0] as { client_signature?: string | null };
+  const signatureStored =
+    typeof updatedRow?.client_signature === "string" && updatedRow.client_signature.length > 0;
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({
+    ok: true,
+    signatureSaved: Boolean(normalizedSignature),
+    signatureStored
+  });
 }

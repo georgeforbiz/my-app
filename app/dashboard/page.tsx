@@ -101,6 +101,8 @@ type Tx = {
   completionDateCol: string;
   finalPayoutNetCol: string;
   viewDetails: string;
+  contractTerms: string;
+  contractTermsPlaceholder: string;
 };
 
 const t: Record<Lang, Tx> = {
@@ -171,7 +173,9 @@ const t: Record<Lang, Tx> = {
     agreementIdCol: "ID",
     completionDateCol: "Date",
     finalPayoutNetCol: "Final Payout (Net)",
-    viewDetails: "View Details"
+    viewDetails: "View Details",
+    contractTerms: "Contract Terms",
+    contractTermsPlaceholder: "Editable at any time. Your latest saved terms load when you open the dashboard."
   },
   hy: {
     dashboardTitle: "Մատակարարի վահանակ",
@@ -240,7 +244,10 @@ const t: Record<Lang, Tx> = {
     agreementIdCol: "ID",
     completionDateCol: "Ամսաթիվ",
     finalPayoutNetCol: "Վերջնական ստացվելիք (Net)",
-    viewDetails: "Տեսնել մանրամասները"
+    viewDetails: "Տեսնել մանրամասները",
+    contractTerms: "Պայմանագրի պայմաններ",
+    contractTermsPlaceholder:
+      "Ցանկացած ժամանակ խմբագրելի է։ Վերջին պահված պայմանները բեռնվում են վահանակը բացելիս։"
   },
   ru: {
     dashboardTitle: "Панель поставщика услуг",
@@ -309,7 +316,10 @@ const t: Record<Lang, Tx> = {
     agreementIdCol: "ID",
     completionDateCol: "Дата",
     finalPayoutNetCol: "Итоговая выплата (Net)",
-    viewDetails: "Подробнее"
+    viewDetails: "Подробнее",
+    contractTerms: "Условия договора",
+    contractTermsPlaceholder:
+      "Можно править в любой момент. Последние сохранённые условия подставляются при открытии панели."
   }
 };
 
@@ -359,7 +369,11 @@ export default function DashboardPage() {
   const [totalPriceInput, setTotalPriceInput] = useState("");
   const [paymentType, setPaymentType] = useState<PaymentType>("single");
   const [milestones, setMilestones] = useState<MilestoneDraft[]>([]);
+  /** Latest saved agreement body text for this provider — mirrors DB + updates on each successful create. */
+  const [globalTermsTemplate, setGlobalTermsTemplate] = useState("");
   const lastPaymentStatusByIdRef = useRef<Record<string, Agreement["payment_status"]>>({});
+  /** One-time hydrate of contract terms from the latest agreement (or static boilerplate). */
+  const termsHydratedRef = useRef(false);
 
   const tx: Tx = t[lang] ?? t.en;
   const statusText: Record<DerivedAgreementStatus, string> = {
@@ -567,27 +581,53 @@ export default function DashboardPage() {
     window.open(link, "_blank", "noopener,noreferrer");
   };
 
-  const resetForm = () => {
+  const resetForm = (nextContractTerms?: string) => {
     setClientName("");
     setProjectTitle("");
     setServiceArea("");
-    setContractTerms("");
+    setContractTerms(nextContractTerms ?? "");
     setTotalPriceInput("");
     setPaymentType("single");
     setMilestones([]);
     setError("");
   };
 
-  const buildDefaultTerms = (input: {
+  const resolveProviderDisplayName = useCallback(async (): Promise<string> => {
+    if (!supabase || !user) return "Service Provider";
+    await supabase.auth.refreshSession();
+    const { data: authData } = await supabase.auth.getUser();
+    const userMetadata = (authData.user?.user_metadata ?? {}) as Record<string, unknown>;
+    let full_name = String(userMetadata.full_name ?? userMetadata.fullName ?? "").trim();
+    let business_name = String(userMetadata.business_name ?? userMetadata.businessName ?? "").trim();
+    if (!full_name && !business_name) {
+      const legacy = String(userMetadata.full_name_or_business_name ?? "").trim();
+      if (legacy) {
+        const m = legacy.match(/^(.+?)\s*\((.+)\)\s*$/);
+        if (m) {
+          business_name = m[1].trim();
+          full_name = m[2].trim();
+        } else {
+          full_name = legacy;
+        }
+      }
+    }
+    return business_name || full_name || user.email?.split("@")[0] || "Service Provider";
+  }, [supabase, user]);
+
+  const buildDefaultTerms = useCallback((input: {
     providerName: string;
     clientName: string;
     serviceArea: string;
     totalPrice: number;
-  }) =>
-    [
+  }) => {
+    const saved = globalTermsTemplate.trim();
+    if (saved.length > 0) return saved;
+
+    const clientDisplay = input.clientName.trim() || "Client";
+    return [
       "SERVICE AGREEMENT",
       "",
-      `This Agreement is made between ${input.providerName || "Service Provider"} (\"Provider\") and ${input.clientName} (\"Client\").`,
+      `This Agreement is made between ${input.providerName || "Service Provider"} (\"Provider\") and ${clientDisplay} (\"Client\").`,
       `Service Area: ${input.serviceArea}.`,
       `Total Price: ${formatAMD(input.totalPrice)}.`,
       "",
@@ -596,6 +636,48 @@ export default function DashboardPage() {
       "",
       "Funds will be released only upon client approval."
     ].join("\n");
+  }, [globalTermsTemplate]);
+
+  useEffect(() => {
+    if (termsHydratedRef.current || loadingAgreements) return;
+
+    if (agreements.length > 0) {
+      const latest = agreements[0];
+      const t = (latest.custom_terms ?? "").trim();
+      if (t.length > 0) {
+        termsHydratedRef.current = true;
+        setGlobalTermsTemplate(t);
+        setContractTerms(t);
+        return;
+      }
+      termsHydratedRef.current = true;
+      void (async () => {
+        const pn = await resolveProviderDisplayName();
+        setContractTerms(
+          buildDefaultTerms({
+            providerName: pn,
+            clientName: "",
+            serviceArea: "Armenia",
+            totalPrice: 0
+          })
+        );
+      })();
+      return;
+    }
+
+    termsHydratedRef.current = true;
+    void (async () => {
+      const pn = await resolveProviderDisplayName();
+      setContractTerms(
+        buildDefaultTerms({
+          providerName: pn,
+          clientName: "",
+          serviceArea: "Armenia",
+          totalPrice: 0
+        })
+      );
+    })();
+  }, [loadingAgreements, agreements, buildDefaultTerms, resolveProviderDisplayName]);
 
   const submitAgreement = async () => {
     if (!user?.id || !supabase) {
@@ -640,7 +722,7 @@ export default function DashboardPage() {
       }
     }
 
-    const providerName = business_name || full_name || user.email?.split("@")[0] || "Service Provider";
+    const providerName = await resolveProviderDisplayName();
     const customTermsText =
       contractTerms.trim() ||
       buildDefaultTerms({
@@ -669,9 +751,10 @@ export default function DashboardPage() {
       return;
     }
 
+    setGlobalTermsTemplate(customTermsText);
     setSuccessAgreementId(result.id);
     setToast(tx.toastCreated);
-    resetForm();
+    resetForm(customTermsText);
     setView("overview");
     await fetchAgreements();
   };
@@ -958,7 +1041,15 @@ export default function DashboardPage() {
               <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <h3 className="text-lg font-extrabold">{tx.createSafeAgreement}</h3>
                 <div className="mt-5 grid gap-4 md:grid-cols-2">
-                  <label className="text-sm font-semibold text-slate-700">{tx.clientName}<input value={clientName} onChange={(e) => setClientName(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500" /></label>
+                  <label className="text-sm font-semibold text-slate-700">
+                    {tx.clientName}
+                    <input
+                      value={clientName}
+                      onChange={(e) => setClientName(e.target.value)}
+                      autoComplete="off"
+                      className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500"
+                    />
+                  </label>
                   <label className="text-sm font-semibold text-slate-700">{tx.projectTitle}<input value={projectTitle} onChange={(e) => setProjectTitle(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500" /></label>
                   <label className="text-sm font-semibold text-slate-700 md:col-span-2">Service Area<input value={serviceArea} onChange={(e) => setServiceArea(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500" /></label>
                   <label className="text-sm font-semibold text-slate-700 md:col-span-2">{tx.totalPrice}<input value={totalPriceInput} onChange={(e) => setTotalPriceInput(e.target.value)} inputMode="decimal" className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500" /></label>
@@ -989,16 +1080,19 @@ export default function DashboardPage() {
                       </div>
                     </div>
                   </div>
-                  <label className="text-sm font-semibold text-slate-700 md:col-span-2">
-                    Contract Terms
+                  <div className="md:col-span-2">
+                    <label className="text-sm font-semibold text-slate-700" htmlFor="contract-terms-create">
+                      {tx.contractTerms}
+                    </label>
                     <textarea
+                      id="contract-terms-create"
                       value={contractTerms}
                       onChange={(e) => setContractTerms(e.target.value)}
                       rows={7}
-                      placeholder="Add specific contract terms. If left empty, a professional default template will be used."
+                      placeholder={tx.contractTermsPlaceholder}
                       className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500"
                     />
-                  </label>
+                  </div>
                 </div>
 
                 <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">

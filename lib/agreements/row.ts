@@ -23,6 +23,7 @@ export type NormalizedAgreement = {
   milestones: Milestone[] | null;
   status: AgreementStatus;
   payment_status: "pending" | "escrow_held" | "released";
+  client_signature?: string;
   created_at: string;
 };
 
@@ -108,6 +109,7 @@ export function normalizeAgreementRow(row: Record<string, unknown>): NormalizedA
         : String(row.payment_status) === "escrow_held"
           ? "escrow_held"
           : "pending",
+    client_signature: String(row.client_signature ?? "").trim() || undefined,
     created_at: String(row.created_at ?? "")
   };
 }
