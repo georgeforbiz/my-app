@@ -73,6 +73,11 @@ function resolveProviderNameFields(a: Agreement): { business: string; full: stri
   let business = (a.business_name ?? a.provider_business_name ?? "").trim();
   let full = (a.full_name ?? a.provider_full_name ?? "").trim();
 
+  // If only one of the name fields is present on the row, mirror it so the UI
+  // doesn't show "—" for the other field (common when older rows only stored one).
+  if (!business && full) business = full;
+  if (!full && business) full = business;
+
   if (!business && !full) {
     const pn = (a.provider_name ?? "").trim();
     if (pn && !looksLikeUuid(pn)) {

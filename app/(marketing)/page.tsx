@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { OrangeButton, OutlineLightButton } from "@/components/vstah-button";
-import { ComingSoonOverlay } from "@/components/coming-soon-overlay";
 import { NAVY, ORANGE, RED } from "@/lib/brand";
 import { useMemo, useState } from "react";
 import { useLanguage } from "@/lib/i18n/language-context";
@@ -644,8 +643,7 @@ export default function Page() {
   const createDealCtaClass =
     "inline-flex items-center justify-center rounded-xl bg-[#F2A800] px-4 py-2.5 text-sm font-extrabold text-slate-900 shadow-lg shadow-amber-800/25 transition hover:bg-[#D99000] hover:brightness-105";
   return (
-    <ComingSoonOverlay>
-      <div className="flex min-h-screen w-full min-w-0 max-w-[100%] flex-col overflow-x-clip bg-white text-slate-900">
+    <div className="flex min-h-screen w-full min-w-0 max-w-[100%] flex-col overflow-x-clip bg-white text-slate-900">
       <header className="sticky top-0 z-50 border-b border-black/10 bg-white shadow-lg shadow-black/10">
         <div className="mx-auto flex h-[76px] w-full min-w-0 max-w-[min(100%,90rem)] items-center justify-between gap-2 px-3 sm:gap-3 sm:px-4 md:h-[84px] md:px-6">
           <Link href="/" className="flex shrink-0 items-center gap-2.5 text-slate-900">
@@ -1391,6 +1389,5 @@ export default function Page() {
         </div>
       </footer>
     </div>
-    </ComingSoonOverlay>
   );
 }

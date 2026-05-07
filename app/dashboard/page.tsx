@@ -72,8 +72,8 @@ type Tx = {
   creating: string;
   completeRequired: string;
   completeMilestones: string;
-  completedAgreements: string;
-  noCompleted: string;
+  agreementHistory: string;
+  noHistory: string;
   successTitle: string;
   successSubtitle: string;
   publicLink: string;
@@ -145,8 +145,8 @@ const t: Record<Lang, Tx> = {
     creating: "Creating...",
     completeRequired: "Please complete all required fields.",
     completeMilestones: "Please fill all milestone titles and amounts.",
-    completedAgreements: "Completed Agreements",
-    noCompleted: "Your completed transactions and legal records will appear here.",
+    agreementHistory: "Agreement History",
+    noHistory: "Signed and completed agreements will appear here.",
     successTitle: "Agreement Created Successfully!",
     successSubtitle: "Share this public agreement link with your client.",
     publicLink: "Public Link",
@@ -216,8 +216,8 @@ const t: Record<Lang, Tx> = {
     creating: "Ստեղծվում է...",
     completeRequired: "Խնդրում ենք լրացնել բոլոր պարտադիր դաշտերը։",
     completeMilestones: "Խնդրում ենք լրացնել բոլոր փուլերի անվանումներն ու գումարները։",
-    completedAgreements: "Ավարտված պայմանագրեր",
-    noCompleted: "Ավարտված գործարքներն ու իրավական գրառումները կհայտնվեն այստեղ։",
+    agreementHistory: "Պայմանագրերի պատմություն",
+    noHistory: "Ստորագրված և ավարտված պայմանագրերը կհայտնվեն այստեղ։",
     successTitle: "Պայմանագիրը հաջողությամբ ստեղծվեց։",
     successSubtitle: "Կիսվեք այս հանրային հղումով ձեր հաճախորդի հետ։",
     publicLink: "Հանրային հղում",
@@ -288,8 +288,8 @@ const t: Record<Lang, Tx> = {
     creating: "Создание...",
     completeRequired: "Пожалуйста, заполните все обязательные поля.",
     completeMilestones: "Пожалуйста, заполните названия и суммы всех этапов.",
-    completedAgreements: "Завершённые сделки",
-    noCompleted: "Здесь будут отображаться завершенные транзакции и юридические записи.",
+    agreementHistory: "История соглашений",
+    noHistory: "Здесь будут отображаться подписанные и завершённые сделки.",
     successTitle: "Сделка успешно создана!",
     successSubtitle: "Поделитесь этой публичной ссылкой с клиентом.",
     publicLink: "Публичная ссылка",
@@ -374,6 +374,8 @@ export default function DashboardPage() {
   const lastPaymentStatusByIdRef = useRef<Record<string, Agreement["payment_status"]>>({});
   /** One-time hydrate of contract terms from the latest agreement (or static boilerplate). */
   const termsHydratedRef = useRef(false);
+  /** Protects against overwriting user-typed terms mid-session. */
+  const termsDirtyRef = useRef(false);
 
   const tx: Tx = t[lang] ?? t.en;
   const statusText: Record<DerivedAgreementStatus, string> = {
@@ -442,10 +444,14 @@ export default function DashboardPage() {
   };
 
   const isHistoryAgreement = (agreement: Agreement) => {
-    if (agreement.status === "completed" || agreement.payment_status === "released") return true;
+    // "History" should include signed (funds secured) and completed (paid out) agreements.
+    if (agreement.status === "signed" || agreement.status === "completed") return true;
+    if (agreement.payment_status === "escrow_held" || agreement.payment_status === "released") return true;
     if (agreement.payment_type !== "milestones") return false;
     const milestones = agreement.milestones ?? [];
-    return milestones.length > 0 && milestones.every((m) => m.status === "released");
+    const releasedCount = milestones.filter((m) => m.status === "released").length;
+    const escrowCount = milestones.filter((m) => m.status === "escrow_held").length;
+    return milestones.length > 0 && (releasedCount > 0 || escrowCount > 0);
   };
 
   useEffect(() => {
@@ -641,18 +647,35 @@ export default function DashboardPage() {
   useEffect(() => {
     if (termsHydratedRef.current || loadingAgreements) return;
 
+    // 1) Prefer the user's saved default template from auth metadata.
+    // This is persisted per-user and survives across devices/sessions.
+    void (async () => {
+      if (!supabase || !user?.id) return;
+      const { data } = await supabase.auth.getUser();
+      const meta = (data.user?.user_metadata ?? {}) as Record<string, unknown>;
+      const saved = String(meta.default_agreement_terms ?? "").trim();
+      if (saved.length > 0) {
+        setGlobalTermsTemplate(saved);
+        if (!termsDirtyRef.current) setContractTerms(saved);
+        termsHydratedRef.current = true;
+      }
+    })();
+
+    if (termsHydratedRef.current) return;
+
     if (agreements.length > 0) {
       const latest = agreements[0];
       const t = (latest.custom_terms ?? "").trim();
       if (t.length > 0) {
         termsHydratedRef.current = true;
         setGlobalTermsTemplate(t);
-        setContractTerms(t);
+        if (!termsDirtyRef.current) setContractTerms(t);
         return;
       }
       termsHydratedRef.current = true;
       void (async () => {
         const pn = await resolveProviderDisplayName();
+        if (termsDirtyRef.current) return;
         setContractTerms(
           buildDefaultTerms({
             providerName: pn,
@@ -668,6 +691,7 @@ export default function DashboardPage() {
     termsHydratedRef.current = true;
     void (async () => {
       const pn = await resolveProviderDisplayName();
+      if (termsDirtyRef.current) return;
       setContractTerms(
         buildDefaultTerms({
           providerName: pn,
@@ -678,6 +702,28 @@ export default function DashboardPage() {
       );
     })();
   }, [loadingAgreements, agreements, buildDefaultTerms, resolveProviderDisplayName]);
+
+  useEffect(() => {
+    // When the user navigates into the Create view, prefill the textarea from
+    // the saved default template (or fallback boilerplate) if it's currently empty.
+    if (view !== "create") return;
+    if (contractTerms.trim().length > 0) return;
+    if (globalTermsTemplate.trim().length > 0) {
+      setContractTerms(globalTermsTemplate);
+      return;
+    }
+    void (async () => {
+      const pn = await resolveProviderDisplayName();
+      setContractTerms(
+        buildDefaultTerms({
+          providerName: pn,
+          clientName: "",
+          serviceArea: "Armenia",
+          totalPrice: 0
+        })
+      );
+    })();
+  }, [view, contractTerms, globalTermsTemplate, buildDefaultTerms, resolveProviderDisplayName]);
 
   const submitAgreement = async () => {
     if (!user?.id || !supabase) {
@@ -752,6 +798,9 @@ export default function DashboardPage() {
     }
 
     setGlobalTermsTemplate(customTermsText);
+    // Persist the latest agreement terms as the user's default template.
+    // This keeps the Create form prefilled on the next offer for this user.
+    void supabase.auth.updateUser({ data: { default_agreement_terms: customTermsText } });
     setSuccessAgreementId(result.id);
     setToast(tx.toastCreated);
     resetForm(customTermsText);
@@ -1087,7 +1136,10 @@ export default function DashboardPage() {
                     <textarea
                       id="contract-terms-create"
                       value={contractTerms}
-                      onChange={(e) => setContractTerms(e.target.value)}
+                      onChange={(e) => {
+                        termsDirtyRef.current = true;
+                        setContractTerms(e.target.value);
+                      }}
                       rows={7}
                       placeholder={tx.contractTermsPlaceholder}
                       className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500"
@@ -1131,13 +1183,13 @@ export default function DashboardPage() {
 
             {view === "archive" ? (
               <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h3 className="text-lg font-extrabold">{tx.completedAgreements}</h3>
+                <h3 className="text-lg font-extrabold">{tx.agreementHistory}</h3>
                 {archived.length === 0 ? (
                   <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-5">
                     <div className="inline-flex h-10 w-10 items-center justify-center rounded-lg border border-blue-200 bg-blue-50 text-[#0033A0]">
                       <FileCheck2 className="h-5 w-5" />
                     </div>
-                    <p className="mt-3 text-sm font-medium text-slate-600">{tx.noCompleted}</p>
+                    <p className="mt-3 text-sm font-medium text-slate-600">{tx.noHistory}</p>
                   </div>
                 ) : (
                   <div className="mt-4">
