@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ComingSoonOverlay } from "@/components/coming-soon-overlay";
 import { OrangeButton, OutlineLightButton } from "@/components/vstah-button";
 import { NAVY, ORANGE, RED, SITE_BG_GRADIENT } from "@/lib/brand";
 import { formatProMonthly } from "@/lib/currency";
@@ -682,6 +683,7 @@ export default function Page() {
     "inline-flex h-10 items-center justify-center rounded-xl px-5 text-sm font-semibold";
   const createDealCtaClass = `${headerAuthBtnClass} bg-[#F2A800] font-extrabold text-slate-900 shadow-lg shadow-amber-800/25 transition-all duration-200 hover:!bg-[#F2A800] hover:!text-slate-900 hover:shadow-lg hover:shadow-amber-800/35 hover:-translate-y-0.5 active:translate-y-0 active:!bg-[#F2A800] active:!text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900/40`;
   return (
+    <ComingSoonOverlay>
     <div className="flex min-h-screen w-full min-w-0 max-w-[100%] flex-col overflow-x-hidden bg-white text-slate-900">
       <header className="sticky top-0 z-50 border-b border-black/10 bg-white shadow-lg shadow-black/10">
         <div className="mx-auto flex h-[76px] w-full min-w-0 max-w-[min(100%,90rem)] items-center justify-between gap-2 px-3 sm:gap-3 sm:px-4 md:h-[84px] md:px-6">
@@ -1537,5 +1539,6 @@ export default function Page() {
         </div>
       </footer>
     </div>
+    </ComingSoonOverlay>
   );
 }
