@@ -9,15 +9,21 @@ export function DocumentMeta() {
   const { language } = useLanguage();
 
   useEffect(() => {
-    const m = SITE_METADATA[language] ?? SITE_METADATA.en;
-    document.title = m.title;
-    let el = document.querySelector('meta[name="description"]');
-    if (!el) {
-      el = document.createElement("meta");
-      el.setAttribute("name", "description");
-      document.head.appendChild(el);
+    try {
+      if (typeof document === "undefined") return;
+      const lang = language === "en" || language === "hy" || language === "ru" ? language : "en";
+      const m = SITE_METADATA[lang] ?? SITE_METADATA.en;
+      document.title = m.title;
+      let el = document.querySelector('meta[name="description"]');
+      if (!el) {
+        el = document.createElement("meta");
+        el.setAttribute("name", "description");
+        document.head.appendChild(el);
+      }
+      el.setAttribute("content", m.description);
+    } catch {
+      // Avoid taking down the whole app if head/meta manipulation fails in an edge browser.
     }
-    el.setAttribute("content", m.description);
   }, [language]);
 
   return null;

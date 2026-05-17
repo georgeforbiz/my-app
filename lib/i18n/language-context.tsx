@@ -61,7 +61,9 @@ export function LanguageProvider({
   const value = useMemo(
     () => ({
       language,
-      setLanguage: (next: Language) => setLanguageState(next)
+      setLanguage: (next: Language) => {
+        if (next === "en" || next === "hy" || next === "ru") setLanguageState(next);
+      }
     }),
     [language]
   );

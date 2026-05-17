@@ -36,7 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body
         className={`${inter.variable} min-h-screen min-w-0 w-full max-w-full overflow-x-hidden bg-white font-sans text-slate-800 antialiased`}
       >
-        <div className="site-root min-h-screen min-w-0 w-full max-w-full overflow-x-clip">
+        <div className="site-root min-h-screen min-w-0 w-full max-w-full overflow-x-hidden">
           <RootProviders initialLanguage={htmlLang}>{children}</RootProviders>
         </div>
       </body>

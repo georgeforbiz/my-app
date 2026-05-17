@@ -159,7 +159,7 @@ export default function DealClientPage() {
           <p>
             <span className="font-semibold">{tx.total}</span>{" "}
             {Number(deal.total_price).toLocaleString(language === "en" ? "en-US" : language === "ru" ? "ru-RU" : "hy-AM")}{" "}
-            AMD
+            ֏
           </p>
           <p>
             <span className="font-semibold">{tx.status}</span>{" "}

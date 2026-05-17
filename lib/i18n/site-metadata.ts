@@ -7,13 +7,13 @@ export const SITE_METADATA: Record<Language, { title: string; description: strin
       "Armenia's leading safe-deal platform for home and renovation. Protected payments and secure deposits until work is complete."
   },
   hy: {
-    title: "VSTAH.am | Վստահություն յուրաքանչյուր նախագծում",
+    title: "VSTAH.am | Վստահություն նախագծում",
     description:
-      "Տան և վերանորոգման համար անվտանգ գործարքների հարթակ Հայաստանում։ Պաշտպանված վճարներ մինչև աշխատանքի ավարտը։"
+      "Անվտանգ գործարքներ տան ու վերանորոգման համար։ Դեպոզիտը էսկրոուում՝ մինչև աշխատանքի ավարտը։"
   },
   ru: {
     title: "VSTAH.am | Доверие в каждом проекте",
     description:
-      "Платформа безопасных сделок для дома и ремонта в Армении. Защищённые платежи и средства в Эскроу до завершения работ."
+      "Безопасные расчёты для дома и ремонта в Армении. Платежи под защитой, средства в эскроу до приёмки работ."
   }
 };

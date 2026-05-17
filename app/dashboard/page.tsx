@@ -1,7 +1,23 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Archive, Check, Copy, Download, ExternalLink, FileCheck2, FilePlus2, Globe, LayoutDashboard, Loader2, Plus, Trash2 } from "lucide-react";
+import {
+  Archive,
+  Check,
+  Copy,
+  CreditCard,
+  Download,
+  ExternalLink,
+  FileCheck2,
+  FilePlus2,
+  Globe,
+  LayoutDashboard,
+  Loader2,
+  Plus,
+  Trash2
+} from "lucide-react";
+import { formatAMD, formatProMonthly } from "@/lib/currency";
+import { FREE_AGREEMENT_LIMIT, readMockPlan, writeMockPlan, type MockPlanId } from "@/lib/subscription/mock";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/auth/auth-context";
 import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
@@ -10,7 +26,7 @@ import { useLanguage } from "@/lib/i18n/language-context";
 import type { Language } from "@/lib/i18n/locales";
 
 type Lang = Language;
-type View = "overview" | "create" | "archive";
+type View = "overview" | "create" | "archive" | "billing";
 type AgreementStatus = "pending" | "signed" | "completed";
 type DerivedAgreementStatus = AgreementStatus | "in_progress" | "paid" | "funds_secured";
 type PaymentType = "single" | "milestones";
@@ -92,17 +108,34 @@ type Tx = {
   vault: string;
   waiting: string;
   releasedOfTotal: string;
-  feeBreakdown: string;
-  dealTotal: string;
-  systemFee: string;
-  finalPayout: string;
-  finalPayoutTooltip: string;
   agreementIdCol: string;
   completionDateCol: string;
-  finalPayoutNetCol: string;
   viewDetails: string;
   contractTerms: string;
   contractTermsPlaceholder: string;
+  billing: string;
+  billingTitle: string;
+  currentPlan: string;
+  planFree: string;
+  planPro: string;
+  statusActiveTrial: string;
+  statusActive: string;
+  agreementsUsedLabel: string;
+  unlimitedAgreements: string;
+  usageTitle: string;
+  freeAgreementsProgress: string;
+  limitReached: string;
+  upgradeToPro: string;
+  upgradePerMonth: string;
+  upgradeSubtitle: string;
+  upgradeNowMock: string;
+  freePlanBanner: string;
+  upgrade: string;
+  freeLimitTitle: string;
+  freeLimitMessage: string;
+  freeLimitUpgrade: string;
+  mockTesting: string;
+  mockSwitchToFree: string;
 };
 
 const t: Record<Lang, Tx> = {
@@ -124,7 +157,7 @@ const t: Record<Lang, Tx> = {
     emptySubtitle: "You can create a safe agreement and instantly share it with your client.",
     clientName: "Client Name",
     projectTitle: "Project Title",
-    price: "Final Payout",
+    price: "Amount",
     status: "Status",
     copyLink: "Copy Link",
     viewLink: "View Link",
@@ -133,7 +166,7 @@ const t: Record<Lang, Tx> = {
     noSearchResults: "No agreements match your search.",
     copied: "Copied!",
     createSafeAgreement: "Create Safe Agreement",
-    totalPrice: "Total Price (AMD ֏)",
+    totalPrice: "Total Price (֏)",
     milestones: "Milestones",
     milestonesHint: "Split payment into milestone amounts.",
     singlePayment: "Single payment selected.",
@@ -165,163 +198,217 @@ const t: Record<Lang, Tx> = {
     vault: "Vault",
     waiting: "Waiting",
     releasedOfTotal: "Released",
-    feeBreakdown: "Fee Breakdown",
-    dealTotal: "Total Amount",
-    systemFee: "System Fee",
-    finalPayout: "Final Payout",
-    finalPayoutTooltip: "This is the exact amount you will receive in your account after all system fees",
     agreementIdCol: "ID",
     completionDateCol: "Date",
-    finalPayoutNetCol: "Final Payout (Net)",
     viewDetails: "View Details",
     contractTerms: "Contract Terms",
-    contractTermsPlaceholder: "Editable at any time. Your latest saved terms load when you open the dashboard."
+    contractTermsPlaceholder: "Editable at any time. Your latest saved terms load when you open the dashboard.",
+    billing: "Billing",
+    billingTitle: "Billing & Plan",
+    currentPlan: "Current plan",
+    planFree: "Free",
+    planPro: "Pro",
+    statusActiveTrial: "Active Trial",
+    statusActive: "Active",
+    agreementsUsedLabel: "Agreements used",
+    unlimitedAgreements: "Unlimited Agreements",
+    usageTitle: "Usage",
+    freeAgreementsProgress: "{used} / {limit} Free Agreements Used",
+    limitReached: "Limit Reached",
+    upgradeToPro: "Upgrade to Pro",
+    upgradePerMonth: "/ month",
+    upgradeSubtitle: "Unlimited agreements + full access",
+    upgradeNowMock: "Upgrade Now (Mock)",
+    freePlanBanner: "Free Plan: {used}/{limit} agreements used",
+    upgrade: "Upgrade",
+    freeLimitTitle: "Free limit reached",
+    freeLimitMessage: "Upgrade to Pro for unlimited agreements",
+    freeLimitUpgrade: "Upgrade (Mock)",
+    mockTesting: "Testing controls",
+    mockSwitchToFree: "Switch to Free (mock)"
   },
   hy: {
     dashboardTitle: "Մատակարարի վահանակ",
-    dashboardSubtitle: "Կառավարեք ձեր պայմանագրերը պրոֆեսիոնալ ձևով։",
+    dashboardSubtitle: "Պայմանագրերը՝ մեկ վահանակում։",
     overview: "Ընդհանուր",
     createNewAgreement: "Ստեղծել նոր պայմանագիր",
     archive: "Պայմանագրերի պատմություն",
-    signedInAs: "Մուտք գործած է",
+    signedInAs: "Մուտք՝",
     logout: "Դուրս գալ",
     language: "Լեզու",
     agreementsTitle: "Պայմանագրեր",
     archivedTitle: "Պայմանագրերի պատմություն",
-    totalAgreementValue: "Ընդհանուր վաստակ",
+    totalAgreementValue: "Ընդհանուր եկամուտ",
     signedAgreements: "Ստորագրված պայմանագրեր",
-    loading: "Պայմանագրերը բեռնվում են...",
-    emptyTitle: "Ստեղծեք ձեր առաջին գործարքը սկսելու համար",
-    emptySubtitle: "Ստեղծեք անվտանգ պայմանագիր և անմիջապես կիսվեք հաճախորդի հետ։",
+    loading: "Բեռնում…",
+    emptyTitle: "Սկսեք առաջին գործարքով",
+    emptySubtitle: "Ապահով պայմանագիր՝ ուղարկեք հղումը հաճախորդին։",
     clientName: "Հաճախորդի անուն",
     projectTitle: "Նախագծի վերնագիր",
-    price: "Վերջնական ստացվելիք",
+    price: "Գումար",
     status: "Կարգավիճակ",
     copyLink: "Պատճենել հղումը",
     viewLink: "Բացել հղումը",
     download: "Ներբեռնել",
-    searchClientPlaceholder: "Փնտրել ըստ հաճախորդի անվան...",
-    noSearchResults: "Ձեր որոնմամբ պայմանագիր չի գտնվել։",
+    searchClientPlaceholder: "Փնտրել ըստ հաճախորդի անվան…",
+    noSearchResults: "Որոնմամբ պայմանագիր չի գտնվել։",
     copied: "Պատճենված է!",
     createSafeAgreement: "Ստեղծել անվտանգ պայմանագիր",
-    totalPrice: "Ընդհանուր գին (AMD ֏)",
+    totalPrice: "Ընդհանուր գին (֏)",
     milestones: "Փուլեր",
-    milestonesHint: "Բաժանեք վճարումը փուլային գումարների։",
-    singlePayment: "Ընտրված է մեկանգամյա վճարում։",
+    milestonesHint: "Բաժանեք վճարը փուլերի։",
+    singlePayment: "Մեկ վճարում",
     addMilestone: "Ավելացնել փուլ",
     milestoneTitle: "Փուլի անվանում",
     milestoneAmount: "Գումար (֏)",
-    milestonesMismatch: "Փուլերի գումարը պետք է հավասար լինի ընդհանուր գնին։",
+    milestonesMismatch: "Փուլերի գումարը պետք է հավասար լինի ընդհանուրին։",
     create: "Ստեղծել",
-    creating: "Ստեղծվում է...",
-    completeRequired: "Խնդրում ենք լրացնել բոլոր պարտադիր դաշտերը։",
-    completeMilestones: "Խնդրում ենք լրացնել բոլոր փուլերի անվանումներն ու գումարները։",
+    creating: "Ստեղծվում է…",
+    completeRequired: "Լրացրեք բոլոր պարտադիր դաշտերը։",
+    completeMilestones: "Լրացրեք փուլերի անուններն ու գումարները։",
     agreementHistory: "Պայմանագրերի պատմություն",
     noHistory: "Ստորագրված և ավարտված պայմանագրերը կհայտնվեն այստեղ։",
-    successTitle: "Պայմանագիրը հաջողությամբ ստեղծվեց։",
-    successSubtitle: "Կիսվեք այս հանրային հղումով ձեր հաճախորդի հետ։",
+    successTitle: "Պայմանագիրը պատրաստ է",
+    successSubtitle: "Ուղարկեք հղումը հաճախորդին։",
     publicLink: "Հանրային հղում",
     copyToClipboard: "Պատճենել",
     close: "Փակել",
-    toastCreated: "Պայմանագիրը հաջողությամբ ստեղծվեց։",
-    pending: "Սպասման մեջ",
+    toastCreated: "Պայմանագիրը ստեղծված է։",
+    pending: "Սպասում",
     signed: "Ստորագրված",
     completed: "Ավարտված",
     inProgress: "Ընթացքում",
     paid: "Վճարված",
-    fundsSecured: "Միջոցները ապահովված են",
+    fundsSecured: "Գումարը՝ էսկրոուում",
     signatureSigned: "✍️ Ստորագրված",
-    paymentReleasedBanner: "🎉 Հաճախորդը արձակել է վճարումը։",
-    releaseProgress: "Արձակման առաջընթաց",
+    paymentReleasedBanner: "🎉 Հաճախորդը արձակեց վճարումը",
+    releaseProgress: "Արձակման ընթացք",
     vault: "Էսկրոու",
     waiting: "Սպասում",
     releasedOfTotal: "Արձակված",
-    feeBreakdown: "Վճարի բաշխում",
-    dealTotal: "Ընդհանուր գումար",
-    systemFee: "Համակարգային վճար",
-    finalPayout: "Վերջնական ստացվելիք",
-    finalPayoutTooltip: "This is the exact amount you will receive in your account after all system fees",
     agreementIdCol: "ID",
     completionDateCol: "Ամսաթիվ",
-    finalPayoutNetCol: "Վերջնական ստացվելիք (Net)",
-    viewDetails: "Տեսնել մանրամասները",
-    contractTerms: "Պայմանագրի պայմաններ",
+    viewDetails: "Մանրամասն",
+    contractTerms: "Պայմաններ",
     contractTermsPlaceholder:
-      "Ցանկացած ժամանակ խմբագրելի է։ Վերջին պահված պայմանները բեռնվում են վահանակը բացելիս։"
+      "Խմբագրելի է միշտ։ Վերջին պահվածը՝ վահանակը բացելիս։",
+    billing: "Վճարում",
+    billingTitle: "Փաթեթ և վճարում",
+    currentPlan: "Ընթացիկ փաթեթ",
+    planFree: "Անվճար",
+    planPro: "Պրո",
+    statusActiveTrial: "Ակտիվ փորձարկում",
+    statusActive: "Ակտիվ",
+    agreementsUsedLabel: "Օգտագործված պայմանագրեր",
+    unlimitedAgreements: "Անսահմանափակ պայմանագրեր",
+    usageTitle: "Օգտագործում",
+    freeAgreementsProgress: "{used} / {limit} անվճար պայմանագիր",
+    limitReached: "Սահմանաչափը լրացված է",
+    upgradeToPro: "Անցնել Պրո փաթեթին",
+    upgradePerMonth: "/ ամիս",
+    upgradeSubtitle: "Անսահմանափակ պայմանագրեր + ամբողջ հասանելիություն",
+    upgradeNowMock: "Թարմացնել (մոկ)",
+    freePlanBanner: "Անվճար փաթեթ՝ {used}/{limit} պայմանագիր",
+    upgrade: "Թարմացնել",
+    freeLimitTitle: "Անվճար սահմանաչափը լրացված է",
+    freeLimitMessage: "Անցեք Պրո փաթեթին՝ անսահմանափակ պայմանագրերի համար",
+    freeLimitUpgrade: "Թարմացնել (մոկ)",
+    mockTesting: "Փորձարկման կառավարում",
+    mockSwitchToFree: "Անվճար (մոկ)"
   },
   ru: {
-    dashboardTitle: "Панель поставщика услуг",
-    dashboardSubtitle: "Профессионально управляйте своими сделками.",
+    dashboardTitle: "Кабинет исполнителя",
+    dashboardSubtitle: "Соглашения — в одном месте.",
     overview: "Обзор",
-    createNewAgreement: "Создать новую сделку",
+    createNewAgreement: "Новое соглашение",
     archive: "История соглашений",
-    signedInAs: "В системе",
+    signedInAs: "Вы вошли как",
     logout: "Выйти",
     language: "Язык",
-    agreementsTitle: "Сделки",
+    agreementsTitle: "Соглашения",
     archivedTitle: "История соглашений",
-    totalAgreementValue: "Фактический доход",
-    signedAgreements: "Подписанные сделки",
-    loading: "Загрузка сделок...",
-    emptyTitle: "Создайте первую сделку, чтобы начать",
-    emptySubtitle: "Создайте безопасную сделку и сразу отправьте клиенту.",
-    clientName: "Имя клиента",
-    projectTitle: "Название проекта",
-    price: "Итоговая выплата",
+    totalAgreementValue: "Совокупный доход",
+    signedAgreements: "Подписанные соглашения",
+    loading: "Загрузка…",
+    emptyTitle: "Создайте первое соглашение",
+    emptySubtitle: "Создайте защищённое соглашение и сразу отправьте клиенту ссылку.",
+    clientName: "Клиент",
+    projectTitle: "Проект",
+    price: "Сумма",
     status: "Статус",
     copyLink: "Копировать ссылку",
     viewLink: "Открыть ссылку",
     download: "Скачать",
-    searchClientPlaceholder: "Поиск по имени клиента...",
-    noSearchResults: "По вашему запросу соглашения не найдены.",
-    copied: "Скопировано!",
-    createSafeAgreement: "Создать безопасную сделку",
-    totalPrice: "Общая цена (AMD ֏)",
+    searchClientPlaceholder: "Поиск по клиенту…",
+    noSearchResults: "Ничего не найдено.",
+    copied: "Скопировано",
+    createSafeAgreement: "Создать защищённое соглашение",
+    totalPrice: "Сумма по соглашению (֏)",
     milestones: "Этапы",
-    milestonesHint: "Разделите оплату на этапы.",
-    singlePayment: "Выбран единый платеж.",
+    milestonesHint: "Разбейте оплату по этапам.",
+    singlePayment: "Выбран один платёж",
     addMilestone: "Добавить этап",
     milestoneTitle: "Название этапа",
     milestoneAmount: "Сумма (֏)",
-    milestonesMismatch: "Сумма этапов должна совпадать с общей ценой.",
+    milestonesMismatch: "Сумма этапов должна совпадать с общей суммой.",
     create: "Создать",
-    creating: "Создание...",
-    completeRequired: "Пожалуйста, заполните все обязательные поля.",
-    completeMilestones: "Пожалуйста, заполните названия и суммы всех этапов.",
+    creating: "Создание…",
+    completeRequired: "Заполните обязательные поля.",
+    completeMilestones: "Укажите названия и суммы всех этапов.",
     agreementHistory: "История соглашений",
-    noHistory: "Здесь будут отображаться подписанные и завершённые сделки.",
-    successTitle: "Сделка успешно создана!",
-    successSubtitle: "Поделитесь этой публичной ссылкой с клиентом.",
+    noHistory: "Здесь появятся подписанные и завершённые соглашения.",
+    successTitle: "Соглашение создано",
+    successSubtitle: "Отправьте клиенту эту публичную ссылку.",
     publicLink: "Публичная ссылка",
     copyToClipboard: "Копировать",
     close: "Закрыть",
-    toastCreated: "Сделка успешно создана.",
-    pending: "Ожидание",
+    toastCreated: "Соглашение создано.",
+    pending: "Ожидает",
     signed: "Подписано",
     completed: "Завершено",
-    inProgress: "В процессе",
+    inProgress: "В работе",
     paid: "Оплачено",
-    fundsSecured: "Средства обеспечены",
+    fundsSecured: "Средства в эскроу",
     signatureSigned: "✍️ Подписано",
-    paymentReleasedBanner: "🎉 Клиент выплатил платеж.",
-    releaseProgress: "Прогресс выплат",
+    paymentReleasedBanner: "🎉 Клиент подтвердил выплату",
+    releaseProgress: "Выплаты по этапам",
     vault: "Эскроу",
     waiting: "Ожидает",
     releasedOfTotal: "Выплачено",
-    feeBreakdown: "Разбивка комиссии",
-    dealTotal: "Общая сумма",
-    systemFee: "Системная комиссия",
-    finalPayout: "Итоговая выплата",
-    finalPayoutTooltip: "This is the exact amount you will receive in your account after all system fees",
     agreementIdCol: "ID",
     completionDateCol: "Дата",
-    finalPayoutNetCol: "Итоговая выплата (Net)",
     viewDetails: "Подробнее",
-    contractTerms: "Условия договора",
+    contractTerms: "Условия",
     contractTermsPlaceholder:
-      "Можно править в любой момент. Последние сохранённые условия подставляются при открытии панели."
+      "Можно менять в любой момент. При открытии кабинета подставляются последние сохранённые условия.",
+    billing: "Оплата",
+    billingTitle: "Тариф и оплата",
+    currentPlan: "Текущий тариф",
+    planFree: "Бесплатный",
+    planPro: "Про",
+    statusActiveTrial: "Пробный период",
+    statusActive: "Активен",
+    agreementsUsedLabel: "Соглашений использовано",
+    unlimitedAgreements: "Безлимитные соглашения",
+    usageTitle: "Использование",
+    freeAgreementsProgress: "{used} / {limit} бесплатных соглашений",
+    limitReached: "Лимит исчерпан",
+    upgradeToPro: "Перейти на тариф Про",
+    upgradePerMonth: "/ месяц",
+    upgradeSubtitle: "Безлимитные соглашения + полный доступ",
+    upgradeNowMock: "Улучшить (мок)",
+    freePlanBanner: "Бесплатный: {used}/{limit} соглашений",
+    upgrade: "Улучшить",
+    freeLimitTitle: "Лимит бесплатного тарифа исчерпан",
+    freeLimitMessage: "Перейдите на тариф Про для безлимитных соглашений",
+    freeLimitUpgrade: "Улучшить (мок)",
+    mockTesting: "Тестовые переключатели",
+    mockSwitchToFree: "Вернуть бесплатный (мок)"
   }
 };
+
+const fill = (template: string, vars: Record<string, string | number>) =>
+  Object.entries(vars).reduce((s, [k, v]) => s.replaceAll(`{${k}}`, String(v)), template);
 
 const statusBadge: Record<DerivedAgreementStatus, string> = {
   pending: "border-slate-200 bg-slate-100 text-slate-700",
@@ -338,12 +425,10 @@ const createMilestone = (): MilestoneDraft => ({
   amount: ""
 });
 
-const SYSTEM_FEE_RATE = 0.05;
-const NET_PAYOUT_FACTOR = 1 - SYSTEM_FEE_RATE;
-const toFinalPayout = (grossAmount: number) => Math.max(0, grossAmount * NET_PAYOUT_FACTOR);
-const formatAMD = (value: number) => `${value.toLocaleString("en-US", { maximumFractionDigits: 2 })} ֏`;
 const formatAgreementNumber = (id: string, createdAt: string) =>
   `AG-${new Date(createdAt).getFullYear()}-${id.slice(0, 8).toUpperCase()}`;
+
+const formatAmount = (value: number) => formatAMD(value, { maxFractionDigits: 2 });
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -359,8 +444,11 @@ export default function DashboardPage() {
   const [toast, setToast] = useState("");
   const [copiedAgreementId, setCopiedAgreementId] = useState("");
   const [clientSearch, setClientSearch] = useState("");
+  const [historySearch, setHistorySearch] = useState("");
   const [successAgreementId, setSuccessAgreementId] = useState("");
   const [langMenuOpen, setLangMenuOpen] = useState(false);
+  const [mockPlan, setMockPlan] = useState<MockPlanId>("free");
+  const [limitModalOpen, setLimitModalOpen] = useState(false);
 
   const [clientName, setClientName] = useState("");
   const [projectTitle, setProjectTitle] = useState("");
@@ -377,7 +465,61 @@ export default function DashboardPage() {
   /** Protects against overwriting user-typed terms mid-session. */
   const termsDirtyRef = useRef(false);
 
+  useEffect(() => {
+    setMockPlan(readMockPlan());
+  }, []);
+
   const tx: Tx = t[lang] ?? t.en;
+  const isPro = mockPlan === "pro";
+  const agreementsUsed = agreements.length;
+  const isAtFreeLimit = !isPro && agreementsUsed >= FREE_AGREEMENT_LIMIT;
+  const freeUsagePct = Math.min(100, (agreementsUsed / FREE_AGREEMENT_LIMIT) * 100);
+
+  const upgradeToProMock = () => {
+    writeMockPlan("pro");
+    setMockPlan("pro");
+    setLimitModalOpen(false);
+    setToast(tx.upgradeNowMock);
+  };
+
+  const resetToFreeMock = () => {
+    writeMockPlan("free");
+    setMockPlan("free");
+  };
+
+  const tryOpenCreate = () => {
+    if (isAtFreeLimit) {
+      setLimitModalOpen(true);
+      return;
+    }
+    setView("create");
+  };
+
+  const openBilling = () => setView("billing");
+
+  const pageTitle =
+    view === "archive"
+      ? tx.archivedTitle
+      : view === "billing"
+        ? tx.billingTitle
+        : view === "create"
+          ? tx.createSafeAgreement
+          : tx.agreementsTitle;
+
+  const navItems = [
+    { id: "overview" as const, label: tx.overview, icon: LayoutDashboard },
+    { id: "create" as const, label: tx.createNewAgreement, icon: FilePlus2, createAction: true },
+    { id: "archive" as const, label: tx.archive, icon: Archive },
+    { id: "billing" as const, label: tx.billing, icon: CreditCard }
+  ];
+
+  const handleNav = (id: View, createAction?: boolean) => {
+    if (createAction) {
+      tryOpenCreate();
+      return;
+    }
+    setView(id);
+  };
   const statusText: Record<DerivedAgreementStatus, string> = {
     pending: tx.pending,
     signed: tx.signed,
@@ -501,8 +643,6 @@ export default function DashboardPage() {
 
   const milestonesTotal = useMemo(() => milestonesParsed.reduce((sum, item) => sum + item.amount, 0), [milestonesParsed]);
   const milestonesValid = paymentType === "single" || Math.abs(milestonesTotal - totalPrice) < 0.0001;
-  const systemFeeAmount = useMemo(() => Math.max(0, totalPrice * SYSTEM_FEE_RATE), [totalPrice]);
-  const finalPayoutAmount = useMemo(() => Math.max(0, totalPrice - systemFeeAmount), [totalPrice, systemFeeAmount]);
 
   const fetchAgreements = useCallback(async () => {
     if (!supabase || !user?.id) {
@@ -635,7 +775,7 @@ export default function DashboardPage() {
       "",
       `This Agreement is made between ${input.providerName || "Service Provider"} (\"Provider\") and ${clientDisplay} (\"Client\").`,
       `Service Area: ${input.serviceArea}.`,
-      `Total Price: ${formatAMD(input.totalPrice)}.`,
+      `Total Price: ${formatAmount(input.totalPrice)}.`,
       "",
       "Provider agrees to deliver services professionally and within the agreed scope and timeline.",
       "Client agrees to cooperate, provide access where required, and review delivered work in good faith.",
@@ -732,6 +872,11 @@ export default function DashboardPage() {
     }
     setError("");
 
+    if (isAtFreeLimit) {
+      setLimitModalOpen(true);
+      return;
+    }
+
     if (!clientName.trim() || !projectTitle.trim() || !serviceArea.trim() || totalPrice <= 0) {
       setError(tx.completeRequired);
       return;
@@ -810,7 +955,7 @@ export default function DashboardPage() {
 
   const stats = useMemo(
     () => ({
-      totalValue: agreements.reduce((sum, a) => sum + toFinalPayout(Number(a.total_price || 0)), 0),
+      totalValue: agreements.reduce((sum, a) => sum + Number(a.total_price || 0), 0),
       signedCount: agreements.filter((a) => a.payment_status === "escrow_held" || a.payment_status === "released").length
     }),
     [agreements]
@@ -824,6 +969,24 @@ export default function DashboardPage() {
     if (!query) return listed;
     return listed.filter((item) => item.client_name.toLowerCase().includes(query));
   }, [listed, clientSearch]);
+  const filteredArchived = useMemo(() => {
+    const query = historySearch.trim().toLowerCase();
+    if (!query) return archived;
+    return archived.filter((item) => {
+      const derived = getDerivedStatus(item);
+      const haystack = [
+        item.client_name,
+        item.project_title,
+        item.service_area,
+        formatAgreementNumber(item.id, item.created_at),
+        item.id,
+        statusText[derived]
+      ]
+        .join(" ")
+        .toLowerCase();
+      return haystack.includes(query);
+    });
+  }, [archived, historySearch, statusText]);
 
   if (loading || !user) return <div className="min-h-screen bg-[#F9FAFB] p-6">Loading dashboard...</div>;
 
@@ -834,18 +997,16 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-black">{tx.dashboardTitle}</h1>
           <p className="mt-2 text-sm text-blue-100">{tx.dashboardSubtitle}</p>
           <nav className="mt-8 space-y-2">
-            {[
-              { id: "overview" as const, label: tx.overview, icon: LayoutDashboard },
-              { id: "create" as const, label: tx.createNewAgreement, icon: FilePlus2 },
-              { id: "archive" as const, label: tx.archive, icon: Archive }
-            ].map(({ id, label, icon: Icon }) => (
+            {navItems.map(({ id, label, icon: Icon, createAction }) => (
               <button
                 key={id}
                 type="button"
-                onClick={() => setView(id)}
-                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold ${view === id ? "bg-white text-[#0033A0]" : "text-blue-100 hover:bg-blue-700/40"}`}
+                onClick={() => handleNav(id, createAction)}
+                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold ${
+                  view === id ? "bg-white text-[#0033A0]" : "text-blue-100 hover:bg-blue-700/40"
+                } ${createAction && isAtFreeLimit ? "opacity-70" : ""}`}
               >
-                <Icon className="h-4 w-4" />
+                <Icon className="h-4 w-4 shrink-0" />
                 {label}
               </button>
             ))}
@@ -864,10 +1025,25 @@ export default function DashboardPage() {
 
         <main className="min-w-0 flex-1 overflow-y-auto p-4 pb-24 md:p-6 md:pb-6 lg:p-8">
           <div className="mx-auto max-w-7xl space-y-6">
+            {!isPro ? (
+              <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
+                <p className="text-sm font-medium text-slate-700">
+                  {fill(tx.freePlanBanner, { used: agreementsUsed, limit: FREE_AGREEMENT_LIMIT })}
+                </p>
+                <button
+                  type="button"
+                  onClick={openBilling}
+                  className="inline-flex shrink-0 items-center rounded-lg border border-[#0033A0] bg-[#0033A0] px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-[#002a7a]"
+                >
+                  {tx.upgrade}
+                </button>
+              </div>
+            ) : null}
+
             <header className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2 md:gap-3">
-                  <h2 className="text-2xl font-black text-[#0033A0]">{view === "archive" ? tx.archivedTitle : tx.agreementsTitle}</h2>
+                  <h2 className="text-2xl font-black text-[#0033A0]">{pageTitle}</h2>
                   <div className="relative">
                     <button
                       type="button"
@@ -898,14 +1074,18 @@ export default function DashboardPage() {
                     ) : null}
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setView("create")}
-                  className="inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#F2A800] px-4 py-2 text-sm font-bold text-slate-900"
-                >
-                  <Plus className="h-4 w-4" />
-                  {tx.createNewAgreement}
-                </button>
+                {view !== "billing" ? (
+                  <button
+                    type="button"
+                    onClick={tryOpenCreate}
+                    className={`inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#F2A800] px-4 py-2 text-sm font-bold text-slate-900 ${
+                      isAtFreeLimit ? "opacity-50" : ""
+                    }`}
+                  >
+                    <Plus className="h-4 w-4" />
+                    {tx.createNewAgreement}
+                  </button>
+                ) : null}
               </div>
               <div className="mt-3 border-t border-slate-100 pt-3 lg:hidden">
                 <div className="mt-2 flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2">
@@ -926,7 +1106,7 @@ export default function DashboardPage() {
                 <section className="grid gap-4 md:grid-cols-2">
                   <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                     <p className="text-sm font-semibold text-slate-500">{tx.totalAgreementValue}</p>
-                    <p className="mt-2 text-3xl font-black">{formatAMD(stats.totalValue)}</p>
+                    <p className="mt-2 text-3xl font-black">{formatAmount(stats.totalValue)}</p>
                   </article>
                   <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                     <p className="text-sm font-semibold text-slate-500">{tx.signedAgreements}</p>
@@ -972,7 +1152,7 @@ export default function DashboardPage() {
                                   </div>
                                   <div>
                                     <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{tx.price}</p>
-                                    <p className="mt-0.5 font-mono text-sm font-semibold text-slate-800">{formatAMD(toFinalPayout(Number(item.total_price)))}</p>
+                                    <p className="mt-0.5 font-mono text-sm font-semibold text-slate-800">{formatAmount(Number(item.total_price))}</p>
                                   </div>
                                 </div>
                                 <div>
@@ -980,8 +1160,8 @@ export default function DashboardPage() {
                                 </div>
                               </div>
                               <div className="mt-3">
-                                <p className="mb-1 break-words text-xs font-semibold text-slate-600">{formatAMD(toFinalPayout(progress.released))} / {formatAMD(toFinalPayout(Number(item.total_price || 0)))} {tx.releasedOfTotal}</p>
-                                <p className="mb-1 break-words text-[11px] font-semibold text-slate-500">{tx.vault}: {formatAMD(toFinalPayout(progress.escrow))} | {tx.waiting}: {formatAMD(toFinalPayout(progress.pending))}</p>
+                                <p className="mb-1 break-words text-xs font-semibold text-slate-600">{formatAmount(progress.released)} / {formatAmount(Number(item.total_price || 0))} {tx.releasedOfTotal}</p>
+                                <p className="mb-1 break-words text-[11px] font-semibold text-slate-500">{tx.vault}: {formatAmount(progress.escrow)} | {tx.waiting}: {formatAmount(progress.pending)}</p>
                                 <div className="h-2 w-full rounded-full bg-slate-200">
                                   <div className="h-2 rounded-full bg-orange-500 transition-all" style={{ width: `${progress.pct}%` }} />
                                 </div>
@@ -1017,17 +1197,17 @@ export default function DashboardPage() {
                             {filteredListed.map((item) => (
                               <tr key={item.id} className="border-b border-slate-100">
                                 <td className="px-3 py-3 font-semibold">{item.client_name}</td>
-                                <td className="px-3 py-3">{formatAMD(toFinalPayout(Number(item.total_price)))}</td>
+                                <td className="px-3 py-3">{formatAmount(Number(item.total_price))}</td>
                                 <td className="px-3 py-3">
                                   {(() => {
                                     const progress = getReleaseProgress(item);
                                     return (
                                       <div className="min-w-0 w-full max-w-[11.875rem]">
                                         <p className="mb-1 text-xs font-semibold text-slate-600">
-                                          {formatAMD(toFinalPayout(progress.released))} / {formatAMD(toFinalPayout(Number(item.total_price || 0)))} {tx.releasedOfTotal}
+                                          {formatAmount(progress.released)} / {formatAmount(Number(item.total_price || 0))} {tx.releasedOfTotal}
                                         </p>
                                         <p className="mb-1 text-[11px] font-semibold text-slate-500">
-                                          {tx.vault}: {formatAMD(toFinalPayout(progress.escrow))} | {tx.waiting}: {formatAMD(toFinalPayout(progress.pending))}
+                                          {tx.vault}: {formatAmount(progress.escrow)} | {tx.waiting}: {formatAmount(progress.pending)}
                                         </p>
                                         <div className="h-2 w-full rounded-full bg-slate-200">
                                           <div className="h-2 rounded-full bg-orange-500 transition-all" style={{ width: `${progress.pct}%` }} />
@@ -1102,33 +1282,6 @@ export default function DashboardPage() {
                   <label className="text-sm font-semibold text-slate-700">{tx.projectTitle}<input value={projectTitle} onChange={(e) => setProjectTitle(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500" /></label>
                   <label className="text-sm font-semibold text-slate-700 md:col-span-2">Service Area<input value={serviceArea} onChange={(e) => setServiceArea(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500" /></label>
                   <label className="text-sm font-semibold text-slate-700 md:col-span-2">{tx.totalPrice}<input value={totalPriceInput} onChange={(e) => setTotalPriceInput(e.target.value)} inputMode="decimal" className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500" /></label>
-                  <div className="rounded-xl border border-blue-100 bg-blue-50/60 p-3 md:col-span-2">
-                    <p className="text-sm font-bold text-[#0033A0]">{tx.feeBreakdown}</p>
-                    <div className="mt-2 space-y-1.5 text-sm">
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-slate-600">{tx.dealTotal}</span>
-                        <span className="font-semibold text-slate-900">{formatAMD(totalPrice || 0)}</span>
-                      </div>
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="text-slate-600">{tx.systemFee} (5%)</span>
-                        <span className="font-semibold text-slate-900">- {formatAMD(systemFeeAmount)}</span>
-                      </div>
-                      <div className="h-px bg-blue-100" />
-                      <div className="flex items-center justify-between gap-3">
-                        <span className="inline-flex items-center gap-1 font-semibold text-slate-700">
-                          {tx.finalPayout}
-                          <span
-                            className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-slate-200 text-[10px] font-bold text-slate-700"
-                            title={tx.finalPayoutTooltip}
-                            aria-label={tx.finalPayoutTooltip}
-                          >
-                            i
-                          </span>
-                        </span>
-                        <span className="text-base font-extrabold text-emerald-700">{formatAMD(finalPayoutAmount)}</span>
-                      </div>
-                    </div>
-                  </div>
                   <div className="md:col-span-2">
                     <label className="text-sm font-semibold text-slate-700" htmlFor="contract-terms-create">
                       {tx.contractTerms}
@@ -1163,7 +1316,7 @@ export default function DashboardPage() {
                         </div>
                       ))}
                       <button type="button" onClick={() => setMilestones((prev) => [...prev, createMilestone()])} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700"><Plus className="h-4 w-4" />{tx.addMilestone}</button>
-                      <p className={`text-xs font-semibold ${milestonesValid ? "text-slate-600" : "text-red-600"}`}>{tx.milestones}: {formatAMD(milestonesTotal)} / {tx.totalPrice}: {formatAMD(totalPrice || 0)}</p>
+                      <p className={`text-xs font-semibold ${milestonesValid ? "text-slate-600" : "text-red-600"}`}>{tx.milestones}: {formatAmount(milestonesTotal)} / {tx.totalPrice}: {formatAmount(totalPrice || 0)}</p>
                     </div>
                   ) : (
                     <p className="mt-3 text-sm text-slate-600">{tx.singlePayment}</p>
@@ -1193,8 +1346,17 @@ export default function DashboardPage() {
                   </div>
                 ) : (
                   <div className="mt-4">
+                    <div className="mb-3">
+                      <input
+                        value={historySearch}
+                        onChange={(e) => setHistorySearch(e.target.value)}
+                        placeholder={tx.searchClientPlaceholder}
+                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500 md:max-w-sm"
+                        aria-label={tx.searchClientPlaceholder}
+                      />
+                    </div>
                     <div className="space-y-3 md:hidden">
-                      {archived.map((item) => {
+                      {filteredArchived.map((item) => {
                         const derived = getDerivedStatus(item);
                         const paid = item.payment_status === "released" || derived === "paid";
                         const escrow = item.payment_status === "escrow_held" || getEscrowHeldMilestoneAmount(item) > 0;
@@ -1218,8 +1380,8 @@ export default function DashboardPage() {
                                   <p className="text-sm text-slate-700">{new Date(item.created_at).toLocaleDateString()}</p>
                                 </div>
                                 <div>
-                                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{tx.finalPayoutNetCol}</p>
-                                  <p className="font-mono text-sm font-semibold text-slate-800">{formatAMD(toFinalPayout(Number(item.total_price)))}</p>
+                                  <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{tx.price}</p>
+                                  <p className="font-mono text-sm font-semibold text-slate-800">{formatAmount(Number(item.total_price))}</p>
                                 </div>
                               </div>
                               <div className="mt-2 flex flex-wrap items-center gap-1.5 text-base leading-none" aria-hidden>
@@ -1230,6 +1392,9 @@ export default function DashboardPage() {
                           </article>
                         );
                       })}
+                      {filteredArchived.length === 0 ? (
+                        <p className="py-4 text-center text-sm text-slate-500">{tx.noSearchResults}</p>
+                      ) : null}
                     </div>
                     <div className="hidden overflow-x-auto md:block">
                       <table className="min-w-full text-left text-sm">
@@ -1238,7 +1403,7 @@ export default function DashboardPage() {
                             <th className="px-3 py-2">{tx.agreementIdCol}</th>
                             <th className="px-3 py-2">{tx.clientName}</th>
                             <th className="px-3 py-2">{tx.completionDateCol}</th>
-                            <th className="px-3 py-2">{tx.finalPayoutNetCol}</th>
+                            <th className="px-3 py-2">{tx.price}</th>
                             <th className="px-3 py-2">{tx.status}</th>
                             <th className="px-3 py-2">
                               <span className="sr-only">{tx.viewDetails}</span>
@@ -1246,14 +1411,14 @@ export default function DashboardPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {archived.map((item) => (
+                          {filteredArchived.map((item) => (
                             <tr key={item.id} className="border-b border-slate-100">
                               <td className="px-3 py-3 font-mono text-xs font-semibold tracking-wide text-slate-700">
                                 {formatAgreementNumber(item.id, item.created_at)}
                               </td>
                               <td className="px-3 py-3 font-semibold">{item.client_name}</td>
                               <td className="px-3 py-3 text-slate-700">{new Date(item.created_at).toLocaleDateString()}</td>
-                              <td className="px-3 py-3 font-mono font-semibold">{formatAMD(toFinalPayout(Number(item.total_price)))}</td>
+                              <td className="px-3 py-3 font-mono font-semibold">{formatAmount(Number(item.total_price))}</td>
                               <td className="px-3 py-3">
                                 {(() => {
                                   const derived = getDerivedStatus(item);
@@ -1289,6 +1454,13 @@ export default function DashboardPage() {
                               </td>
                             </tr>
                           ))}
+                          {filteredArchived.length === 0 ? (
+                            <tr>
+                              <td colSpan={6} className="px-3 py-6 text-center text-sm text-slate-500">
+                                {tx.noSearchResults}
+                              </td>
+                            </tr>
+                          ) : null}
                         </tbody>
                       </table>
                     </div>
@@ -1296,31 +1468,131 @@ export default function DashboardPage() {
                 )}
               </section>
             ) : null}
+
+            {view === "billing" ? (
+              <div className="grid gap-6 lg:grid-cols-2">
+                <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm lg:col-span-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{tx.currentPlan}</p>
+                  <div className="mt-4 flex flex-wrap items-start justify-between gap-4">
+                    <div>
+                      <p className="text-2xl font-black text-[#0033A0]">{isPro ? tx.planPro : tx.planFree}</p>
+                      <p className="mt-1 text-sm font-medium text-slate-600">
+                        {isPro ? tx.statusActive : tx.statusActiveTrial}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 text-sm">
+                      {isPro ? (
+                        <p className="font-semibold text-slate-800">{tx.unlimitedAgreements}</p>
+                      ) : (
+                        <p className="text-slate-700">
+                          <span className="font-semibold text-slate-900">{tx.agreementsUsedLabel}:</span>{" "}
+                          {agreementsUsed} / {FREE_AGREEMENT_LIMIT}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </section>
+
+                {!isPro ? (
+                  <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <p className="text-sm font-bold text-slate-900">{tx.usageTitle}</p>
+                    <p className="mt-2 text-sm text-slate-600">
+                      {fill(tx.freeAgreementsProgress, { used: agreementsUsed, limit: FREE_AGREEMENT_LIMIT })}
+                    </p>
+                    <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
+                      <div
+                        className={`h-full rounded-full transition-all ${isAtFreeLimit ? "bg-amber-500" : "bg-[#0033A0]"}`}
+                        style={{ width: `${freeUsagePct}%` }}
+                      />
+                    </div>
+                    {isAtFreeLimit ? (
+                      <p className="mt-3 inline-flex rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-800">
+                        {tx.limitReached}
+                      </p>
+                    ) : null}
+                  </section>
+                ) : null}
+
+                {!isPro ? (
+                  <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <h3 className="text-lg font-extrabold text-slate-900">{tx.upgradeToPro}</h3>
+                    <div className="mt-3 inline-flex w-full max-w-sm items-center justify-center rounded-2xl border border-amber-700/30 bg-[#F2A800] px-5 py-4 shadow-sm ring-1 ring-amber-900/15 sm:justify-start">
+                      <p className="whitespace-nowrap text-2xl font-black tabular-nums text-slate-900">
+                        {formatProMonthly(tx.upgradePerMonth, lang)}
+                      </p>
+                    </div>
+                    <p className="mt-2 text-sm text-slate-600">{tx.upgradeSubtitle}</p>
+                    <button
+                      type="button"
+                      onClick={upgradeToProMock}
+                      className="mt-5 inline-flex w-full items-center justify-center rounded-xl bg-[#F2A800] px-4 py-2.5 text-sm font-bold text-slate-900 sm:w-auto"
+                    >
+                      {tx.upgradeNowMock}
+                    </button>
+                  </section>
+                ) : null}
+
+                <section className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm lg:col-span-2">
+                  <p className="font-semibold text-slate-700">{tx.mockTesting}</p>
+                  <p className="mt-1 text-slate-500">UI preview only — no payment processed.</p>
+                  {isPro ? (
+                    <button
+                      type="button"
+                      onClick={resetToFreeMock}
+                      className="mt-3 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                    >
+                      {tx.mockSwitchToFree}
+                    </button>
+                  ) : null}
+                </section>
+              </div>
+            ) : null}
           </div>
         </main>
       </div>
 
-      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 px-3 pb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)] pt-2 backdrop-blur lg:hidden">
-        <div className="grid grid-cols-3 gap-2">
-          {[
-            { id: "overview" as const, label: tx.overview, icon: LayoutDashboard },
-            { id: "create" as const, label: tx.createNewAgreement, icon: FilePlus2 },
-            { id: "archive" as const, label: tx.archive, icon: Archive }
-          ].map(({ id, label, icon: Icon }) => (
+      <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 px-2 pb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)] pt-2 backdrop-blur lg:hidden">
+        <div className="grid grid-cols-4 gap-1">
+          {navItems.map(({ id, label, icon: Icon, createAction }) => (
             <button
               key={id}
               type="button"
-              onClick={() => setView(id)}
-              className={`inline-flex min-h-11 items-center justify-center gap-1 rounded-xl border px-2 py-2 text-xs font-semibold ${
+              onClick={() => handleNav(id, createAction)}
+              className={`inline-flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl border px-1 py-1.5 text-[10px] font-semibold leading-tight ${
                 view === id ? "border-[#0033A0] bg-[#0033A0] text-white" : "border-slate-300 bg-white text-slate-700"
-              }`}
+              } ${createAction && isAtFreeLimit ? "opacity-70" : ""}`}
             >
-              <Icon className="h-4 w-4" />
-              <span className="truncate">{label}</span>
+              <Icon className="h-4 w-4 shrink-0" />
+              <span className="max-w-full truncate">{label}</span>
             </button>
           ))}
         </div>
       </nav>
+
+      {limitModalOpen ? (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
+            <h3 className="text-xl font-extrabold text-slate-900">{tx.freeLimitTitle}</h3>
+            <p className="mt-2 text-sm text-slate-600">{tx.freeLimitMessage}</p>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={upgradeToProMock}
+                className="inline-flex items-center justify-center rounded-xl bg-[#F2A800] px-4 py-2 text-sm font-bold text-slate-900"
+              >
+                {tx.freeLimitUpgrade}
+              </button>
+              <button
+                type="button"
+                onClick={() => setLimitModalOpen(false)}
+                className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700"
+              >
+                {tx.close}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {successAgreementId ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4">

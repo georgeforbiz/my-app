@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { NAVY } from "@/lib/brand";
+import { SITE_BG_GRADIENT } from "@/lib/brand";
 import { useAuthOptional } from "@/lib/auth/auth-context";
 import { OrangeButton } from "@/components/vstah-button";
 import { useLanguage } from "@/lib/i18n/language-context";
@@ -28,14 +28,18 @@ export function VstahShell({
         ? { signOut: "Выйти", login: "Войти", register: "Регистрация" }
         : { signOut: "Sign out", login: "Login", register: "Register" };
 
+  const headerAuthBtnClass =
+    "inline-flex h-10 items-center justify-center rounded-xl px-5 text-sm font-semibold";
+  const registerBtnClass = `${headerAuthBtnClass} bg-[#F2A800] font-extrabold text-slate-900 shadow-lg shadow-amber-800/25 transition-all duration-200 hover:!bg-[#F2A800] hover:!text-slate-900 hover:shadow-lg hover:shadow-amber-800/35 hover:-translate-y-0.5 active:translate-y-0 active:!bg-[#F2A800] active:!text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900/40`;
+
   return (
-    <div className="flex min-h-screen flex-col" style={{ backgroundColor: NAVY }}>
+    <div className="flex min-h-screen flex-col" style={{ background: SITE_BG_GRADIENT }}>
       <header
         className="sticky top-0 z-40 border-b border-black/10 bg-white shadow-lg shadow-black/10"
       >
         <div className="mx-auto flex h-[76px] w-full min-w-0 max-w-[min(100%,90rem)] items-center justify-between gap-3 px-4 md:h-[84px] md:px-6">
           <Link href="/" className="flex shrink-0 items-center gap-2.5 text-slate-900">
-            <img src="/logo-vstah-clean.png" alt="VSTAH logo" className="h-10 w-10 md:h-11 md:w-11" />
+            <img src="/logo-vstah-clean.png" alt="VSTAH logo" className="h-10 w-10 object-contain md:h-11 md:w-11" />
             <span className="text-lg font-bold tracking-tight md:text-xl">VSTAH.am</span>
           </Link>
 
@@ -59,11 +63,14 @@ export function VstahShell({
               <>
                 <Link
                   href="/login"
-                  className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-900 transition hover:bg-slate-100 sm:text-sm"
+                  className={`${headerAuthBtnClass} border border-slate-300 bg-white text-slate-700 transition hover:border-slate-400 hover:text-slate-900`}
                 >
                   {tx.login}
                 </Link>
-                <OrangeButton href="/register" className="px-4 py-2 text-xs sm:text-sm">
+                <OrangeButton
+                  href="/register"
+                  className={`${registerBtnClass} !h-10 !min-h-0 !px-5 !py-0 !text-sm sm:!text-sm`}
+                >
                   {tx.register}
                 </OrangeButton>
               </>

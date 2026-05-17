@@ -4,11 +4,10 @@
   "private": true,
   "scripts": {
     "clean": "node scripts/clean-next.cjs",
-    "prebuild": "node scripts/clean-next.cjs",
-    "dev": "next dev",
-    "dev:clean": "npm run clean && next dev",
+    "dev": "node scripts/cloud-sync-warning.cjs && next dev -p 3000",
+    "dev:clean": "npm run clean && next dev -p 3000",
     "build": "next build",
-    "build:clean": "npm run build",
+    "build:clean": "npm run clean && npm run build",
     "start": "next start",
     "lint": "next lint",
     "icons": "node scripts/generate-icons.cjs"
