@@ -19,58 +19,58 @@ export const termsLegal: Record<
   }
 > = {
   en: {
-    documentTitle: "Terms of Service | VSTAH.am",
+    documentTitle: "Terms of Service | VSTAH",
     backToHome: "Back to home",
     h1: "Terms of Service",
     lead:
-      "These Terms govern use of VSTAH.am as a Neutral Payment Infrastructure for Service Providers in Armenia. The platform facilitates secure payment holding and release workflows and is not a contracting party to the underlying service agreement between provider and client.",
+      "These Terms govern use of VSTAH as a Neutral Payment Infrastructure for Service Providers in Armenia. The platform facilitates secure payment holding and release workflows and is not a contracting party to the underlying service agreement between provider and client.",
     s1h: "1. Platform role and legal status",
     s1p:
-      "VSTAH.am operates as a neutral payment facilitator only. We provide infrastructure to lock, track, and release funds according to platform workflow. We are not the provider or client, do not supervise service delivery, and do not assume contractual obligations for performance, quality, legality, timing, or outcome of services.",
+      "VSTAH operates as a neutral payment facilitator only. We provide infrastructure to lock, track, and release funds according to platform workflow. We are not the provider or client, do not supervise service delivery, and do not assume contractual obligations for performance, quality, legality, timing, or outcome of services.",
     s2h: "2. Fees and payment framework",
     s2p:
-      "All platform service fees are charged to the Service Provider. Fees are non-refundable once a payment process has been initiated, including escrow placement, staged release flow, or payout processing. The provider remains solely responsible for pricing, tax reporting, and business compliance obligations.",
+      "All platform service fees are charged to the Service Provider. Fees are non-refundable once a payment process has been initiated, including deposit placement, staged release flow, or payout processing. The provider remains solely responsible for pricing, tax reporting, and business compliance obligations.",
     s3h: "3. Disputes, liability, and governing law",
     s3p:
-      "The platform does not provide arbitration, mediation, or dispute resolution services. Any disagreement must be resolved directly between the parties or through competent legal channels in the Republic of Armenia. VSTAH.am is not liable for service quality disputes, delivery disputes, or indirect losses arising from underlying service contracts.",
+      "The platform does not provide arbitration, mediation, or dispute resolution services. Any disagreement must be resolved directly between the parties or through competent legal channels in the Republic of Armenia. VSTAH is not liable for service quality disputes, delivery disputes, or indirect losses arising from underlying service contracts.",
     s4h: "4. Contact",
     s4pBefore: "For legal or account-related issues, contact us at",
     s4pAfter: "."
   },
   hy: {
-    documentTitle: "Օգտագործման պայմաններ | VSTAH.am",
+    documentTitle: "Օգտագործման պայմաններ | VSTAH",
     backToHome: "Գլխավոր",
     h1: "Օգտագործման պայմաններ",
     lead:
-      "Այս պայմանները կարգավորում են VSTAH.am-ը որպես վճարային ենթակառուցվածք Հայաստանում։ Հարթակը պահում և արձակում է գումարները, բայց գործարքի կողմ չէ։",
+      "Այս պայմանները կարգավորում են VSTAH-ը որպես վճարային ենթակառուցվածք Հայաստանում։ Հարթակը պահում և արձակում է գումարները, բայց գործարքի կողմ չէ։",
     s1h: "1. Հարթակի դերը",
     s1p:
-      "VSTAH.am-ը չեզոք վճարային միջնորդ է։ Մենք տալիս ենք ենթակառուցվածք՝ գումարը կողպելու, հաշվելու և արձակելու համար։ Մենք ոչ մատակարար ենք, ոչ հաճախորդ, և պատասխանատվություն չենք կրում ծառայության որակի, ժամկետի կամ արդյունքի համար։",
+      "VSTAH-ը չեզոք վճարային միջնորդ է։ Մենք տալիս ենք ենթակառուցվածք՝ գումարը կողպելու, հաշվելու և արձակելու համար։ Մենք ոչ մատակարար ենք, ոչ հաճախորդ, և պատասխանատվություն չենք կրում ծառայության որակի, ժամկետի կամ արդյունքի համար։",
     s2h: "2. Վճարներ",
     s2p:
-      "Պլատֆորմի վճարը կրում է մատակարարը։ Վճարը չի վերադարձվում, եթե վճարման գործընթացը մեկնարկել է՝ ներառյալ էսկրոու մուտքը, փուլային արձակումը կամ փոխանցումը։ Գնագոյացումը, հարկերը և համապատասխանությունը՝ միայն մատակարարի պատասխանատվությունն են։",
+      "Պլատֆորմի վճարը կրում է մատակարարը։ Վճարը չի վերադարձվում, եթե վճարման գործընթացը մեկնարկել է՝ ներառյալ դեպոզիտի մուտքը, փուլային արձակումը կամ փոխանցումը։ Գնագոյացումը, հարկերը և համապատասխանությունը՝ միայն մատակարարի պատասխանատվությունն են։",
     s3h: "3. Վեճեր և իրավունք",
     s3p:
-      "Հարթակը արբիտրաժ և մեդիացիա չի տալիս։ Վեճերը՝ կողմերի միջև կամ իրավասու մարմիններով Հայաստանում։ VSTAH.am-ը պատասխանատու չէ ծառայության որակի վեճերի կամ անուղղակի վնասների համար։",
+      "Հարթակը արբիտրաժ և մեդիացիա չի տալիս։ Վեճերը՝ կողմերի միջև կամ իրավասու մարմիններով Հայաստանում։ VSTAH-ը պատասխանատու չէ ծառայության որակի վեճերի կամ անուղղակի վնասների համար։",
     s4h: "4. Կապ",
     s4pBefore: "Իրավական և հաշվի հարցերով՝",
     s4pAfter: "։"
   },
   ru: {
-    documentTitle: "Условия использования | VSTAH.am",
+    documentTitle: "Условия использования | VSTAH",
     backToHome: "На главную",
     h1: "Условия использования",
     lead:
-      "Эти Условия регулируют использование VSTAH.am как нейтральной платёжной инфраструктуры для поставщиков услуг в Армении. Платформа удерживает и разблокирует средства по своим процессам и не является стороной договора между исполнителем и клиентом.",
+      "Эти Условия регулируют использование VSTAH как нейтральной платёжной инфраструктуры для поставщиков услуг в Армении. Платформа удерживает и разблокирует средства по своим процессам и не является стороной договора между исполнителем и клиентом.",
     s1h: "1. Роль платформы и правовой статус",
     s1p:
-      "VSTAH.am — нейтральный платёжный посредник: инфраструктура для блокировки, учёта и разблокировки средств. Мы не исполнитель и не заказчик, не контролируем оказание услуг и не отвечаем за качество, законность, сроки или результат работ.",
+      "VSTAH — нейтральный платёжный посредник: инфраструктура для блокировки, учёта и разблокировки средств. Мы не исполнитель и не заказчик, не контролируем оказание услуг и не отвечаем за качество, законность, сроки или результат работ.",
     s2h: "2. Комиссии и платежи",
     s2p:
-      "Комиссию платформы оплачивает исполнитель. После старта платежа (в т.ч. депозит в эскроу, поэтапные выплаты, перевод) комиссия не возвращается. Цены, налоги и соблюдение закона в деятельности исполнителя — зона ответственности исполнителя.",
+      "Комиссию платформы оплачивает исполнитель. После старта платежа (в т.ч. внесение депозита, поэтапные выплаты, перевод) комиссия не возвращается. Цены, налоги и соблюдение закона в деятельности исполнителя — зона ответственности исполнителя.",
     s3h: "3. Споры, ответственность и право",
     s3p:
-      "Платформа не ведёт арбитраж, медиацию и не урегулирует споры. Споры — между сторонами или в уполномоченных органах РА. VSTAH.am не отвечает за споры о качестве услуг, срыв сроков и косвенные убытки по основному договору.",
+      "Платформа не ведёт арбитраж, медиацию и не урегулирует споры. Споры — между сторонами или в уполномоченных органах РА. VSTAH не отвечает за споры о качестве услуг, срыв сроков и косвенные убытки по основному договору.",
     s4h: "4. Контакты",
     s4pBefore: "По юридическим вопросам и аккаунту:",
     s4pAfter: "."
@@ -96,11 +96,11 @@ export const privacyLegal: Record<
   }
 > = {
   en: {
-    documentTitle: "Privacy Policy | VSTAH.am",
+    documentTitle: "Privacy Policy | VSTAH",
     backToHome: "Back to home",
     h1: "Privacy Policy",
     lead:
-      "This Privacy Policy explains how VSTAH.am, as Neutral Payment Infrastructure for Service Providers in Armenia, collects and processes personal and transactional information for secure financial operations and legal compliance.",
+      "This Privacy Policy explains how VSTAH, as Neutral Payment Infrastructure for Service Providers in Armenia, collects and processes personal and transactional information for secure financial operations and legal compliance.",
     s1h: "1. Data minimization and lawful basis",
     s1p:
       "We collect only data that is necessary to verify identity, validate transactions, prevent fraud, and comply with applicable Armenian legal and financial requirements. Collected data may include account identifiers, transaction metadata, payment status, and legally required compliance records.",
@@ -116,11 +116,11 @@ export const privacyLegal: Record<
     s4pAfter: "."
   },
   hy: {
-    documentTitle: "Գաղտնիություն | VSTAH.am",
+    documentTitle: "Գաղտնիություն | VSTAH",
     backToHome: "Գլխավոր",
     h1: "Գաղտնիության քաղաքականություն",
     lead:
-      "Այս քաղաքականությունը բացատրում է, թե ինչպես է VSTAH.am-ը հավաքում և մշակում տվյալները անվտանգ վճարների և իրավական համապատասխանության համար։",
+      "Այս քաղաքականությունը բացատրում է, թե ինչպես է VSTAH-ը հավաքում և մշակում տվյալները անվտանգ վճարների և իրավական համապատասխանության համար։",
     s1h: "1. Նվազագույն տվյալներ",
     s1p:
       "Հավաքում ենք միայն անհրաժեշտը՝ նույնականացման, գործարքների, խարդախության կանխման և ՀՀ օրենքին համապատասխանելու համար։ Ներառում է հաշվի տվյալներ, գործարքի մետատվյալներ, վճարման կարգավիճակ։",
@@ -136,11 +136,11 @@ export const privacyLegal: Record<
     s4pAfter: "։"
   },
   ru: {
-    documentTitle: "Политика конфиденциальности | VSTAH.am",
+    documentTitle: "Политика конфиденциальности | VSTAH",
     backToHome: "На главную",
     h1: "Политика конфиденциальности",
     lead:
-      "Политика описывает, как VSTAH.am как нейтральная платёжная инфраструктура для поставщиков услуг в Армении собирает и обрабатывает персональные и транзакционные данные для безопасных операций и соблюдения закона.",
+      "Политика описывает, как VSTAH как нейтральная платёжная инфраструктура для поставщиков услуг в Армении собирает и обрабатывает персональные и транзакционные данные для безопасных операций и соблюдения закона.",
     s1h: "1. Минимизация данных и основания",
     s1p:
       "Собираем только необходимое: идентификация, проверка операций, противодействие мошенничеству, требования законодательства РА. Например: идентификаторы аккаунта, метаданные операций, статусы платежей, учётные записи по требованиям регуляторов.",

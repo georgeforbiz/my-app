@@ -1,11 +1,5 @@
-/* Removes .next so the next dev/build starts from a fresh cache. */
-const fs = require("fs");
-const path = require("path");
+/* Removes Next build output (.next and cloud-sync escape dir). */
+require("./remove-next-link.cjs");
+const { cleanNextDirs } = require("./next-dist-dir.cjs");
 
-const dir = path.join(__dirname, "..", ".next");
-try {
-  fs.rmSync(dir, { recursive: true, force: true });
-  console.log(`Removed ${dir}`);
-} catch {
-  console.log("No .next to remove (ok)");
-}
+cleanNextDirs();

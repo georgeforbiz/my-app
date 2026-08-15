@@ -34,9 +34,23 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang={htmlLang} suppressHydrationWarning className="scroll-smooth">
       <body
-        className={`${inter.variable} min-h-screen min-w-0 w-full max-w-full overflow-x-hidden bg-white font-sans text-slate-800 antialiased`}
+        className={`${inter.variable} min-h-screen min-w-0 w-full max-w-full overflow-x-clip bg-white font-sans text-slate-800 antialiased`}
       >
-        <div className="site-root min-h-screen min-w-0 w-full max-w-full overflow-x-hidden">
+        <noscript>
+          <div
+            style={{
+              padding: "2rem",
+              textAlign: "center",
+              fontFamily: "system-ui,sans-serif"
+            }}
+          >
+            <p>
+              JavaScript is required for VSTAH. Enable it, then reload{" "}
+              <a href="/">the homepage</a>.
+            </p>
+          </div>
+        </noscript>
+        <div className="site-root min-h-screen min-w-0 w-full max-w-full overflow-x-clip">
           <RootProviders initialLanguage={htmlLang}>{children}</RootProviders>
         </div>
       </body>

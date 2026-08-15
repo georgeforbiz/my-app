@@ -3,12 +3,28 @@
  * Replace with Supabase Auth in production.
  */
 
-export type MockUser = { id: string; email: string };
+export type MockUser = {
+  id: string;
+  email: string;
+  full_name?: string;
+  business_name?: string;
+};
 
 const USERS_KEY = "vstah_mock_users";
 const SESSION_KEY = "vstah_mock_session";
 
-type StoredUser = { id: string; email: string; password: string };
+type StoredUser = {
+  id: string;
+  email: string;
+  password: string;
+  full_name?: string;
+  business_name?: string;
+};
+
+export type MockRegisterMetadata = {
+  full_name?: string;
+  business_name?: string;
+};
 
 function readUsers(): StoredUser[] {
   if (typeof window === "undefined") return [];
@@ -25,13 +41,25 @@ function writeUsers(users: StoredUser[]) {
   localStorage.setItem(USERS_KEY, JSON.stringify(users));
 }
 
-export function mockRegister(email: string, password: string): { error?: string } {
+export function mockRegister(
+  email: string,
+  password: string,
+  metadata?: MockRegisterMetadata
+): { error?: string } {
   const users = readUsers();
   if (users.some((u) => u.email.toLowerCase() === email.toLowerCase())) {
     return { error: "An account with this email already exists." };
   }
   const id = crypto.randomUUID();
-  users.push({ id, email: email.trim().toLowerCase(), password });
+  const full_name = metadata?.full_name?.trim() || undefined;
+  const business_name = metadata?.business_name?.trim() || undefined;
+  users.push({
+    id,
+    email: email.trim().toLowerCase(),
+    password,
+    ...(full_name ? { full_name } : {}),
+    ...(business_name ? { business_name } : {})
+  });
   writeUsers(users);
   return {};
 }
@@ -42,7 +70,12 @@ export function mockLogin(email: string, password: string): { user?: MockUser; e
     (u) => u.email === email.trim().toLowerCase() && u.password === password
   );
   if (!found) return { error: "Invalid email or password." };
-  const session: MockUser = { id: found.id, email: found.email };
+  const session: MockUser = {
+    id: found.id,
+    email: found.email,
+    ...(found.full_name ? { full_name: found.full_name } : {}),
+    ...(found.business_name ? { business_name: found.business_name } : {})
+  };
   localStorage.setItem(SESSION_KEY, JSON.stringify(session));
   return { user: session };
 }
@@ -56,8 +89,26 @@ export function mockGetSession(): MockUser | null {
   try {
     const raw = localStorage.getItem(SESSION_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as MockUser;
+    const session = JSON.parse(raw) as MockUser;
+    const stored = readUsers().find((u) => u.id === session.id || u.email === session.email);
+    if (!stored) return session;
+    return {
+      id: stored.id,
+      email: stored.email,
+      ...(stored.full_name ? { full_name: stored.full_name } : {}),
+      ...(stored.business_name ? { business_name: stored.business_name } : {})
+    };
   } catch {
     return null;
   }
+}
+
+/** Public mock user list for admin UI — never includes passwords. */
+export function listMockUsers(): MockUser[] {
+  return readUsers().map((u) => ({
+    id: u.id,
+    email: u.email,
+    ...(u.full_name ? { full_name: u.full_name } : {}),
+    ...(u.business_name ? { business_name: u.business_name } : {})
+  }));
 }

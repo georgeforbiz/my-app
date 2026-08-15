@@ -12,42 +12,21 @@
 
   html {
     -webkit-tap-highlight-color: transparent;
-    scrollbar-gutter: stable;
     margin: 0;
     width: 100%;
     max-width: 100%;
-    overflow-x: hidden;
+    /* clip does NOT force overflow-y to auto (unlike overflow-x: hidden) — avoids double scrollbars */
+    overflow-x: clip;
     overscroll-behavior-x: none;
-    position: relative;
-    /* iOS: reduce horizontal rubber-band when nested content is wider */
     -webkit-text-size-adjust: 100%;
-  }
-
-  @supports (overflow: clip) {
-    html {
-      overflow-x: clip;
-    }
-  }
-
-  @media (max-width: 480px) {
-    html {
-      scrollbar-gutter: auto;
-    }
   }
 
   body {
     margin: 0;
     width: 100%;
     max-width: 100%;
-    overflow-x: hidden;
+    overflow-x: clip;
     overscroll-behavior-x: none;
-    /* Prefer % over 100vw — avoids occasional horizontal overflow from vw vs scrollbar on some engines */
-  }
-
-  @supports (overflow: clip) {
-    body {
-      overflow-x: clip;
-    }
   }
 
   img,
@@ -106,5 +85,68 @@ body {
     transform: rotate(18deg);
     background: linear-gradient(105deg, transparent 40%, rgba(255, 255, 255, 0.12) 50%, transparent 60%);
     pointer-events: none;
+  }
+}
+
+@layer utilities {
+  @keyframes vstah-fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .vstah-animate-in {
+    animation: vstah-fade-up 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+    animation-delay: var(--vstah-delay, 0ms);
+  }
+
+  .vstah-reveal {
+    opacity: 0;
+    transform: translateY(12px);
+    transition:
+      opacity 0.28s ease-out,
+      transform 0.28s ease-out;
+    transition-delay: var(--reveal-delay, 0ms);
+  }
+
+  .vstah-reveal.is-visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  /* Prevent browser autofill from resizing/jumping inputs on register/login */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="tel"],
+  input[type="search"],
+  input[type="url"],
+  input[type="number"] {
+    font-size: 16px;
+  }
+
+  input:-webkit-autofill,
+  input:-webkit-autofill:hover,
+  input:-webkit-autofill:focus {
+    -webkit-text-fill-color: #0f172a;
+    transition: background-color 99999s ease-out;
+    box-shadow: 0 0 0 1000px #ffffff inset;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .vstah-animate-in {
+      animation: none !important;
+    }
+
+    .vstah-reveal {
+      opacity: 1 !important;
+      transform: none !important;
+      transition: none !important;
+    }
   }
 }

@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
+import { useState } from "react";
+import { FloatingPillHeader } from "@/components/floating-pill-header";
 import { SITE_BG_GRADIENT } from "@/lib/brand";
-import { useAuthOptional } from "@/lib/auth/auth-context";
-import { OrangeButton } from "@/components/vstah-button";
+import { authDisplayName, useAuthOptional } from "@/lib/auth/auth-context";
 import { useLanguage } from "@/lib/i18n/language-context";
 
 export function VstahShell({
@@ -21,73 +21,85 @@ export function VstahShell({
 }) {
   const auth = useAuthOptional();
   const { language } = useLanguage();
+  const [langMenuOpen, setLangMenuOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+
   const tx =
     language === "hy"
-      ? { signOut: "Դուրս գալ", login: "Մուտք", register: "Գրանցվել" }
+      ? { signOut: "Դուրս գալ" }
       : language === "ru"
-        ? { signOut: "Выйти", login: "Войти", register: "Регистрация" }
-        : { signOut: "Sign out", login: "Login", register: "Register" };
+        ? { signOut: "Выйти" }
+        : { signOut: "Sign out" };
 
-  const headerAuthBtnClass =
-    "inline-flex h-10 items-center justify-center rounded-xl px-5 text-sm font-semibold";
-  const registerBtnClass = `${headerAuthBtnClass} bg-[#F2A800] font-extrabold text-slate-900 shadow-lg shadow-amber-800/25 transition-all duration-200 hover:!bg-[#F2A800] hover:!text-slate-900 hover:shadow-lg hover:shadow-amber-800/35 hover:-translate-y-0.5 active:translate-y-0 active:!bg-[#F2A800] active:!text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900/40`;
+  const displayName = authDisplayName(auth?.user);
+
+  const authActions =
+    auth?.user ? (
+      <>
+        <span
+          className="hidden max-w-[10rem] truncate text-sm text-slate-700 lg:inline xl:max-w-[12rem]"
+          title={displayName}
+        >
+          {displayName}
+        </span>
+        <button
+          type="button"
+          onClick={() => void auth.signOut()}
+          className="inline-flex h-10 items-center justify-center rounded-full bg-slate-100 px-4 text-sm font-semibold text-slate-900 transition hover:bg-slate-200 sm:h-11 sm:px-5"
+        >
+          {tx.signOut}
+        </button>
+      </>
+    ) : undefined;
+
+  const mobileMenuFooter =
+    auth?.user ? (
+      <div className="space-y-2">
+        <p className="truncate px-3 text-xs text-slate-500" title={displayName}>
+          {displayName}
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            setMobileOpen(false);
+            void auth.signOut();
+          }}
+          className="inline-flex h-11 w-full items-center justify-center rounded-full bg-slate-100 px-4 text-sm font-semibold text-slate-900"
+        >
+          {tx.signOut}
+        </button>
+      </div>
+    ) : undefined;
 
   return (
-    <div className="flex min-h-screen flex-col" style={{ background: SITE_BG_GRADIENT }}>
-      <header
-        className="sticky top-0 z-40 border-b border-black/10 bg-white shadow-lg shadow-black/10"
-      >
-        <div className="mx-auto flex h-[76px] w-full min-w-0 max-w-[min(100%,90rem)] items-center justify-between gap-3 px-4 md:h-[84px] md:px-6">
-          <Link href="/" className="flex shrink-0 items-center gap-2.5 text-slate-900">
-            <img src="/logo-vstah-clean.png" alt="VSTAH logo" className="h-10 w-10 object-contain md:h-11 md:w-11" />
-            <span className="text-lg font-bold tracking-tight md:text-xl">VSTAH.am</span>
-          </Link>
+    <div className="flex min-h-screen flex-col overflow-x-clip" style={{ background: SITE_BG_GRADIENT }}>
+      <FloatingPillHeader
+        mobileOpen={mobileOpen}
+        onMobileOpenChange={setMobileOpen}
+        langMenuOpen={langMenuOpen}
+        onLangMenuOpenChange={setLangMenuOpen}
+        loginHref="/login"
+        registerHref="/register"
+        showGuestActions={!auth?.user}
+        authActions={authActions}
+        mobileMenuFooter={mobileMenuFooter}
+      />
 
-          <div className="flex items-center justify-end gap-2 md:gap-3">
-            {auth?.loading ? (
-              <span className="inline-flex h-8 min-w-[70px] items-center justify-center text-xs text-slate-500">…</span>
-            ) : auth?.user ? (
-              <>
-                <span className="hidden truncate text-sm text-slate-700 sm:inline max-w-[12rem]" title={auth.user.email}>
-                  {auth.user.email}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => void auth.signOut()}
-                  className="rounded-lg border border-slate-300 bg-slate-100 px-3 py-1.5 text-xs font-semibold text-slate-900 transition hover:bg-slate-200"
-                >
-                  {tx.signOut}
-                </button>
-              </>
-            ) : (
-              <>
-                <Link
-                  href="/login"
-                  className={`${headerAuthBtnClass} border border-slate-300 bg-white text-slate-700 transition hover:border-slate-400 hover:text-slate-900`}
-                >
-                  {tx.login}
-                </Link>
-                <OrangeButton
-                  href="/register"
-                  className={`${registerBtnClass} !h-10 !min-h-0 !px-5 !py-0 !text-sm sm:!text-sm`}
-                >
-                  {tx.register}
-                </OrangeButton>
-              </>
-            )}
-          </div>
-        </div>
-      </header>
-
-      <main className="flex flex-1 flex-col px-4 py-10 md:px-6">
-        <div className={`mx-auto w-full ${maxWidthClass}`}>
+      <main className="flex flex-1 flex-col px-3 py-8 sm:px-4 sm:py-10 md:px-6">
+        <div className={`mx-auto w-full min-w-0 ${maxWidthClass}`}>
           {eyebrow ? (
-            <p className="text-center text-xs font-black uppercase tracking-[0.25em] text-white/70">{eyebrow}</p>
+            <p className="text-center text-[10px] font-black uppercase tracking-[0.2em] text-white/70 sm:text-xs sm:tracking-[0.25em]">
+              {eyebrow}
+            </p>
           ) : null}
-          <h1 className="mt-2 text-center text-3xl font-black tracking-tight text-white md:text-4xl">{title}</h1>
-          {subtitle ? <p className="mx-auto mt-3 max-w-lg text-center text-base text-white/85">{subtitle}</p> : null}
+          <h1 className="mt-2 text-center text-2xl font-black tracking-tight text-white sm:text-3xl md:text-4xl">
+            {title}
+          </h1>
+          {subtitle ? (
+            <p className="mx-auto mt-3 max-w-lg text-center text-sm text-white/85 sm:text-base">{subtitle}</p>
+          ) : null}
 
-          <div className="mt-10 rounded-3xl border border-white/15 bg-white p-6 shadow-2xl shadow-black/20 md:p-8">
+          <div className="mt-6 rounded-2xl border border-white/15 bg-white p-5 shadow-2xl shadow-black/20 sm:mt-8 sm:rounded-3xl sm:p-6 md:mt-10 md:p-8">
             {children}
           </div>
         </div>

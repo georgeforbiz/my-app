@@ -5,6 +5,11 @@
   "scripts": {
     "clean": "node scripts/clean-next.cjs",
     "dev": "node scripts/cloud-sync-warning.cjs && next dev -p 3000",
+    "sync:local": "node scripts/sync-local.cjs",
+    "dev:local": "node scripts/dev-local.cjs",
+    "dev:local:clean": "node scripts/dev-local.cjs --clean",
+    "dev:restart": "node scripts/restart-dev-local.cjs",
+    "dev:check": "node scripts/check-dev.cjs",
     "dev:clean": "npm run clean && next dev -p 3000",
     "build": "next build",
     "build:clean": "npm run clean && npm run build",

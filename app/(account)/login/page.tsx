@@ -2,7 +2,9 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { Lock, LogIn, Mail } from "lucide-react";
 import { useEffect, useState } from "react";
+import { FormField } from "@/components/form-field";
 import { VstahShell } from "@/components/vstah-shell";
 import { NAVY, ORANGE } from "@/lib/brand";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -105,12 +107,14 @@ export default function LoginPage() {
   }, [user, router, nextRoute]);
 
   useEffect(() => {
+    router.prefetch(nextRoute);
+  }, [router, nextRoute]);
+
+  useEffect(() => {
     if (!emailPrefill) return;
     setEmail(emailPrefill);
     setResetEmail(emailPrefill);
   }, [emailPrefill]);
-
-  if (user) return null;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -124,7 +128,6 @@ export default function LoginPage() {
       return;
     }
     router.replace(nextRoute);
-    router.refresh();
   }
 
   async function handleResendConfirmation() {
@@ -166,25 +169,26 @@ export default function LoginPage() {
   return (
     <VstahShell eyebrow={tx.eyebrow} title={tx.title} subtitle={tx.subtitle}>
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
-        <div>
-          <label htmlFor="email" className="block text-sm font-semibold text-slate-700">
-            {tx.email}
-          </label>
-          <input
-            id="email"
-            type="email"
-            autoComplete="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 outline-none transition focus:border-[#0033A0]/40 focus:ring-4 focus:ring-[#0033A0]/15"
-          />
-        </div>
-        <div>
-          <div className="flex items-center justify-between gap-2">
-            <label htmlFor="password" className="block text-sm font-semibold text-slate-700">
-              {tx.password}
-            </label>
+        <FormField
+          id="email"
+          label={tx.email}
+          icon={Mail}
+          type="email"
+          autoComplete="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+        <FormField
+          id="password"
+          label={tx.password}
+          icon={Lock}
+          type="password"
+          autoComplete="current-password"
+          required
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          labelExtra={
             <button
               type="button"
               onClick={() => {
@@ -197,17 +201,8 @@ export default function LoginPage() {
             >
               {showResetForm ? tx.closeReset : tx.forgot}
             </button>
-          </div>
-          <input
-            id="password"
-            type="password"
-            autoComplete="current-password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 outline-none transition focus:border-[#0033A0]/40 focus:ring-4 focus:ring-[#0033A0]/15"
-          />
-        </div>
+          }
+        />
         {error ? <p className="text-sm font-medium text-red-600">{error}</p> : null}
         {info ? <p className="text-sm font-medium text-emerald-700">{info}</p> : null}
         {showResend ? (
@@ -223,9 +218,10 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={pending}
-          className="inline-flex w-full items-center justify-center rounded-xl px-6 py-3.5 text-center text-sm font-bold text-slate-900 shadow-lg transition hover:brightness-95 disabled:opacity-70 sm:text-base"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl px-6 py-3.5 text-center text-sm font-bold text-slate-900 shadow-lg transition hover:brightness-95 disabled:opacity-70 sm:text-base"
           style={{ backgroundColor: ORANGE, boxShadow: `0 10px 30px -8px ${ORANGE}88` }}
         >
+          <LogIn className="h-4 w-4 shrink-0" strokeWidth={2.5} aria-hidden />
           {pending ? tx.signingIn : tx.signIn}
         </button>
       </form>
@@ -233,16 +229,15 @@ export default function LoginPage() {
         <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
           <p className="text-sm font-semibold text-slate-800">{tx.resetTitle}</p>
           <p className="mt-1 text-xs text-slate-600">{tx.resetSubtitle}</p>
-          <label htmlFor="resetEmail" className="mt-3 block text-sm font-medium text-slate-700">
-            {tx.resetEmail}
-          </label>
-          <input
+          <FormField
             id="resetEmail"
+            label={tx.resetEmail}
+            icon={Mail}
             type="email"
             autoComplete="email"
             value={resetEmail}
             onChange={(e) => setResetEmail(e.target.value)}
-            className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-[#0033A0]/40 focus:ring-4 focus:ring-[#0033A0]/15"
+            wrapperClassName="mt-3"
           />
           <button
             type="button"

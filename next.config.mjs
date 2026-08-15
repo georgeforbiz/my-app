@@ -1,3 +1,12 @@
+import path from "path";
+import { fileURLToPath } from "url";
+import { createRequire } from "module";
+
+const require = createRequire(import.meta.url);
+const { isCloudSyncedProject } = require("./scripts/next-dist-dir.cjs");
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const cloudSynced = isCloudSyncedProject(__dirname);
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
@@ -5,6 +14,17 @@ const nextConfig = {
   // a synced folder (OneDrive) or similar file-locking setups.
   experimental: {
     cpus: 1
+  },
+  async headers() {
+    if (process.env.NODE_ENV !== "development") return [];
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "Cache-Control", value: "no-store, no-cache, must-revalidate" }
+        ]
+      }
+    ];
   },
   async redirects() {
     return [
@@ -26,6 +46,13 @@ const nextConfig = {
     // Disable persistent cache in dev to avoid random runtime/build breakages.
     if (dev) {
       config.cache = false;
+      if (cloudSynced) {
+        config.watchOptions = {
+          poll: 1000,
+          aggregateTimeout: 300,
+          ignored: ["**/node_modules/**", "**/.git/**"]
+        };
+      }
     }
     return config;
   }

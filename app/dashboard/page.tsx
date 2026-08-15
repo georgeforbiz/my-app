@@ -8,6 +8,7 @@ import {
   CreditCard,
   Download,
   ExternalLink,
+  Eye,
   FileCheck2,
   FilePlus2,
   Globe,
@@ -16,19 +17,31 @@ import {
   Plus,
   Trash2
 } from "lucide-react";
-import { formatAMD, formatProMonthly } from "@/lib/currency";
+import { AgreementDocumentPreview } from "@/components/agreement-document-preview";
+import {
+  AgreementStatusPill,
+  getDerivedAgreementStatus,
+  type DerivedAgreementStatus
+} from "@/components/agreement-status-pill";
+import {
+  formatAMD,
+  formatGroupedNumberInput,
+  formatProMonthly,
+  parseGroupedNumberInput
+} from "@/lib/currency";
 import { FREE_AGREEMENT_LIMIT, readMockPlan, writeMockPlan, type MockPlanId } from "@/lib/subscription/mock";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/lib/auth/auth-context";
+import { authDisplayName, useAuth } from "@/lib/auth/auth-context";
 import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
 import { insertAgreementWithSchemaFallback, normalizeAgreementRow } from "@/lib/agreements/row";
+import { listLocalAgreements, saveLocalAgreement } from "@/lib/agreements/local-store";
+import { formatDateDMY } from "@/lib/format-date";
 import { useLanguage } from "@/lib/i18n/language-context";
 import type { Language } from "@/lib/i18n/locales";
 
 type Lang = Language;
 type View = "overview" | "create" | "archive" | "billing";
 type AgreementStatus = "pending" | "signed" | "completed";
-type DerivedAgreementStatus = AgreementStatus | "in_progress" | "paid" | "funds_secured";
 type PaymentType = "single" | "milestones";
 type Milestone = { title: string; amount: number; status?: "pending" | "escrow_held" | "released" };
 type MilestoneDraft = { id: string; title: string; amount: string };
@@ -37,6 +50,8 @@ type Agreement = {
   id: string;
   provider_id: string;
   provider_name: string;
+  full_name?: string;
+  business_name?: string;
   client_name: string;
   project_title: string;
   service_area: string;
@@ -61,6 +76,7 @@ type Tx = {
   agreementsTitle: string;
   archivedTitle: string;
   totalAgreementValue: string;
+  pendingRelease: string;
   signedAgreements: string;
   loading: string;
   emptyTitle: string;
@@ -94,6 +110,9 @@ type Tx = {
   successSubtitle: string;
   publicLink: string;
   copyToClipboard: string;
+  preview: string;
+  previewAgreement: string;
+  openFullPage: string;
   close: string;
   toastCreated: string;
   pending: string;
@@ -102,7 +121,7 @@ type Tx = {
   inProgress: string;
   paid: string;
   fundsSecured: string;
-  signatureSigned: string;
+  verificationPending: string;
   paymentReleasedBanner: string;
   releaseProgress: string;
   vault: string;
@@ -151,6 +170,7 @@ const t: Record<Lang, Tx> = {
     agreementsTitle: "Agreements",
     archivedTitle: "Agreement History",
     totalAgreementValue: "Total Earned Revenue",
+    pendingRelease: "Pending Release",
     signedAgreements: "Signed Agreements",
     loading: "Loading agreements...",
     emptyTitle: "Create your first deal to get started",
@@ -179,11 +199,14 @@ const t: Record<Lang, Tx> = {
     completeRequired: "Please complete all required fields.",
     completeMilestones: "Please fill all milestone titles and amounts.",
     agreementHistory: "Agreement History",
-    noHistory: "Signed and completed agreements will appear here.",
+    noHistory: "Completed agreements will appear here.",
     successTitle: "Agreement Created Successfully!",
     successSubtitle: "Share this public agreement link with your client.",
     publicLink: "Public Link",
     copyToClipboard: "Copy to Clipboard",
+    preview: "Preview",
+    previewAgreement: "Preview agreement",
+    openFullPage: "Open full page",
     close: "Close",
     toastCreated: "Agreement created successfully.",
     pending: "Pending",
@@ -192,7 +215,7 @@ const t: Record<Lang, Tx> = {
     inProgress: "In Progress",
     paid: "Paid",
     fundsSecured: "Funds Secured",
-    signatureSigned: "✍️ Signed",
+    verificationPending: "Verification pending",
     paymentReleasedBanner: "🎉 Payment released by client.",
     releaseProgress: "Release Progress",
     vault: "Vault",
@@ -239,6 +262,7 @@ const t: Record<Lang, Tx> = {
     agreementsTitle: "Պայմանագրեր",
     archivedTitle: "Պայմանագրերի պատմություն",
     totalAgreementValue: "Ընդհանուր եկամուտ",
+    pendingRelease: "Սպասող արձակում",
     signedAgreements: "Ստորագրված պայմանագրեր",
     loading: "Բեռնում…",
     emptyTitle: "Սկսեք առաջին գործարքով",
@@ -267,11 +291,14 @@ const t: Record<Lang, Tx> = {
     completeRequired: "Լրացրեք բոլոր պարտադիր դաշտերը։",
     completeMilestones: "Լրացրեք փուլերի անուններն ու գումարները։",
     agreementHistory: "Պայմանագրերի պատմություն",
-    noHistory: "Ստորագրված և ավարտված պայմանագրերը կհայտնվեն այստեղ։",
+    noHistory: "Ավարտված պայմանագրերը կհայտնվեն այստեղ։",
     successTitle: "Պայմանագիրը պատրաստ է",
     successSubtitle: "Ուղարկեք հղումը հաճախորդին։",
     publicLink: "Հանրային հղում",
     copyToClipboard: "Պատճենել",
+    preview: "Նախադիտում",
+    previewAgreement: "Նախադիտել պայմանագիրը",
+    openFullPage: "Բացել ամբողջ էջը",
     close: "Փակել",
     toastCreated: "Պայմանագիրը ստեղծված է։",
     pending: "Սպասում",
@@ -279,11 +306,11 @@ const t: Record<Lang, Tx> = {
     completed: "Ավարտված",
     inProgress: "Ընթացքում",
     paid: "Վճարված",
-    fundsSecured: "Գումարը՝ էսկրոուում",
-    signatureSigned: "✍️ Ստորագրված",
+    fundsSecured: "Գումարը պահվում է",
+    verificationPending: "Ստուգումը սպասման մեջ է",
     paymentReleasedBanner: "🎉 Հաճախորդը արձակեց վճարումը",
     releaseProgress: "Արձակման ընթացք",
-    vault: "Էսկրոու",
+    vault: "Պահեստ",
     waiting: "Սպասում",
     releasedOfTotal: "Արձակված",
     agreementIdCol: "ID",
@@ -328,6 +355,7 @@ const t: Record<Lang, Tx> = {
     agreementsTitle: "Соглашения",
     archivedTitle: "История соглашений",
     totalAgreementValue: "Совокупный доход",
+    pendingRelease: "Ожидает выплаты",
     signedAgreements: "Подписанные соглашения",
     loading: "Загрузка…",
     emptyTitle: "Создайте первое соглашение",
@@ -356,11 +384,14 @@ const t: Record<Lang, Tx> = {
     completeRequired: "Заполните обязательные поля.",
     completeMilestones: "Укажите названия и суммы всех этапов.",
     agreementHistory: "История соглашений",
-    noHistory: "Здесь появятся подписанные и завершённые соглашения.",
+    noHistory: "Здесь появятся завершённые соглашения.",
     successTitle: "Соглашение создано",
     successSubtitle: "Отправьте клиенту эту публичную ссылку.",
     publicLink: "Публичная ссылка",
     copyToClipboard: "Копировать",
+    preview: "Предпросмотр",
+    previewAgreement: "Предпросмотр соглашения",
+    openFullPage: "Открыть полную страницу",
     close: "Закрыть",
     toastCreated: "Соглашение создано.",
     pending: "Ожидает",
@@ -368,11 +399,11 @@ const t: Record<Lang, Tx> = {
     completed: "Завершено",
     inProgress: "В работе",
     paid: "Оплачено",
-    fundsSecured: "Средства в эскроу",
-    signatureSigned: "✍️ Подписано",
+    fundsSecured: "Средства удерживаются",
+    verificationPending: "Ожидает проверки",
     paymentReleasedBanner: "🎉 Клиент подтвердил выплату",
     releaseProgress: "Выплаты по этапам",
-    vault: "Эскроу",
+    vault: "Сейф",
     waiting: "Ожидает",
     releasedOfTotal: "Выплачено",
     agreementIdCol: "ID",
@@ -410,15 +441,6 @@ const t: Record<Lang, Tx> = {
 const fill = (template: string, vars: Record<string, string | number>) =>
   Object.entries(vars).reduce((s, [k, v]) => s.replaceAll(`{${k}}`, String(v)), template);
 
-const statusBadge: Record<DerivedAgreementStatus, string> = {
-  pending: "border-slate-200 bg-slate-100 text-slate-700",
-  signed: "border-emerald-200 bg-emerald-100 text-emerald-800",
-  completed: "border-blue-200 bg-blue-100 text-[#0033A0]",
-  in_progress: "border-orange-200 bg-orange-100 text-orange-800",
-  paid: "border-emerald-200 bg-emerald-100 text-emerald-800",
-  funds_secured: "border-blue-200 bg-blue-100 text-[#0033A0]"
-};
-
 const createMilestone = (): MilestoneDraft => ({
   id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
   title: "",
@@ -429,6 +451,34 @@ const formatAgreementNumber = (id: string, createdAt: string) =>
   `AG-${new Date(createdAt).getFullYear()}-${id.slice(0, 8).toUpperCase()}`;
 
 const formatAmount = (value: number) => formatAMD(value, { maxFractionDigits: 2 });
+
+/** Resolves to null when the network call fails or exceeds `ms`. */
+async function withNetworkTimeout<T>(promise: Promise<T>, ms = 5_000): Promise<T | null> {
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<null>((resolve) => {
+        window.setTimeout(() => resolve(null), ms);
+      })
+    ]);
+  } catch {
+    return null;
+  }
+}
+
+function isNetworkErrorMessage(message: string | undefined): boolean {
+  if (!message) return false;
+  const m = message.toLowerCase();
+  return (
+    m.includes("failed to fetch") ||
+    m.includes("fetch failed") ||
+    m.includes("load failed") ||
+    m.includes("networkerror") ||
+    m.includes("network error") ||
+    m.includes("timed out") ||
+    m.includes("timeout")
+  );
+}
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -449,6 +499,7 @@ export default function DashboardPage() {
   const [langMenuOpen, setLangMenuOpen] = useState(false);
   const [mockPlan, setMockPlan] = useState<MockPlanId>("free");
   const [limitModalOpen, setLimitModalOpen] = useState(false);
+  const [previewAgreement, setPreviewAgreement] = useState<Agreement | null>(null);
 
   const [clientName, setClientName] = useState("");
   const [projectTitle, setProjectTitle] = useState("");
@@ -526,7 +577,8 @@ export default function DashboardPage() {
     completed: tx.completed,
     in_progress: tx.inProgress,
     paid: tx.paid,
-    funds_secured: tx.fundsSecured
+    funds_secured: tx.fundsSecured,
+    verification_pending: tx.verificationPending
   };
 
   const getReleasedMilestoneAmount = (agreement: Agreement) => {
@@ -570,30 +622,28 @@ export default function DashboardPage() {
     return { pct, released, escrow, pending };
   };
 
-  const getDerivedStatus = (agreement: Agreement): DerivedAgreementStatus => {
-    // Preserve explicit completion from DB as strongest signal.
-    if (agreement.status === "completed") return "completed";
-    if (agreement.payment_status === "released") return "paid";
-    if (agreement.payment_status === "escrow_held") return "funds_secured";
-    if (agreement.payment_type === "milestones") {
-      const milestones = agreement.milestones ?? [];
-      const releasedCount = milestones.filter((m) => m.status === "released").length;
-      if (milestones.length > 0 && releasedCount === milestones.length) return "completed";
-      if (releasedCount > 0) return "in_progress";
-    }
-    if (agreement.status === "signed") return "signed";
-    return "pending";
+  const getDerivedStatus = (agreement: Agreement): DerivedAgreementStatus =>
+    getDerivedAgreementStatus(agreement);
+
+  /** Amount not yet paid out (escrow + awaiting approval), excluding unsigned offers. */
+  const getPendingReleaseAmount = (agreement: Agreement): number => {
+    const total = Number(agreement.total_price || 0);
+    const { released } = getReleaseProgress(agreement);
+    const outstanding = Math.max(0, total - released);
+    if (outstanding <= 0) return 0;
+    if (getDerivedStatus(agreement) === "pending") return 0;
+    return outstanding;
   };
 
   const isHistoryAgreement = (agreement: Agreement) => {
-    // "History" should include signed (funds secured) and completed (paid out) agreements.
-    if (agreement.status === "signed" || agreement.status === "completed") return true;
-    if (agreement.payment_status === "escrow_held" || agreement.payment_status === "released") return true;
-    if (agreement.payment_type !== "milestones") return false;
-    const milestones = agreement.milestones ?? [];
-    const releasedCount = milestones.filter((m) => m.status === "released").length;
-    const escrowCount = milestones.filter((m) => m.status === "escrow_held").length;
-    return milestones.length > 0 && (releasedCount > 0 || escrowCount > 0);
+    // History only lists fully finished deals.
+    if (agreement.status === "completed") return true;
+    if (agreement.payment_status === "released") return true;
+    if (agreement.payment_type === "milestones") {
+      const milestones = agreement.milestones ?? [];
+      return milestones.length > 0 && milestones.every((m) => m.status === "released");
+    }
+    return false;
   };
 
   useEffect(() => {
@@ -626,17 +676,13 @@ export default function DashboardPage() {
     }
   }, [agreements, tx.paymentReleasedBanner]);
 
-  const totalPrice = useMemo(() => {
-    const normalized = totalPriceInput.replaceAll(",", ".").replace(/[^0-9.]/g, "");
-    const parsed = Number(normalized);
-    return Number.isFinite(parsed) ? parsed : 0;
-  }, [totalPriceInput]);
+  const totalPrice = useMemo(() => parseGroupedNumberInput(totalPriceInput), [totalPriceInput]);
 
   const milestonesParsed = useMemo(
     () =>
       milestones.map((m) => ({
         title: m.title.trim(),
-        amount: Number(m.amount.replaceAll(",", ".").replace(/[^0-9.]/g, "")) || 0
+        amount: parseGroupedNumberInput(m.amount)
       })),
     [milestones]
   );
@@ -645,33 +691,56 @@ export default function DashboardPage() {
   const milestonesValid = paymentType === "single" || Math.abs(milestonesTotal - totalPrice) < 0.0001;
 
   const fetchAgreements = useCallback(async () => {
-    if (!supabase || !user?.id) {
+    const local = user?.id ? (listLocalAgreements(user.id) as Agreement[]) : [];
+    if (!supabase || !user?.id || user.source === "mock") {
+      setAgreements(local);
       setLoadingAgreements(false);
       return;
     }
     setLoadingAgreements(true);
-    const { data, error: fetchError } = await supabase
-      .from("agreements")
-      .select("*")
-      .eq("provider_id", user.id)
-      .order("created_at", { ascending: false });
-
-    if (fetchError) {
-      setError(fetchError.message);
+    try {
+      const result = await Promise.race([
+        supabase
+          .from("agreements")
+          .select("*")
+          .eq("provider_id", user.id)
+          .order("created_at", { ascending: false }),
+        new Promise<null>((resolve) => {
+          window.setTimeout(() => resolve(null), 8_000);
+        })
+      ]);
+      if (!result) {
+        setAgreements(local);
+        setLoadingAgreements(false);
+        return;
+      }
+      const { data, error: fetchError } = result;
+      if (fetchError) {
+        setError(fetchError.message);
+        setAgreements(local);
+        setLoadingAgreements(false);
+        return;
+      }
+      const cloud = (data ?? []).map((row) =>
+        normalizeAgreementRow(row as Record<string, unknown>)
+      ) as Agreement[];
+      setAgreements(
+        [...local, ...cloud].sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
+      );
+    } catch {
+      // Supabase unreachable — fall back to agreements saved in this browser.
+      setAgreements(local);
+    } finally {
       setLoadingAgreements(false);
-      return;
     }
-
-    setAgreements((data ?? []).map((row) => normalizeAgreementRow(row as Record<string, unknown>)) as Agreement[]);
-    setLoadingAgreements(false);
-  }, [supabase, user?.id]);
+  }, [supabase, user?.id, user?.source]);
 
   useEffect(() => {
     void fetchAgreements();
   }, [fetchAgreements]);
 
   useEffect(() => {
-    if (!supabase || !user?.id) return;
+    if (!supabase || !user?.id || user.source === "mock") return;
     const channel = supabase
       .channel(`agreements-dashboard-${user.id}`)
       .on(
@@ -704,7 +773,7 @@ export default function DashboardPage() {
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [supabase, user?.id, fetchAgreements]);
+  }, [supabase, user?.id, user?.source, fetchAgreements]);
 
   const copyAgreementLink = async (id: string) => {
     const base = typeof window !== "undefined" ? window.location.origin : "https://vstah.am";
@@ -738,27 +807,55 @@ export default function DashboardPage() {
     setError("");
   };
 
-  const resolveProviderDisplayName = useCallback(async (): Promise<string> => {
-    if (!supabase || !user) return "Service Provider";
-    await supabase.auth.refreshSession();
-    const { data: authData } = await supabase.auth.getUser();
-    const userMetadata = (authData.user?.user_metadata ?? {}) as Record<string, unknown>;
-    let full_name = String(userMetadata.full_name ?? userMetadata.fullName ?? "").trim();
-    let business_name = String(userMetadata.business_name ?? userMetadata.businessName ?? "").trim();
-    if (!full_name && !business_name) {
-      const legacy = String(userMetadata.full_name_or_business_name ?? "").trim();
-      if (legacy) {
-        const m = legacy.match(/^(.+?)\s*\((.+)\)\s*$/);
-        if (m) {
-          business_name = m[1].trim();
-          full_name = m[2].trim();
-        } else {
-          full_name = legacy;
+  /** Reads provider names from cloud metadata, falling back to the local session. */
+  const resolveProviderNames = useCallback(async (): Promise<{
+    full_name: string;
+    business_name: string;
+  }> => {
+    const fallback = {
+      full_name: user?.full_name?.trim() ?? "",
+      business_name: user?.business_name?.trim() ?? ""
+    };
+    if (!user || !supabase || user.source === "mock") return fallback;
+
+    try {
+      const authData = await withNetworkTimeout(
+        (async () => {
+          await supabase.auth.refreshSession();
+          return supabase.auth.getUser();
+        })()
+      );
+      if (!authData) return fallback;
+
+      const userMetadata = (authData.data.user?.user_metadata ?? {}) as Record<string, unknown>;
+      let full_name = String(userMetadata.full_name ?? userMetadata.fullName ?? "").trim();
+      let business_name = String(userMetadata.business_name ?? userMetadata.businessName ?? "").trim();
+      if (!full_name && !business_name) {
+        const legacy = String(userMetadata.full_name_or_business_name ?? "").trim();
+        if (legacy) {
+          const m = legacy.match(/^(.+?)\s*\((.+)\)\s*$/);
+          if (m) {
+            business_name = m[1].trim();
+            full_name = m[2].trim();
+          } else {
+            full_name = legacy;
+          }
         }
       }
+      return {
+        full_name: full_name || fallback.full_name,
+        business_name: business_name || fallback.business_name
+      };
+    } catch {
+      return fallback;
     }
-    return business_name || full_name || user.email?.split("@")[0] || "Service Provider";
   }, [supabase, user]);
+
+  const resolveProviderDisplayName = useCallback(async (): Promise<string> => {
+    if (!user) return "Service Provider";
+    const { full_name, business_name } = await resolveProviderNames();
+    return business_name || full_name || authDisplayName(user) || "Service Provider";
+  }, [resolveProviderNames, user]);
 
   const buildDefaultTerms = useCallback((input: {
     providerName: string;
@@ -784,15 +881,77 @@ export default function DashboardPage() {
     ].join("\n");
   }, [globalTermsTemplate]);
 
+  const providerDisplayName = useMemo(
+    () => authDisplayName(user) || "Service Provider",
+    [user]
+  );
+
+  const openAgreementPreview = (id: string) => {
+    const found = agreements.find((a) => a.id === id);
+    if (found) {
+      setPreviewAgreement(found);
+      return;
+    }
+    openAgreementLink(id);
+  };
+
+  const buildDraftPreviewAgreement = useCallback((): Agreement => {
+    const terms =
+      contractTerms.trim() ||
+      buildDefaultTerms({
+        providerName: providerDisplayName,
+        clientName: clientName.trim(),
+        serviceArea: serviceArea.trim() || "Armenia",
+        totalPrice: totalPrice || 0
+      });
+    const full_name = user?.full_name?.trim() || "";
+    const business_name = user?.business_name?.trim() || "";
+    return {
+      id: "draft",
+      provider_id: user?.id ?? "",
+      provider_name: providerDisplayName,
+      full_name: full_name || undefined,
+      business_name: business_name || undefined,
+      client_name: clientName.trim() || "—",
+      project_title: projectTitle.trim() || "—",
+      service_area: serviceArea.trim() || "Armenia",
+      custom_terms: terms,
+      total_price: totalPrice || 0,
+      payment_type: paymentType,
+      milestones: paymentType === "milestones" ? milestonesParsed : null,
+      status: "pending",
+      payment_status: "pending",
+      created_at: new Date().toISOString()
+    };
+  }, [
+    buildDefaultTerms,
+    clientName,
+    contractTerms,
+    milestonesParsed,
+    paymentType,
+    projectTitle,
+    providerDisplayName,
+    serviceArea,
+    totalPrice,
+    user?.business_name,
+    user?.full_name,
+    user?.id
+  ]);
+
+  const openDraftPreview = () => {
+    setPreviewAgreement(buildDraftPreviewAgreement());
+  };
+
   useEffect(() => {
     if (termsHydratedRef.current || loadingAgreements) return;
 
     // 1) Prefer the user's saved default template from auth metadata.
     // This is persisted per-user and survives across devices/sessions.
     void (async () => {
-      if (!supabase || !user?.id) return;
-      const { data } = await supabase.auth.getUser();
-      const meta = (data.user?.user_metadata ?? {}) as Record<string, unknown>;
+      if (!supabase || !user?.id || user.source === "mock") return;
+      const authData = await withNetworkTimeout(supabase.auth.getUser());
+      if (!authData) return;
+      const meta = (authData.data.user?.user_metadata ?? {}) as Record<string, unknown>;
       const saved = String(meta.default_agreement_terms ?? "").trim();
       if (saved.length > 0) {
         setGlobalTermsTemplate(saved);
@@ -866,7 +1025,7 @@ export default function DashboardPage() {
   }, [view, contractTerms, globalTermsTemplate, buildDefaultTerms, resolveProviderDisplayName]);
 
   const submitAgreement = async () => {
-    if (!user?.id || !supabase) {
+    if (!user?.id) {
       setError("You must be logged in to create an agreement.");
       return;
     }
@@ -894,68 +1053,106 @@ export default function DashboardPage() {
     }
 
     setCreating(true);
-    await supabase.auth.refreshSession();
-    const { data: authData } = await supabase.auth.getUser();
-    const userMetadata = (authData.user?.user_metadata ?? {}) as Record<string, unknown>;
+    try {
+      const { full_name, business_name } = await resolveProviderNames();
+      const providerName =
+        business_name || full_name || authDisplayName(user) || "Service Provider";
+      const customTermsText =
+        contractTerms.trim() ||
+        buildDefaultTerms({
+          providerName,
+          clientName: clientName.trim(),
+          serviceArea: serviceArea.trim(),
+          totalPrice
+        });
 
-    let full_name = String(userMetadata.full_name ?? userMetadata.fullName ?? "").trim();
-    let business_name = String(userMetadata.business_name ?? userMetadata.businessName ?? "").trim();
-    if (!full_name && !business_name) {
-      const legacy = String(userMetadata.full_name_or_business_name ?? "").trim();
-      if (legacy) {
-        const m = legacy.match(/^(.+?)\s*\((.+)\)\s*$/);
-        if (m) {
-          business_name = m[1].trim();
-          full_name = m[2].trim();
-        } else {
-          full_name = legacy;
+      const draft = {
+        providerId: user.id,
+        providerName,
+        full_name,
+        business_name,
+        clientName: clientName.trim(),
+        projectTitle: projectTitle.trim(),
+        serviceArea: serviceArea.trim(),
+        customTerms: customTermsText,
+        totalPrice,
+        paymentType,
+        milestones: paymentType === "milestones" ? milestonesParsed : []
+      };
+
+      let result: { id?: string; error?: string } = {};
+      if (supabase && user.source !== "mock") {
+        try {
+          result = await insertAgreementWithSchemaFallback(supabase, draft);
+        } catch (err) {
+          result = { error: err instanceof Error ? err.message : "Failed to fetch" };
         }
       }
+
+      // Save in this browser when there is no reachable backend, so the deal is
+      // still created instead of failing with a network error.
+      if (!result.id && (!supabase || user.source === "mock" || isNetworkErrorMessage(result.error))) {
+        const saved = saveLocalAgreement({
+          provider_id: user.id,
+          provider_name: providerName,
+          full_name: full_name || undefined,
+          business_name: business_name || undefined,
+          client_name: draft.clientName,
+          project_title: draft.projectTitle,
+          service_area: draft.serviceArea,
+          custom_terms: customTermsText,
+          total_price: totalPrice,
+          payment_type: paymentType,
+          milestones:
+            paymentType === "milestones"
+              ? milestonesParsed.map((m) => ({ ...m, status: "pending" as const }))
+              : null,
+          status: "pending",
+          payment_status: "pending"
+        });
+        result = { id: saved.id };
+      }
+
+      if (result.error || !result.id) {
+        setError(result.error ?? "Failed to create agreement.");
+        return;
+      }
+
+      void fetch(`/api/agreement/${encodeURIComponent(result.id)}/log`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "agreement.created",
+          meta: { clientName: draft.clientName, totalPrice: draft.totalPrice }
+        })
+      }).catch(() => {});
+
+      setGlobalTermsTemplate(customTermsText);
+      // Persist the latest agreement terms as the user's default template.
+      // This keeps the Create form prefilled on the next offer for this user.
+      if (supabase && user.source !== "mock") {
+        void supabase.auth
+          .updateUser({ data: { default_agreement_terms: customTermsText } })
+          .catch(() => {
+            // Non-critical: the template still applies for this session.
+          });
+      }
+      setSuccessAgreementId(result.id);
+      setToast(tx.toastCreated);
+      resetForm(customTermsText);
+      setView("overview");
+      await fetchAgreements();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create agreement.");
+    } finally {
+      setCreating(false);
     }
-
-    const providerName = await resolveProviderDisplayName();
-    const customTermsText =
-      contractTerms.trim() ||
-      buildDefaultTerms({
-        providerName,
-        clientName: clientName.trim(),
-        serviceArea: serviceArea.trim(),
-        totalPrice
-      });
-    const result = await insertAgreementWithSchemaFallback(supabase, {
-      providerId: user.id,
-      providerName,
-      full_name,
-      business_name,
-      clientName: clientName.trim(),
-      projectTitle: projectTitle.trim(),
-      serviceArea: serviceArea.trim(),
-      customTerms: customTermsText,
-      totalPrice,
-      paymentType,
-      milestones: paymentType === "milestones" ? milestonesParsed : []
-    });
-    setCreating(false);
-
-    if (result.error || !result.id) {
-      setError(result.error ?? "Failed to create agreement.");
-      return;
-    }
-
-    setGlobalTermsTemplate(customTermsText);
-    // Persist the latest agreement terms as the user's default template.
-    // This keeps the Create form prefilled on the next offer for this user.
-    void supabase.auth.updateUser({ data: { default_agreement_terms: customTermsText } });
-    setSuccessAgreementId(result.id);
-    setToast(tx.toastCreated);
-    resetForm(customTermsText);
-    setView("overview");
-    await fetchAgreements();
   };
 
   const stats = useMemo(
     () => ({
       totalValue: agreements.reduce((sum, a) => sum + Number(a.total_price || 0), 0),
+      pendingRelease: agreements.reduce((sum, a) => sum + getPendingReleaseAmount(a), 0),
       signedCount: agreements.filter((a) => a.payment_status === "escrow_held" || a.payment_status === "released").length
     }),
     [agreements]
@@ -973,58 +1170,58 @@ export default function DashboardPage() {
     const query = historySearch.trim().toLowerCase();
     if (!query) return archived;
     return archived.filter((item) => {
-      const derived = getDerivedStatus(item);
       const haystack = [
         item.client_name,
         item.project_title,
         item.service_area,
         formatAgreementNumber(item.id, item.created_at),
         item.id,
-        statusText[derived]
+        statusText.completed
       ]
         .join(" ")
         .toLowerCase();
       return haystack.includes(query);
     });
-  }, [archived, historySearch, statusText]);
+  }, [archived, historySearch, statusText.completed]);
 
-  if (loading || !user) return <div className="min-h-screen bg-[#F9FAFB] p-6">Loading dashboard...</div>;
+  if (loading || !user) return <div className="min-h-dvh bg-[#F9FAFB] p-6">Loading dashboard...</div>;
 
   return (
-    <div className="h-screen overflow-hidden bg-[#F9FAFB] text-slate-900">
-      <div className="flex h-full">
-        <aside className="hidden h-screen w-72 min-w-[18rem] shrink-0 flex-col bg-[#0033A0] p-6 text-white lg:flex">
-          <h1 className="text-2xl font-black">{tx.dashboardTitle}</h1>
-          <p className="mt-2 text-sm text-blue-100">{tx.dashboardSubtitle}</p>
-          <nav className="mt-8 space-y-2">
-            {navItems.map(({ id, label, icon: Icon, createAction }) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => handleNav(id, createAction)}
-                className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold ${
-                  view === id ? "bg-white text-[#0033A0]" : "text-blue-100 hover:bg-blue-700/40"
-                } ${createAction && isAtFreeLimit ? "opacity-70" : ""}`}
-              >
-                <Icon className="h-4 w-4 shrink-0" />
-                {label}
-              </button>
-            ))}
-          </nav>
-          <div className="mt-auto space-y-3">
-            <p className="text-xs text-blue-100">{tx.signedInAs}: {user.email}</p>
+    <div className="fixed inset-0 flex overflow-hidden bg-[#F9FAFB] text-slate-900">
+      <aside className="hidden h-full w-72 min-w-0 max-w-[18rem] shrink-0 flex-col bg-[#0033A0] p-6 text-white lg:flex">
+        <h1 className="text-2xl font-black">{tx.dashboardTitle}</h1>
+        <p className="mt-2 text-sm text-blue-100">{tx.dashboardSubtitle}</p>
+        <nav className="mt-8 space-y-2">
+          {navItems.map(({ id, label, icon: Icon, createAction }) => (
             <button
+              key={id}
               type="button"
-              onClick={() => void signOut().then(() => router.replace("/login?next=%2Fdashboard"))}
-              className="w-full rounded-xl bg-white px-3 py-2 text-sm font-bold text-[#0033A0]"
+              onClick={() => handleNav(id, createAction)}
+              className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm font-semibold ${
+                view === id ? "bg-white text-[#0033A0]" : "text-blue-100 hover:bg-blue-700/40"
+              } ${createAction && isAtFreeLimit ? "opacity-70" : ""}`}
             >
-              {tx.logout}
+              <Icon className="h-4 w-4 shrink-0" />
+              {label}
             </button>
-          </div>
-        </aside>
+          ))}
+        </nav>
+        <div className="mt-auto space-y-3">
+          <p className="truncate text-xs text-blue-100" title={providerDisplayName}>
+            {tx.signedInAs}: {providerDisplayName}
+          </p>
+          <button
+            type="button"
+            onClick={() => void signOut().then(() => router.replace("/login?next=%2Fdashboard"))}
+            className="w-full rounded-xl bg-white px-3 py-2 text-sm font-bold text-[#0033A0]"
+          >
+            {tx.logout}
+          </button>
+        </div>
+      </aside>
 
-        <main className="min-w-0 flex-1 overflow-y-auto p-4 pb-24 md:p-6 md:pb-6 lg:p-8">
-          <div className="mx-auto max-w-7xl space-y-6">
+      <main className="min-h-0 min-w-0 flex-1 overflow-x-clip overflow-y-auto overscroll-y-contain p-4 pb-24 md:p-6 md:pb-6 lg:p-8">
+        <div className="mx-auto w-full max-w-7xl space-y-6">
             {!isPro ? (
               <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
                 <p className="text-sm font-medium text-slate-700">
@@ -1089,7 +1286,9 @@ export default function DashboardPage() {
               </div>
               <div className="mt-3 border-t border-slate-100 pt-3 lg:hidden">
                 <div className="mt-2 flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2">
-                  <p className="min-w-0 truncate text-xs text-slate-600">{tx.signedInAs}: {user.email}</p>
+                  <p className="min-w-0 truncate text-xs text-slate-600" title={providerDisplayName}>
+                    {tx.signedInAs}: {providerDisplayName}
+                  </p>
                   <button
                     type="button"
                     onClick={() => void signOut().then(() => router.replace("/login?next=%2Fdashboard"))}
@@ -1103,14 +1302,18 @@ export default function DashboardPage() {
 
             {view === "overview" ? (
               <>
-                <section className="grid gap-4 md:grid-cols-2">
+                <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                   <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                     <p className="text-sm font-semibold text-slate-500">{tx.totalAgreementValue}</p>
-                    <p className="mt-2 text-3xl font-black">{formatAmount(stats.totalValue)}</p>
+                    <p className="mt-2 text-3xl font-black tabular-nums">{formatAmount(stats.totalValue)}</p>
                   </article>
                   <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <p className="text-sm font-semibold text-slate-500">{tx.pendingRelease}</p>
+                    <p className="mt-2 text-3xl font-black tabular-nums text-[#0033A0]">{formatAmount(stats.pendingRelease)}</p>
+                  </article>
+                  <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:col-span-2 lg:col-span-1">
                     <p className="text-sm font-semibold text-slate-500">{tx.signedAgreements}</p>
-                    <p className="mt-2 text-3xl font-black">{stats.signedCount}</p>
+                    <p className="mt-2 text-3xl font-black tabular-nums">{stats.signedCount}</p>
                   </article>
                 </section>
 
@@ -1138,10 +1341,6 @@ export default function DashboardPage() {
                         {filteredListed.map((item) => {
                           const progress = getReleaseProgress(item);
                           const derived = getDerivedStatus(item);
-                          const showSignedIndicator = item.status === "signed" && derived !== "paid" && derived !== "completed";
-                          const paid = item.payment_status === "released" || derived === "paid";
-                          const escrow = item.payment_status === "escrow_held" || getEscrowHeldMilestoneAmount(item) > 0;
-                          const signedMark = item.status === "signed" || item.status === "completed";
                           return (
                             <article key={item.id} className="rounded-xl border border-slate-200 p-3">
                               <div className="space-y-2">
@@ -1156,7 +1355,7 @@ export default function DashboardPage() {
                                   </div>
                                 </div>
                                 <div>
-                                  <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${statusBadge[derived]}`}>{statusText[derived]}</span>
+                                  <AgreementStatusPill status={derived} label={statusText[derived]} />
                                 </div>
                               </div>
                               <div className="mt-3">
@@ -1166,10 +1365,6 @@ export default function DashboardPage() {
                                   <div className="h-2 rounded-full bg-orange-500 transition-all" style={{ width: `${progress.pct}%` }} />
                                 </div>
                               </div>
-                              <div className="mt-2 flex flex-wrap items-center gap-1.5 text-base leading-none" aria-hidden>
-                                {paid ? <span title={tx.paid}>✅</span> : (<>{signedMark ? <span title={tx.signed}>✍️</span> : null}{escrow ? <span title={tx.fundsSecured}>🔒</span> : null}</>)}
-                              </div>
-                              {showSignedIndicator ? <p className="mt-1 text-xs font-semibold text-slate-500">{tx.signatureSigned}</p> : null}
                               <div className="mt-3 grid grid-cols-3 gap-2">
                                 <button type="button" onClick={() => openAgreementLink(item.id)} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.viewLink} title={tx.viewLink}><ExternalLink className="h-4 w-4" /></button>
                                 <button type="button" onClick={() => void copyAgreementLink(item.id)} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.copyLink} title={tx.copyLink}><Copy className="h-4 w-4" /></button>
@@ -1219,28 +1414,7 @@ export default function DashboardPage() {
                                 <td className="px-3 py-3">
                                   {(() => {
                                     const derived = getDerivedStatus(item);
-                                    const showSignedIndicator = item.status === "signed" && derived !== "paid" && derived !== "completed";
-                                    const paid = item.payment_status === "released" || derived === "paid";
-                                    const escrow = item.payment_status === "escrow_held" || getEscrowHeldMilestoneAmount(item) > 0;
-                                    const signedMark = item.status === "signed" || item.status === "completed";
-                                    return (
-                                      <div className="space-y-1">
-                                        <div className="flex flex-wrap items-center gap-1.5 text-base leading-none" aria-hidden>
-                                          {paid ? (
-                                            <span title={tx.paid}>✅</span>
-                                          ) : (
-                                            <>
-                                              {signedMark ? <span title={tx.signed}>✍️</span> : null}
-                                              {escrow ? <span title={tx.fundsSecured}>🔒</span> : null}
-                                            </>
-                                          )}
-                                        </div>
-                                        <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${statusBadge[derived]}`}>
-                                          {statusText[derived]}
-                                        </span>
-                                        {showSignedIndicator ? <p className="text-xs font-semibold text-slate-500">{tx.signatureSigned}</p> : null}
-                                      </div>
-                                    );
+                                    return <AgreementStatusPill status={derived} label={statusText[derived]} />;
                                   })()}
                                 </td>
                                 <td className="px-3 py-3">
@@ -1281,7 +1455,7 @@ export default function DashboardPage() {
                   </label>
                   <label className="text-sm font-semibold text-slate-700">{tx.projectTitle}<input value={projectTitle} onChange={(e) => setProjectTitle(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500" /></label>
                   <label className="text-sm font-semibold text-slate-700 md:col-span-2">Service Area<input value={serviceArea} onChange={(e) => setServiceArea(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500" /></label>
-                  <label className="text-sm font-semibold text-slate-700 md:col-span-2">{tx.totalPrice}<input value={totalPriceInput} onChange={(e) => setTotalPriceInput(e.target.value)} inputMode="decimal" className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500" /></label>
+                  <label className="text-sm font-semibold text-slate-700 md:col-span-2">{tx.totalPrice}<input value={totalPriceInput} onChange={(e) => setTotalPriceInput(formatGroupedNumberInput(e.target.value))} inputMode="decimal" className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500" /></label>
                   <div className="md:col-span-2">
                     <label className="text-sm font-semibold text-slate-700" htmlFor="contract-terms-create">
                       {tx.contractTerms}
@@ -1311,7 +1485,7 @@ export default function DashboardPage() {
                       {milestones.map((m, index) => (
                         <div key={m.id} className="grid gap-3 md:grid-cols-[1fr_160px_auto]">
                           <input value={m.title} onChange={(e) => setMilestones((prev) => prev.map((x) => (x.id === m.id ? { ...x, title: e.target.value } : x)))} placeholder={`${tx.milestoneTitle} ${index + 1}`} className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500" />
-                          <input value={m.amount} onChange={(e) => setMilestones((prev) => prev.map((x) => (x.id === m.id ? { ...x, amount: e.target.value } : x)))} placeholder={tx.milestoneAmount} className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500" />
+                          <input value={m.amount} onChange={(e) => setMilestones((prev) => prev.map((x) => (x.id === m.id ? { ...x, amount: formatGroupedNumberInput(e.target.value) } : x)))} placeholder={tx.milestoneAmount} inputMode="decimal" className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500" />
                           <button type="button" onClick={() => setMilestones((prev) => prev.filter((x) => x.id !== m.id))} className="inline-flex items-center justify-center rounded-lg border border-red-300 bg-white px-3 py-2 text-red-600" aria-label="Remove milestone"><Trash2 className="h-4 w-4" /></button>
                         </div>
                       ))}
@@ -1325,10 +1499,23 @@ export default function DashboardPage() {
 
                 {error ? <p className="mt-4 text-sm font-semibold text-red-700">{error}</p> : null}
 
-                <div className="mt-5">
-                  <button type="button" onClick={() => void submitAgreement()} disabled={creating} className="inline-flex items-center gap-2 rounded-xl bg-[#F2A800] px-4 py-2 text-sm font-black text-slate-900 disabled:opacity-60">
+                <div className="mt-5 flex flex-col gap-2 sm:flex-row sm:items-stretch">
+                  <button
+                    type="button"
+                    onClick={() => void submitAgreement()}
+                    disabled={creating}
+                    className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#F2A800] px-5 py-2.5 text-sm font-black text-slate-900 disabled:opacity-60 sm:flex-none sm:min-w-[10rem]"
+                  >
                     {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                     {creating ? tx.creating : tx.create}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={openDraftPreview}
+                    className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl border-2 border-[#0033A0] bg-white px-5 py-2.5 text-sm font-black text-[#0033A0] hover:bg-blue-50 sm:flex-none sm:min-w-[10rem]"
+                  >
+                    <Eye className="h-4 w-4 shrink-0" />
+                    {tx.preview}
                   </button>
                 </div>
               </section>
@@ -1356,12 +1543,7 @@ export default function DashboardPage() {
                       />
                     </div>
                     <div className="space-y-3 md:hidden">
-                      {filteredArchived.map((item) => {
-                        const derived = getDerivedStatus(item);
-                        const paid = item.payment_status === "released" || derived === "paid";
-                        const escrow = item.payment_status === "escrow_held" || getEscrowHeldMilestoneAmount(item) > 0;
-                        const signedMark = item.status === "signed" || item.status === "completed";
-                        return (
+                      {filteredArchived.map((item) => (
                           <article key={item.id} className="rounded-xl border border-slate-200 p-3">
                             <div className="space-y-2">
                               <div>
@@ -1377,21 +1559,22 @@ export default function DashboardPage() {
                               <div className="grid grid-cols-2 gap-3">
                                 <div>
                                   <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{tx.completionDateCol}</p>
-                                  <p className="text-sm text-slate-700">{new Date(item.created_at).toLocaleDateString()}</p>
+                                  <p className="text-sm text-slate-700">{formatDateDMY(item.created_at)}</p>
                                 </div>
                                 <div>
                                   <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{tx.price}</p>
                                   <p className="font-mono text-sm font-semibold text-slate-800">{formatAmount(Number(item.total_price))}</p>
                                 </div>
                               </div>
-                              <div className="mt-2 flex flex-wrap items-center gap-1.5 text-base leading-none" aria-hidden>
-                                {paid ? <span title={tx.paid}>✅</span> : (<>{signedMark ? <span title={tx.signed}>✍️</span> : null}{escrow ? <span title={tx.fundsSecured}>🔒</span> : null}</>)}
-                              </div>
-                              <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${statusBadge[derived]}`}>{statusText[derived]}</span>
+                              <AgreementStatusPill status="completed" label={statusText.completed} />
+                            </div>
+                            <div className="mt-3 grid grid-cols-3 gap-2">
+                              <button type="button" onClick={() => openAgreementLink(item.id)} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.viewLink} title={tx.viewLink}><ExternalLink className="h-4 w-4" /></button>
+                              <button type="button" onClick={() => void copyAgreementLink(item.id)} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.copyLink} title={tx.copyLink}><Copy className="h-4 w-4" /></button>
+                              <button type="button" onClick={() => downloadAgreementPdf(item)} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.download} title={tx.download}><Download className="h-4 w-4" /></button>
                             </div>
                           </article>
-                        );
-                      })}
+                        ))}
                       {filteredArchived.length === 0 ? (
                         <p className="py-4 text-center text-sm text-slate-500">{tx.noSearchResults}</p>
                       ) : null}
@@ -1406,7 +1589,7 @@ export default function DashboardPage() {
                             <th className="px-3 py-2">{tx.price}</th>
                             <th className="px-3 py-2">{tx.status}</th>
                             <th className="px-3 py-2">
-                              <span className="sr-only">{tx.viewDetails}</span>
+                              <span className="sr-only">{tx.viewLink} / {tx.copyLink} / {tx.download}</span>
                             </th>
                           </tr>
                         </thead>
@@ -1417,40 +1600,17 @@ export default function DashboardPage() {
                                 {formatAgreementNumber(item.id, item.created_at)}
                               </td>
                               <td className="px-3 py-3 font-semibold">{item.client_name}</td>
-                              <td className="px-3 py-3 text-slate-700">{new Date(item.created_at).toLocaleDateString()}</td>
+                              <td className="px-3 py-3 text-slate-700">{formatDateDMY(item.created_at)}</td>
                               <td className="px-3 py-3 font-mono font-semibold">{formatAmount(Number(item.total_price))}</td>
                               <td className="px-3 py-3">
-                                {(() => {
-                                  const derived = getDerivedStatus(item);
-                                  const paid = item.payment_status === "released" || derived === "paid";
-                                  const escrow = item.payment_status === "escrow_held" || getEscrowHeldMilestoneAmount(item) > 0;
-                                  const signedMark = item.status === "signed" || item.status === "completed";
-                                  return (
-                                    <div className="space-y-1">
-                                      <div className="flex flex-wrap items-center gap-1.5 text-base leading-none" aria-hidden>
-                                        {paid ? (
-                                          <span title={tx.paid}>✅</span>
-                                        ) : (
-                                          <>
-                                            {signedMark ? <span title={tx.signed}>✍️</span> : null}
-                                            {escrow ? <span title={tx.fundsSecured}>🔒</span> : null}
-                                          </>
-                                        )}
-                                      </div>
-                                      <span className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-bold ${statusBadge[derived]}`}>{statusText[derived]}</span>
-                                    </div>
-                                  );
-                                })()}
+                                <AgreementStatusPill status="completed" label={statusText.completed} />
                               </td>
                               <td className="px-3 py-3">
-                                <button
-                                  type="button"
-                                  onClick={() => openAgreementLink(item.id)}
-                                  className="inline-flex items-center gap-1 rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
-                                >
-                                  <ExternalLink className="h-3.5 w-3.5" />
-                                  {tx.viewDetails}
-                                </button>
+                                <div className="flex items-center gap-2">
+                                  <button type="button" onClick={() => openAgreementLink(item.id)} className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.viewLink} title={tx.viewLink}><ExternalLink className="h-4 w-4" /></button>
+                                  <button type="button" onClick={() => void copyAgreementLink(item.id)} className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.copyLink} title={tx.copyLink}><Copy className="h-4 w-4" /></button>
+                                  <button type="button" onClick={() => downloadAgreementPdf(item)} className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.download} title={tx.download}><Download className="h-4 w-4" /></button>
+                                </div>
                               </td>
                             </tr>
                           ))}
@@ -1549,7 +1709,6 @@ export default function DashboardPage() {
             ) : null}
           </div>
         </main>
-      </div>
 
       <nav className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 px-2 pb-[calc(env(safe-area-inset-bottom,0px)+0.5rem)] pt-2 backdrop-blur lg:hidden">
         <div className="grid grid-cols-4 gap-1">
@@ -1594,6 +1753,39 @@ export default function DashboardPage() {
         </div>
       ) : null}
 
+      {previewAgreement ? (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-3 sm:p-4">
+          <div className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-xl">
+            <div className="flex-1 overflow-y-auto p-3 sm:p-4">
+              <AgreementDocumentPreview
+                agreement={previewAgreement}
+                lang={lang}
+                draft={previewAgreement.id === "draft"}
+              />
+            </div>
+            <div className="flex flex-wrap gap-2 border-t border-slate-200 bg-white p-4">
+              {previewAgreement.id !== "draft" ? (
+                <button
+                  type="button"
+                  onClick={() => openAgreementLink(previewAgreement.id)}
+                  className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-800 hover:bg-slate-50"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  {tx.openFullPage}
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => setPreviewAgreement(null)}
+                className="ml-auto rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700"
+              >
+                {tx.close}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {successAgreementId ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4">
           <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
@@ -1604,6 +1796,14 @@ export default function DashboardPage() {
               <p className="mt-1 break-all text-sm font-bold text-slate-900">{typeof window !== "undefined" ? `${window.location.origin}/agreement/${successAgreementId}` : `/agreement/${successAgreementId}`}</p>
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => openAgreementPreview(successAgreementId)}
+                className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-800 hover:bg-slate-50"
+              >
+                <Eye className="h-4 w-4" />
+                {tx.previewAgreement}
+              </button>
               <button type="button" onClick={() => void copyAgreementLink(successAgreementId)} className="inline-flex items-center gap-2 rounded-xl bg-[#F2A800] px-4 py-2 text-sm font-bold text-slate-900"><Copy className="h-4 w-4" />{copiedAgreementId === successAgreementId ? tx.copied : tx.copyToClipboard}</button>
               <button type="button" onClick={() => setSuccessAgreementId("")} className="ml-auto rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700">{tx.close}</button>
             </div>

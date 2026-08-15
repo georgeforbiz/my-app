@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { recordActivityEvent } from "@/lib/admin/activity";
 import { normalizeAgreementRow, type Milestone } from "@/lib/agreements/row";
 import { getAgreementServerClient } from "@/lib/supabase/agreement-server";
 
@@ -53,7 +54,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     return NextResponse.json({ error: "Funds can only be released from a signed agreement." }, { status: 400 });
   }
   if (row.payment_status !== "escrow_held") {
-    return NextResponse.json({ error: "Funds are not held in escrow for release." }, { status: 409 });
+    return NextResponse.json({ error: "Funds are not held for release." }, { status: 409 });
   }
 
   let milestoneIndex: number | null = null;
@@ -78,7 +79,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     }
     const target = current[milestoneIndex];
     if (!target || target.status !== "escrow_held") {
-      return NextResponse.json({ error: "This milestone is not in escrow for release." }, { status: 409 });
+      return NextResponse.json({ error: "This milestone is not held for release." }, { status: 409 });
     }
 
     const nextMilestones = current.map((m, i) => (i === milestoneIndex ? { ...m, status: "released" as const } : m));
@@ -104,6 +105,15 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         { status: 403 }
       );
     }
+    await recordActivityEvent(
+      {
+        actor_type: "user",
+        action: allReleased ? "agreement.completed" : "payment.released",
+        agreement_id: agreementId,
+        meta: { milestoneIndex, allReleased }
+      },
+      supabase
+    );
     return NextResponse.json({ ok: true });
   }
 
@@ -126,5 +136,14 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       { status: 403 }
     );
   }
+  await recordActivityEvent(
+    {
+      actor_type: "user",
+      action: "agreement.completed",
+      agreement_id: agreementId,
+      meta: { payment_status: "released" }
+    },
+    supabase
+  );
   return NextResponse.json({ ok: true });
 }

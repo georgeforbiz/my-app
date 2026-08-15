@@ -2,7 +2,19 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import {
+  Briefcase,
+  Building2,
+  Lock,
+  LockKeyhole,
+  Mail,
+  MapPin,
+  Phone,
+  User,
+  UserPlus
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { FormField } from "@/components/form-field";
 import { VstahShell } from "@/components/vstah-shell";
 import { NAVY, ORANGE } from "@/lib/brand";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -54,7 +66,13 @@ export default function RegisterPage() {
           creating: "Ստեղծում…",
           create: "Ստեղծել հաշիվ",
           alreadyRegistered: "Արդեն գրանցվա՞ծ եք",
-          login: "Մուտք"
+          login: "Մուտք",
+          legalPrefix: "Շարունակելով՝ դուք համաձայնում եք մեր",
+          termsOfService: "Ծառայության պայմաններին",
+          legalAnd: "և",
+          privacyPolicy: "Գաղտնիության քաղաքականությանը",
+          showPassword: "Ցուցադրել գաղտնաբառը",
+          hidePassword: "Թաքցնել գաղտնաբառը"
         }
       : language === "ru"
         ? {
@@ -77,7 +95,13 @@ export default function RegisterPage() {
             creating: "Создаём аккаунт…",
             create: "Создать аккаунт",
             alreadyRegistered: "Уже есть аккаунт?",
-            login: "Войти"
+            login: "Войти",
+            legalPrefix: "Продолжая, вы соглашаетесь с нашими",
+            termsOfService: "Условиями использования",
+            legalAnd: "и",
+            privacyPolicy: "Политикой конфиденциальности",
+            showPassword: "Показать пароль",
+            hidePassword: "Скрыть пароль"
           }
         : {
             eyebrow: "Account",
@@ -99,14 +123,22 @@ export default function RegisterPage() {
             creating: "Creating account...",
             create: "Create account",
             alreadyRegistered: "Already registered?",
-            login: "Login"
+            login: "Login",
+            legalPrefix: "By continuing, you agree to our",
+            termsOfService: "Terms of Service",
+            legalAnd: "and",
+            privacyPolicy: "Privacy Policy",
+            showPassword: "Show password",
+            hidePassword: "Hide password"
           };
 
   useEffect(() => {
     if (user) router.replace(nextRoute);
   }, [user, router, nextRoute]);
 
-  if (user) return null;
+  useEffect(() => {
+    router.prefetch(nextRoute);
+  }, [router, nextRoute]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -149,8 +181,8 @@ export default function RegisterPage() {
         setInfo(tx.confirmEmail);
         return;
       }
+      // Immediate navigation — skip router.refresh() (extra RSC refetch felt slow).
       router.replace(nextRoute);
-      router.refresh();
     } finally {
       setPending(false);
       submitLock.current = false;
@@ -158,132 +190,115 @@ export default function RegisterPage() {
   }
 
   return (
-    <VstahShell eyebrow={tx.eyebrow} title={tx.title} subtitle={tx.subtitle}>
+    <VstahShell eyebrow={tx.eyebrow} title={tx.title} subtitle={tx.subtitle} maxWidthClass="max-w-2xl">
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         <div className="grid gap-5 md:grid-cols-2">
-          <div>
-            <label htmlFor="fullName" className="block text-sm font-semibold text-slate-700">
-              {tx.fullName}
-            </label>
-            <input
-              id="fullName"
-              type="text"
-              autoComplete="name"
-              required
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 outline-none transition focus:border-[#0033A0]/40 focus:ring-4 focus:ring-[#0033A0]/15"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="businessName" className="block text-sm font-semibold text-slate-700">
-              {tx.businessName}
-            </label>
-            <input
-              id="businessName"
-              type="text"
-              autoComplete="organization"
-              required
-              value={businessName}
-              onChange={(e) => setBusinessName(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 outline-none transition focus:border-[#0033A0]/40 focus:ring-4 focus:ring-[#0033A0]/15"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="phoneNumber" className="block text-sm font-semibold text-slate-700">
-              {tx.phoneNumber}
-            </label>
-            <input
-              id="phoneNumber"
-              type="tel"
-              autoComplete="tel"
-              required
-              value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 outline-none transition focus:border-[#0033A0]/40 focus:ring-4 focus:ring-[#0033A0]/15"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="serviceCategory" className="block text-sm font-semibold text-slate-700">
-              {tx.serviceCategory}
-            </label>
-            <input
-              id="serviceCategory"
-              type="text"
-              readOnly
-              value={serviceCategoryLabel[language]}
-              className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition focus:border-[#0033A0]/40 focus:ring-4 focus:ring-[#0033A0]/15"
-            />
-          </div>
-
-          <div className="md:col-span-2">
-            <label htmlFor="serviceArea" className="block text-sm font-semibold text-slate-700">
-              {tx.serviceArea}
-            </label>
-            <input
-              id="serviceArea"
-              type="text"
-              required
-              value={serviceArea}
-              onChange={(e) => setServiceArea(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 outline-none transition focus:border-[#0033A0]/40 focus:ring-4 focus:ring-[#0033A0]/15"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label htmlFor="email" className="block text-sm font-semibold text-slate-700">
-            {tx.email}
-          </label>
-          <input
-            id="email"
-            type="email"
-            autoComplete="email"
+          <FormField
+            id="fullName"
+            label={tx.fullName}
+            icon={User}
+            type="text"
+            autoComplete="name"
             required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 outline-none transition focus:border-[#0033A0]/40 focus:ring-4 focus:ring-[#0033A0]/15"
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+          />
+          <FormField
+            id="businessName"
+            label={tx.businessName}
+            icon={Building2}
+            type="text"
+            autoComplete="organization"
+            required
+            value={businessName}
+            onChange={(e) => setBusinessName(e.target.value)}
+          />
+          <FormField
+            id="phoneNumber"
+            label={tx.phoneNumber}
+            icon={Phone}
+            type="tel"
+            autoComplete="tel"
+            required
+            value={phoneNumber}
+            onChange={(e) => setPhoneNumber(e.target.value)}
+          />
+          <FormField
+            id="serviceCategory"
+            label={tx.serviceCategory}
+            icon={Briefcase}
+            type="text"
+            readOnly
+            value={serviceCategoryLabel[language]}
+          />
+          <FormField
+            id="serviceArea"
+            label={tx.serviceArea}
+            icon={MapPin}
+            type="text"
+            required
+            value={serviceArea}
+            onChange={(e) => setServiceArea(e.target.value)}
+            wrapperClassName="md:col-span-2"
           />
         </div>
-        <div>
-          <label htmlFor="password" className="block text-sm font-semibold text-slate-700">
-            {tx.password}
-          </label>
-          <input
-            id="password"
-            type="password"
-            autoComplete="new-password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 outline-none transition focus:border-[#0033A0]/40 focus:ring-4 focus:ring-[#0033A0]/15"
-          />
-        </div>
-        <div>
-          <label htmlFor="confirm" className="block text-sm font-semibold text-slate-700">
-            {tx.confirmPassword}
-          </label>
-          <input
-            id="confirm"
-            type="password"
-            autoComplete="new-password"
-            required
-            value={confirm}
-            onChange={(e) => setConfirm(e.target.value)}
-            className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-3 text-slate-900 outline-none transition focus:border-[#0033A0]/40 focus:ring-4 focus:ring-[#0033A0]/15"
-          />
-        </div>
+
+        <FormField
+          id="email"
+          label={tx.email}
+          icon={Mail}
+          type="email"
+          autoComplete="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+        <FormField
+          id="password"
+          label={tx.password}
+          icon={Lock}
+          type="password"
+          passwordToggle
+          showPasswordLabel={tx.showPassword}
+          hidePasswordLabel={tx.hidePassword}
+          autoComplete="new-password"
+          required
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
+        <FormField
+          id="confirm"
+          label={tx.confirmPassword}
+          icon={LockKeyhole}
+          type="password"
+          passwordToggle
+          showPasswordLabel={tx.showPassword}
+          hidePasswordLabel={tx.hidePassword}
+          autoComplete="new-password"
+          required
+          value={confirm}
+          onChange={(e) => setConfirm(e.target.value)}
+        />
         {error ? <p className="text-sm font-medium text-red-600">{error}</p> : null}
         {info ? <p className="text-sm font-medium text-emerald-700">{info}</p> : null}
+        <p className="text-center text-xs leading-relaxed text-slate-500">
+          {tx.legalPrefix}{" "}
+          <Link href="/terms" className="font-semibold text-slate-700 underline-offset-2 hover:underline" style={{ color: NAVY }}>
+            {tx.termsOfService}
+          </Link>{" "}
+          {tx.legalAnd}{" "}
+          <Link href="/privacy" className="font-semibold text-slate-700 underline-offset-2 hover:underline" style={{ color: NAVY }}>
+            {tx.privacyPolicy}
+          </Link>
+          .
+        </p>
         <button
           type="submit"
           disabled={pending}
-          className="inline-flex w-full items-center justify-center rounded-xl px-6 py-3.5 text-center text-sm font-bold text-slate-900 shadow-lg transition hover:brightness-95 disabled:opacity-70 sm:text-base"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl px-6 py-3.5 text-center text-sm font-bold text-slate-900 shadow-lg transition hover:brightness-95 disabled:opacity-70 sm:text-base"
           style={{ backgroundColor: ORANGE, boxShadow: `0 10px 30px -8px ${ORANGE}88` }}
         >
+          <UserPlus className="h-4 w-4 shrink-0" strokeWidth={2.5} aria-hidden />
           {pending ? tx.creating : tx.create}
         </button>
       </form>

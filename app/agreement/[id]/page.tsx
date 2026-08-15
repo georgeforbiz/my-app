@@ -3,10 +3,21 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { Building2, CheckCircle2, Landmark, Loader2, ShieldCheck, X } from "lucide-react";
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
+import {
+  getLocalAgreement,
+  isLocalAgreementId,
+  updateLocalAgreement
+} from "@/lib/agreements/local-store";
+import {
+  addVerificationPendingIndex,
+  getVerificationPendingIndexes,
+  hasVerificationPending
+} from "@/lib/agreements/verification-pending";
+import { formatDateDMY } from "@/lib/format-date";
 import { useLanguage } from "@/lib/i18n/language-context";
 import { normalizeAgreementRow } from "@/lib/agreements/row";
 
@@ -25,11 +36,19 @@ async function postAgreementAction(
   /** Confirmed non-empty `client_signature` on the row returned by PostgREST after update. */
   signatureStored?: boolean;
 }> {
-  const res = await fetch(`/api/agreement/${encodeURIComponent(agreementId)}${subpath}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body)
-  });
+  if (isLocalAgreementId(agreementId)) {
+    return { ok: false, status: 0, error: "Local agreement" };
+  }
+  let res: Response;
+  try {
+    res = await fetch(`/api/agreement/${encodeURIComponent(agreementId)}${subpath}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+  } catch (err) {
+    return { ok: false, status: 0, error: err instanceof Error ? err.message : "Request failed" };
+  }
   const data = (await res.json().catch(() => ({}))) as {
     error?: string;
     code?: string;
@@ -65,6 +84,12 @@ type Agreement = {
 
 const money = (v: number) => v.toLocaleString("en-US", { maximumFractionDigits: 2 });
 
+/** Window after a deposit during which release clicks are ignored. */
+const RELEASE_LOCK_MS = 1_500;
+const DEMO_BANK_NAME = "Ameriabank (Demo)";
+const DEMO_BANK_ACCOUNT = "AM00 0000 0000 0000 0000 (DEMO)";
+const DEMO_BENEFICIARY = "VSTAH LLC (Demo)";
+
 function looksLikeUuid(s: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s.trim());
 }
@@ -72,11 +97,6 @@ function looksLikeUuid(s: string): boolean {
 function resolveProviderNameFields(a: Agreement): { business: string; full: string } {
   let business = (a.business_name ?? a.provider_business_name ?? "").trim();
   let full = (a.full_name ?? a.provider_full_name ?? "").trim();
-
-  // If only one of the name fields is present on the row, mirror it so the UI
-  // doesn't show "—" for the other field (common when older rows only stored one).
-  if (!business && full) business = full;
-  if (!full && business) full = business;
 
   if (!business && !full) {
     const pn = (a.provider_name ?? "").trim();
@@ -90,6 +110,10 @@ function resolveProviderNameFields(a: Agreement): { business: string; full: stri
       }
     }
   }
+
+  // If only one name is present, mirror it so the UI doesn't show "—".
+  if (!business && full) business = full;
+  if (!full && business) full = business;
 
   return { business, full };
 }
@@ -135,10 +159,10 @@ export default function AgreementClientPage() {
           releasingMilestone: "Արձակում…",
           depositMilestone: "Դեպոզիտ",
           depositingMilestone: "Դեպոզիտ…",
-          escrowHeld: "Էսկրոուում",
+          escrowHeld: "Պահվում է",
           releaseTotalPayment: "Արձակել ամբողջ վճարումը",
           releasingTotalPayment: "Վճարում…",
-          depositEscrow: "Դեպոզիտ 100,000 ֏ էսկրոուում",
+          depositEscrow: "Դեպոզիտ 100,000 ֏",
           depositingEscrow: "Դեպոզիտ…",
           paid: "Վճարված",
           pendingMilestone: "Սպասում",
@@ -154,9 +178,10 @@ export default function AgreementClientPage() {
           phaseSigned: "Ստորագրված",
           phaseCompleted: "Ավարտված",
           phasePayPending: "Սպասում է դեպոզիտի",
-          phasePayEscrow: "Գումարը՝ էսկրոուում",
+          phasePayVerification: "Վճարման ստուգումը սպասման մեջ է",
+          phasePayEscrow: "Գումարը պահվում է",
           phasePayReleased: "Արձակված է",
-          depositTotalToEscrow: "Դեպոզիտել ընդհանուրը էսկրոուում",
+          depositTotalToEscrow: "Դեպոզիտել ընդհանուր գումարը",
           agreementId: "ID",
           creationDate: "Ստեղծման ամսաթիվ",
           providerDetails: "Մատակարարի տվյալներ",
@@ -174,8 +199,36 @@ export default function AgreementClientPage() {
           releaseMilestoneFailed: "Չհաջողվեց արձակել փուլի գումարը։ Փորձեք կրկին։",
           depositMilestoneFailed: "Չհաջողվեց դեպոզիտ կատարել այս փուլի համար։ Փորձեք կրկին։",
           releasePaymentFailed: "Չհաջողվեց արձակել վճարումը։ Փորձեք կրկին։",
-          depositEscrowFailed: "Չհաջողվեց դեպոզիտ անել էսկրոուում։ Փորձեք կրկին։",
-            escrowLegalNote: "Էսկրոու՝ ՀՀ օրենքով։"
+          depositEscrowFailed: "Չհաջողվեց դեպոզիտ կատարել։ Փորձեք կրկին։",
+          fundsSecuredTitle: "Գումարը ապահովված է",
+          fundsSecuredBody:
+            "Գումարը պահվում է և չի փոխանցվի մատակարարին, քանի դեռ դուք չեք հաստատել աշխատանքի ավարտը։",
+          confirmReleaseTotal:
+            "Հաստատե՞լ, որ աշխատանքը ավարտված է։ Գումարը կփոխանցվի մատակարարին։",
+          confirmReleaseMilestone:
+            "Հաստատե՞լ այս փուլը։ Փուլի գումարը կփոխանցվի մատակարարին։",
+          approveRelease: "Հաստատել",
+          cancelRelease: "Չեղարկել",
+          transferTitle: "Բանկային փոխանցում",
+          demoOnly: "ԴԵՄՈ — իրական գումար մի փոխանցեք",
+          transferIntro:
+            "Կատարեք բանկային փոխանցում ստորև նշված տվյալներով։ Պարտադիր նշեք վճարման հղումը։",
+          depositAmount: "Դեպոզիտի գումար",
+          bankName: "Բանկ",
+          accountNumber: "Հաշվեհամար",
+          beneficiaryName: "Շահառու",
+          paymentReference: "Վճարման հղում / Գործարքի ID",
+          transferInstructions: "Փոխանցման հրահանգներ",
+          transferInstructionsBody:
+            "Ձեր բանկի հավելվածում ստեղծեք փոխանցում, ճշգրիտ պատճենեք տվյալները և նշանակության դաշտում գրեք վճարման հղումը։",
+          madeTransfer: "Փոխանցումը կատարել եմ",
+          cancelTransfer: "Չեղարկել",
+          verificationPending: "Վճարման ստուգումը սպասման մեջ է",
+          depositSubmitted:
+            "Փոխանցումը ներկայացված է և սպասում է ստուգման։ Գումարը կապահովվի ադմինի հաստատումից հետո։",
+          confirmPaymentReceived: "Հաստատել վճարումը (դեմո)",
+          verifyingPayment: "Ստուգում…",
+          escrowLegalNote: "Վճարումների պահպանումը՝ ՀՀ օրենքով։"
         }
       : language === "ru"
         ? {
@@ -208,11 +261,11 @@ export default function AgreementClientPage() {
             releasingMilestone: "Выплата…",
             depositMilestone: "Депозит по этапу",
             depositingMilestone: "Внесение…",
-            escrowHeld: "В эскроу",
+            escrowHeld: "Удерживается",
             releaseTotalPayment: "Выплатить всё",
             releasingTotalPayment: "Обработка…",
-            depositEscrow: "Депозит 100 000 ֏ в эскроу",
-            depositingEscrow: "Внесение в эскроу…",
+            depositEscrow: "Депозит 100 000 ֏",
+            depositingEscrow: "Внесение…",
             paid: "Оплачено",
             pendingMilestone: "Ожидает",
             paymentSuccessful: "Выплата отправлена. Исполнитель уведомлён.",
@@ -227,9 +280,10 @@ export default function AgreementClientPage() {
             phaseSigned: "Подписано",
             phaseCompleted: "Завершено",
             phasePayPending: "Ждём депозит",
-            phasePayEscrow: "Средства в эскроу",
+            phasePayVerification: "Проверка платежа ожидается",
+            phasePayEscrow: "Средства удерживаются",
             phasePayReleased: "Выплачено",
-            depositTotalToEscrow: "Внести всю сумму в эскроу",
+            depositTotalToEscrow: "Внести всю сумму",
             agreementId: "ID соглашения",
             creationDate: "Дата создания",
             providerDetails: "Исполнитель",
@@ -247,8 +301,36 @@ export default function AgreementClientPage() {
             releaseMilestoneFailed: "Не удалось выплатить этап. Попробуйте снова.",
             depositMilestoneFailed: "Не удалось внести депозит по этапу. Попробуйте снова.",
             releasePaymentFailed: "Не удалось выполнить выплату. Попробуйте снова.",
-            depositEscrowFailed: "Не удалось внести средства в эскроу. Попробуйте снова.",
-            escrowLegalNote: "Эскроу — по законодательству Республики Армения."
+            depositEscrowFailed: "Не удалось внести средства. Попробуйте снова.",
+            fundsSecuredTitle: "Средства защищены",
+            fundsSecuredBody:
+              "Деньги удерживаются и не уйдут исполнителю, пока вы не подтвердите, что работа выполнена.",
+            confirmReleaseTotal:
+              "Подтвердить, что работа выполнена? Средства будут переведены исполнителю.",
+            confirmReleaseMilestone:
+              "Подтвердить этот этап? Сумма этапа будет переведена исполнителю.",
+            approveRelease: "Подтвердить",
+            cancelRelease: "Отмена",
+            transferTitle: "Банковский перевод",
+            demoOnly: "ДЕМО — не переводите реальные деньги",
+            transferIntro:
+              "Сделайте банковский перевод по реквизитам ниже. Обязательно укажите назначение платежа.",
+            depositAmount: "Сумма депозита",
+            bankName: "Банк",
+            accountNumber: "Номер счёта",
+            beneficiaryName: "Получатель",
+            paymentReference: "Назначение платежа / ID сделки",
+            transferInstructions: "Инструкция по переводу",
+            transferInstructionsBody:
+              "Создайте перевод в приложении банка, точно скопируйте реквизиты и укажите назначение платежа в соответствующем поле.",
+            madeTransfer: "Я совершил перевод",
+            cancelTransfer: "Отмена",
+            verificationPending: "Проверка платежа ожидается",
+            depositSubmitted:
+              "Перевод отправлен и ожидает проверки. Средства будут защищены после подтверждения администратором.",
+            confirmPaymentReceived: "Подтвердить платёж (демо)",
+            verifyingPayment: "Проверка…",
+            escrowLegalNote: "Удержание платежей — по законодательству Республики Армения."
           }
         : {
             loading: "Loading agreement...",
@@ -283,8 +365,8 @@ export default function AgreementClientPage() {
             escrowHeld: "In Vault",
             releaseTotalPayment: "Release Total Payment",
             releasingTotalPayment: "Processing payment...",
-            depositEscrow: "Deposit 100,000 ֏ to Escrow",
-            depositingEscrow: "Depositing to escrow...",
+            depositEscrow: "Deposit 100,000 ֏",
+            depositingEscrow: "Depositing...",
             paid: "Paid",
             pendingMilestone: "Pending",
             paymentSuccessful: "Payment Released! The provider has been notified.",
@@ -298,9 +380,10 @@ export default function AgreementClientPage() {
             phaseSigned: "Signed",
             phaseCompleted: "Completed",
             phasePayPending: "Awaiting deposit",
-            phasePayEscrow: "Funds in escrow",
+            phasePayVerification: "Payment verification pending",
+            phasePayEscrow: "Funds held",
             phasePayReleased: "Released",
-            depositTotalToEscrow: "Deposit total to escrow",
+            depositTotalToEscrow: "Deposit total",
             agreementId: "Agreement ID",
             creationDate: "Creation Date",
             providerDetails: "Provider Details",
@@ -317,57 +400,158 @@ export default function AgreementClientPage() {
             releaseMilestoneFailed: "Failed to release milestone. Please try again.",
             depositMilestoneFailed: "Failed to deposit funds for this milestone. Please try again.",
             releasePaymentFailed: "Failed to release payment. Please try again.",
-            depositEscrowFailed: "Failed to deposit funds to escrow. Please try again.",
-            escrowLegalNote: "Escrow services are governed by the laws of the Republic of Armenia."
+            depositEscrowFailed: "Failed to deposit funds. Please try again.",
+            fundsSecuredTitle: "Funds secured",
+            fundsSecuredBody:
+              "The money is held safely and will not reach the provider until you approve that the work is complete.",
+            confirmReleaseTotal:
+              "Approve that the work is complete? The funds will be paid out to the provider.",
+            confirmReleaseMilestone:
+              "Approve this milestone? Its amount will be paid out to the provider.",
+            approveRelease: "Approve",
+            cancelRelease: "Cancel",
+            transferTitle: "Bank transfer",
+            demoOnly: "DEMO ONLY — do not transfer real money",
+            transferIntro:
+              "Make a bank transfer using the details below. Include the payment reference exactly as shown.",
+            depositAmount: "Deposit amount",
+            bankName: "Bank name",
+            accountNumber: "Bank account number",
+            beneficiaryName: "Beneficiary name",
+            paymentReference: "Payment reference / Deal ID",
+            transferInstructions: "Transfer instructions",
+            transferInstructionsBody:
+              "Create a transfer in your banking app, copy the details exactly, and enter the payment reference in the transfer description.",
+            madeTransfer: "I've made the transfer",
+            cancelTransfer: "Cancel",
+            verificationPending: "Payment verification pending",
+            depositSubmitted:
+              "Your deposit has been submitted and is awaiting verification. Funds will be secured after admin confirmation.",
+            confirmPaymentReceived: "Confirm payment received (demo)",
+            verifyingPayment: "Verifying…",
+            escrowLegalNote: "Payment holding is governed by the laws of the Republic of Armenia."
           };
 
   const [agreement, setAgreement] = useState<Agreement | null>(null);
   const [loading, setLoading] = useState(true);
   const [signing, setSigning] = useState(false);
   const [releasingMilestoneIndex, setReleasingMilestoneIndex] = useState<number | null>(null);
-  const [depositingMilestoneIndex, setDepositingMilestoneIndex] = useState<number | null>(null);
-  const [depositingEscrow, setDepositingEscrow] = useState(false);
+  /** `null` closed; `>= 0` milestone; `-1` single/total payment. */
+  const [transferModalIndex, setTransferModalIndex] = useState<number | null>(null);
+  /** `null` closed; `>= 0` milestone; `-1` single/total payment. */
+  const [releaseConfirmIndex, setReleaseConfirmIndex] = useState<number | null>(null);
+  const [verificationPendingIndexes, setVerificationPendingIndexes] = useState<number[]>([]);
+  const [depositConfirmation, setDepositConfirmation] = useState("");
+  const [verifyingIndex, setVerifyingIndex] = useState<number | null>(null);
   /** Fatal: not configured / not found (no agreement to show). */
   const [error, setError] = useState("");
   /** Non-fatal: sign / payment actions while agreement is visible. */
   const [actionError, setActionError] = useState("");
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const lastDepositAtRef = useRef(0);
   const drawing = useRef(false);
   const printableRef = useRef<HTMLDivElement | null>(null);
   const downloadTriggeredRef = useRef(false);
 
+  useEffect(() => {
+    if (!id) return;
+    setVerificationPendingIndexes(getVerificationPendingIndexes(id));
+  }, [id]);
+
+  useEffect(() => {
+    if (transferModalIndex === null && releaseConfirmIndex === null) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setTransferModalIndex(null);
+        setReleaseConfirmIndex(null);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [transferModalIndex, releaseConfirmIndex]);
+
   const fetchAgreement = useCallback(async () => {
     if (!id) return;
-    if (!supabase) {
-      setError(tx.notConfigured);
+
+    const loadLocal = () => {
+      const local = getLocalAgreement(id) as Agreement | null;
+      if (!local) return false;
+      setAgreement(local);
+      setVerificationPendingIndexes(getVerificationPendingIndexes(id));
+      setError("");
+      setActionError("");
+      setLoading(false);
+      return true;
+    };
+
+    if (isLocalAgreementId(id) || !supabase) {
+      if (loadLocal()) return;
+      setError(supabase ? tx.notFound : tx.notConfigured);
       setLoading(false);
       return;
     }
 
-    // Includes `client_signature` when the column exists; mapped in normalizeAgreementRow.
-    const { data, error: fetchError } = await supabase
-      .from("agreements")
-      .select("*")
-      .eq("id", id)
-      .single();
+    try {
+      // Includes `client_signature` when the column exists; mapped in normalizeAgreementRow.
+      const { data, error: fetchError } = await supabase
+        .from("agreements")
+        .select("*")
+        .eq("id", id)
+        .single();
 
-    if (fetchError || !data) {
+      if (fetchError || !data) {
+        if (loadLocal()) return;
+        setError(tx.notFound);
+        setLoading(false);
+        return;
+      }
+
+      setAgreement(normalizeAgreementRow(data as Record<string, unknown>) as Agreement);
+      const remote = await fetch(`/api/agreement/${encodeURIComponent(id)}/verification`)
+        .then((r) => r.json())
+        .catch(() => ({ indexes: [] as number[] }));
+      const local = getVerificationPendingIndexes(id);
+      setVerificationPendingIndexes([...new Set([...(remote.indexes ?? []), ...local])]);
+      setError("");
+      setActionError("");
+      setLoading(false);
+    } catch {
+      // Supabase unreachable — fall back to an agreement saved in this browser.
+      if (loadLocal()) return;
       setError(tx.notFound);
       setLoading(false);
-      return;
     }
-
-    setAgreement(normalizeAgreementRow(data as Record<string, unknown>) as Agreement);
-    setError("");
-    setActionError("");
-    setLoading(false);
   }, [id, supabase, tx.notConfigured, tx.notFound]);
 
   useEffect(() => {
     setLoading(true);
     void fetchAgreement();
   }, [fetchAgreement]);
+
+  useEffect(() => {
+    const onFocus = () => {
+      if (!id) return;
+      void fetchAgreement();
+      setVerificationPendingIndexes(getVerificationPendingIndexes(id));
+    };
+    const onStorage = (event: StorageEvent) => {
+      if (!id) return;
+      if (
+        event.key === "vstah_local_agreements" ||
+        event.key === "vstah_verification_pending"
+      ) {
+        void fetchAgreement();
+        setVerificationPendingIndexes(getVerificationPendingIndexes(id));
+      }
+    };
+    window.addEventListener("focus", onFocus);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, [id, fetchAgreement]);
 
   useEffect(() => {
     if (!supabase || !id) return;
@@ -450,10 +634,25 @@ export default function AgreementClientPage() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
   };
 
+  /**
+   * A deposit swaps the blue deposit button for the green release button in the
+   * same spot, so a second click of a double-click could release the funds
+   * immediately. Ignore release clicks that arrive right after a deposit.
+   */
+  const isReleaseLocked = () => Date.now() - lastDepositAtRef.current < RELEASE_LOCK_MS;
+
   const tryClientUpdate = async (
     payload: Record<string, unknown>
   ): Promise<{ ok: boolean; error?: string }> => {
-    if (!supabase || !agreement) return { ok: false, error: tx.signBlocked };
+    if (!agreement) return { ok: false, error: tx.signBlocked };
+
+    const updateLocally = () => {
+      const next = updateLocalAgreement(agreement.id, payload as Partial<Agreement>);
+      return next ? { ok: true } : { ok: false, error: tx.signBlocked };
+    };
+
+    if (isLocalAgreementId(agreement.id) || !supabase) return updateLocally();
+
     const run = async (candidatePayload: Record<string, unknown>) =>
       supabase
         .from("agreements")
@@ -461,7 +660,13 @@ export default function AgreementClientPage() {
         .eq("id", agreement.id)
         .select("id");
 
-    let { data: updatedRows, error: updateError } = await run(payload);
+    let updatedRows: { id: unknown }[] | null = null;
+    let updateError: { message?: string } | null = null;
+    try {
+      ({ data: updatedRows, error: updateError } = await run(payload));
+    } catch {
+      return updateLocally();
+    }
     const paymentStatus = payload.payment_status;
     if (
       updateError &&
@@ -470,7 +675,11 @@ export default function AgreementClientPage() {
         updateError.message?.toLowerCase().includes("payment_status"))
     ) {
       // Compatibility for DBs that still use `paid` instead of `released`.
-      ({ data: updatedRows, error: updateError } = await run({ ...payload, payment_status: "paid" }));
+      try {
+        ({ data: updatedRows, error: updateError } = await run({ ...payload, payment_status: "paid" }));
+      } catch {
+        return updateLocally();
+      }
     }
 
     if (updateError || !updatedRows?.length) {
@@ -506,11 +715,24 @@ export default function AgreementClientPage() {
     setSigning(false);
   };
 
-  const releaseMilestone = async (index: number) => {
+  const requestReleaseMilestone = (index: number) => {
     if (!agreement || agreement.status !== "signed" || agreement.payment_type !== "milestones") return;
     const current = agreement.milestones ?? [];
     const target = current[index];
     if (!target || target.status !== "escrow_held") return;
+    if (isReleaseLocked()) return;
+    setReleaseConfirmIndex(index);
+  };
+
+  const confirmReleaseMilestone = async () => {
+    if (releaseConfirmIndex === null) return;
+    const index = releaseConfirmIndex;
+    setReleaseConfirmIndex(null);
+    if (!agreement || agreement.status !== "signed" || agreement.payment_type !== "milestones") return;
+    const current = agreement.milestones ?? [];
+    const target = current[index];
+    if (!target || target.status !== "escrow_held") return;
+    if (isReleaseLocked()) return;
 
     setReleasingMilestoneIndex(index);
     setActionError("");
@@ -524,7 +746,7 @@ export default function AgreementClientPage() {
         status: allReleased ? "completed" : "signed"
       });
       if (!fallback.ok) {
-      setActionError(res.error || fallback.error || tx.releaseMilestoneFailed);
+        setActionError(res.error || fallback.error || tx.releaseMilestoneFailed);
         setReleasingMilestoneIndex(null);
         return;
       }
@@ -534,65 +756,93 @@ export default function AgreementClientPage() {
     setReleasingMilestoneIndex(null);
   };
 
-  const depositMilestone = async (index: number) => {
+  const openMilestoneTransfer = (index: number) => {
     if (!agreement || agreement.status !== "signed" || agreement.payment_type !== "milestones") return;
     const current = agreement.milestones ?? [];
     const target = current[index];
-    if (!target || target.status !== "pending") return;
-
-    let confirmOutOfOrder = false;
-    if (index > 0) {
-      const previous = current[index - 1];
-      if (previous?.status !== "released") {
-        const payAhead = window.confirm(tx.previousMilestoneNotFinished);
-        if (!payAhead) return;
-        confirmOutOfOrder = true;
-      }
-    }
-
-    setDepositingMilestoneIndex(index);
-    setActionError("");
-    const res = await postAgreementAction(agreement.id, "/deposit", { milestoneIndex: index, confirmOutOfOrder });
-    if (res.status === 409 && res.code === "OUT_OF_ORDER" && !confirmOutOfOrder) {
-      setDepositingMilestoneIndex(null);
-      const payAhead = window.confirm(tx.previousMilestoneNotFinished);
-      if (!payAhead) return;
-      setDepositingMilestoneIndex(index);
-      const retry = await postAgreementAction(agreement.id, "/deposit", {
-        milestoneIndex: index,
-        confirmOutOfOrder: true
-      });
-      if (!retry.ok) {
-        setActionError(retry.error || tx.depositMilestoneFailed);
-        setDepositingMilestoneIndex(null);
-        return;
-      }
-      await fetchAgreement();
-      setDepositingMilestoneIndex(null);
-      return;
-    }
-    if (!res.ok) {
-      const nextMilestones = current.map((m, i) => ({
-        ...m,
-        status: i === index ? "escrow_held" : m.status === "released" ? "released" : m.status === "escrow_held" ? "escrow_held" : "pending"
-      }));
-      const fallback = await tryClientUpdate({
-        milestones: nextMilestones,
-        payment_status: "escrow_held"
-      });
-      if (!fallback.ok) {
-        setActionError(res.error || fallback.error || tx.depositMilestoneFailed);
-        setDepositingMilestoneIndex(null);
-        return;
-      }
-    }
-
-    await fetchAgreement();
-    setDepositingMilestoneIndex(null);
+    if (!target || (target.status ?? "pending") !== "pending") return;
+    if (verificationPendingIndexes.includes(index) || hasVerificationPending(agreement.id, index)) return;
+    setDepositConfirmation("");
+    setTransferModalIndex(index);
   };
 
-  const releaseTotalPayment = async () => {
+  const openTotalTransfer = () => {
+    if (!agreement || agreement.status !== "signed" || agreement.payment_status !== "pending") return;
+    if ((agreement.milestones ?? []).length > 0) return;
+    if (verificationPendingIndexes.includes(-1) || hasVerificationPending(agreement.id, -1)) return;
+    setDepositConfirmation("");
+    setTransferModalIndex(-1);
+  };
+
+  /** Demo-only: after the customer confirms the transfer, queue admin verification (do not secure funds yet). */
+  const submitDemoTransfer = async () => {
+    if (!agreement || transferModalIndex === null) return;
+    const index = transferModalIndex;
+    setVerifyingIndex(index);
+    setTransferModalIndex(null);
+    setActionError("");
+
+    if (index === -1) {
+      if (agreement.payment_status !== "pending" || (agreement.milestones ?? []).length > 0) {
+        setVerifyingIndex(null);
+        return;
+      }
+    } else {
+      const target = agreement.milestones?.[index];
+      if (!target || (target.status ?? "pending") !== "pending") {
+        setVerifyingIndex(null);
+        return;
+      }
+    }
+
+    if (isLocalAgreementId(agreement.id)) {
+      addVerificationPendingIndex(agreement.id, index);
+      setVerificationPendingIndexes(getVerificationPendingIndexes(agreement.id));
+      void fetch(`/api/agreement/${encodeURIComponent(agreement.id)}/log`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "deposit.submitted", meta: { milestoneIndex: index } })
+      }).catch(() => {});
+    } else {
+      try {
+        const res = await fetch(`/api/agreement/${encodeURIComponent(agreement.id)}/submit-transfer`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ milestoneIndex: index })
+        });
+        const payload = (await res.json().catch(() => ({}))) as { error?: string };
+        if (!res.ok) {
+          // Fall back to local queue if migration not applied yet.
+          addVerificationPendingIndex(agreement.id, index);
+          if (payload.error && !payload.error.toLowerCase().includes("missing")) {
+            setActionError(payload.error);
+          }
+        }
+      } catch {
+        addVerificationPendingIndex(agreement.id, index);
+      }
+      const remote = await fetch(`/api/agreement/${encodeURIComponent(agreement.id)}/verification`)
+        .then((r) => r.json())
+        .catch(() => ({ indexes: [] as number[] }));
+      const local = getVerificationPendingIndexes(agreement.id);
+      setVerificationPendingIndexes([...new Set([...(remote.indexes ?? []), ...local])]);
+    }
+
+    setDepositConfirmation(tx.depositSubmitted);
+    setVerifyingIndex(null);
+  };
+
+  const requestReleaseTotal = () => {
     if (!agreement || agreement.status !== "signed" || agreement.payment_status !== "escrow_held") return;
+    if ((agreement.milestones ?? []).length > 0) return;
+    if (isReleaseLocked()) return;
+    setReleaseConfirmIndex(-1);
+  };
+
+  const confirmReleaseTotal = async () => {
+    setReleaseConfirmIndex(null);
+    if (!agreement || agreement.status !== "signed" || agreement.payment_status !== "escrow_held") return;
+    if (isReleaseLocked()) return;
     setReleasingMilestoneIndex(-1);
     setActionError("");
     const res = await postAgreementAction(agreement.id, "/release", {});
@@ -610,24 +860,6 @@ export default function AgreementClientPage() {
 
     await fetchAgreement();
     setReleasingMilestoneIndex(null);
-  };
-
-  const depositToEscrow = async () => {
-    if (!agreement || agreement.status !== "signed" || agreement.payment_status !== "pending" || depositingEscrow) return;
-    setDepositingEscrow(true);
-    setActionError("");
-    const res = await postAgreementAction(agreement.id, "/deposit", {});
-    if (!res.ok) {
-      const fallback = await tryClientUpdate({ payment_status: "escrow_held" });
-      if (!fallback.ok) {
-        setActionError(res.error || fallback.error || tx.depositEscrowFailed);
-        setDepositingEscrow(false);
-        return;
-      }
-    }
-
-    await fetchAgreement();
-    setDepositingEscrow(false);
   };
 
   const defaultTerms = [
@@ -709,6 +941,30 @@ export default function AgreementClientPage() {
   const providerFields = resolveProviderNameFields(agreement);
   const serviceAreaDisplay = agreement.service_area?.trim() || "Armenia";
   const readableAgreementId = `VSTAH-${new Date(agreement.created_at).getFullYear()}-${agreement.id.split("-")[0].toUpperCase()}`;
+  const transferMilestone =
+    transferModalIndex === null || transferModalIndex < 0
+      ? null
+      : agreement.milestones?.[transferModalIndex] ?? null;
+  const transferIsTotal = transferModalIndex === -1;
+  const transferAmount = transferIsTotal
+    ? Number(agreement.total_price || 0)
+    : Number(transferMilestone?.amount || 0);
+  const transferTitleLabel = transferIsTotal
+    ? agreement.project_title
+    : transferMilestone
+      ? `${transferModalIndex! + 1}. ${transferMilestone.title}`
+      : "";
+  const releaseConfirmMilestone =
+    releaseConfirmIndex === null || releaseConfirmIndex < 0
+      ? null
+      : agreement.milestones?.[releaseConfirmIndex] ?? null;
+  const releaseConfirmIsTotal = releaseConfirmIndex === -1;
+  const transferReference =
+    transferModalIndex === null
+      ? readableAgreementId
+      : transferModalIndex < 0
+        ? readableAgreementId
+        : `${readableAgreementId}-M${transferModalIndex + 1}`;
   return (
     <main key={routeKey} className="min-h-screen bg-slate-100 px-3 py-6 md:px-6 md:py-10">
       <div ref={printableRef} className="relative mx-auto w-full min-w-0 max-w-[min(100%,55rem)] rounded-md border border-slate-200 bg-white px-4 py-5 shadow-[0_8px_30px_rgba(15,23,42,0.08)] md:px-10 md:py-9">
@@ -739,7 +995,7 @@ export default function AgreementClientPage() {
           </div>
           <div className="rounded border border-slate-200 bg-slate-50 p-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{tx.creationDate}</p>
-            <p className="mt-1 font-semibold">{new Date(agreement.created_at).toLocaleDateString()}</p>
+            <p className="mt-1 font-semibold">{formatDateDMY(agreement.created_at)}</p>
           </div>
           <div className="rounded border border-slate-200 bg-slate-50 p-3">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{tx.agreementPhase}</p>
@@ -756,7 +1012,9 @@ export default function AgreementClientPage() {
                 ? tx.phasePayReleased
                 : agreement.payment_status === "escrow_held"
                   ? tx.phasePayEscrow
-                  : tx.phasePayPending}
+                  : verificationPendingIndexes.length > 0
+                    ? tx.phasePayVerification
+                    : tx.phasePayPending}
             </p>
           </div>
         </div>
@@ -831,6 +1089,19 @@ export default function AgreementClientPage() {
           </section>
         ) : null}
 
+        {depositConfirmation ? (
+          <div
+            role="status"
+            className="mt-6 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950"
+          >
+            <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
+            <div>
+              <p className="font-black">{tx.verificationPending}</p>
+              <p className="mt-0.5">{depositConfirmation}</p>
+            </div>
+          </div>
+        ) : null}
+
         {agreement.payment_type === "milestones" ? (
           <section className="mt-6 rounded border border-slate-200 p-4">
             <p className="text-sm font-bold uppercase tracking-wide text-slate-700">{tx.milestones}</p>
@@ -855,7 +1126,7 @@ export default function AgreementClientPage() {
                           {agreement.status === "signed" ? (
                             <button
                               type="button"
-                              onClick={() => void releaseMilestone(i)}
+                              onClick={() => requestReleaseMilestone(i)}
                               disabled={releasingMilestoneIndex === i}
                               className="rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white transition hover:bg-emerald-700 disabled:opacity-60"
                             >
@@ -863,6 +1134,10 @@ export default function AgreementClientPage() {
                             </button>
                           ) : null}
                         </>
+                      ) : verificationPendingIndexes.includes(i) ? (
+                        <span className="inline-flex rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900">
+                          {tx.verificationPending}
+                        </span>
                       ) : (
                         <>
                           <span className="inline-flex rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">
@@ -871,11 +1146,10 @@ export default function AgreementClientPage() {
                           {agreement.status === "signed" ? (
                             <button
                               type="button"
-                              onClick={() => void depositMilestone(i)}
-                              disabled={depositingMilestoneIndex === i}
+                              onClick={() => openMilestoneTransfer(i)}
                               className="rounded-lg bg-[#0033A0] px-2.5 py-1 text-xs font-bold text-white transition hover:opacity-95 disabled:opacity-60"
                             >
-                              {depositingMilestoneIndex === i ? tx.depositingMilestone : tx.depositMilestone}
+                              {tx.depositMilestone}
                             </button>
                           ) : null}
                         </>
@@ -888,33 +1162,48 @@ export default function AgreementClientPage() {
           </section>
         ) : null}
 
-        {!paymentReleased && agreement.status === "signed" && agreement.payment_status === "pending" && (agreement.milestones ?? []).length === 0 ? (
+        {!paymentReleased &&
+        agreement.status === "signed" &&
+        agreement.payment_status === "pending" &&
+        (agreement.milestones ?? []).length === 0 &&
+        !verificationPendingIndexes.includes(-1) ? (
           <button
             type="button"
-            onClick={() => void depositToEscrow()}
-            disabled={depositingEscrow}
+            onClick={openTotalTransfer}
+            disabled={verifyingIndex === -1}
             className="mt-6 w-full rounded-xl bg-[#0033A0] px-5 py-3 text-base font-black text-white transition hover:opacity-95 disabled:opacity-60"
           >
-            {depositingEscrow ? (
-              tx.depositingEscrow
-            ) : (
-              <span className="flex flex-col items-center gap-0.5 leading-tight">
-                <span>{tx.depositTotalToEscrow}</span>
-                <span className="text-sm font-bold opacity-95">{money(Number(agreement.total_price))} ֏</span>
-              </span>
-            )}
+            <span className="flex flex-col items-center gap-0.5 leading-tight">
+              <span>{verifyingIndex === -1 ? tx.verifyingPayment : tx.depositTotalToEscrow}</span>
+              <span className="text-sm font-bold opacity-95">{money(Number(agreement.total_price))} ֏</span>
+            </span>
           </button>
         ) : null}
 
+        {!paymentReleased &&
+        agreement.status === "signed" &&
+        agreement.payment_status === "pending" &&
+        (agreement.milestones ?? []).length === 0 &&
+        verificationPendingIndexes.includes(-1) ? (
+          <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4">
+            <p className="text-sm font-black text-amber-950">{tx.verificationPending}</p>
+            <p className="mt-1 text-sm text-amber-900">{tx.depositSubmitted}</p>
+          </div>
+        ) : null}
+
         {!paymentReleased && agreement.status === "signed" && agreement.payment_status === "escrow_held" && (agreement.milestones ?? []).length === 0 ? (
-          <button
-            type="button"
-            onClick={() => void releaseTotalPayment()}
-            disabled={releasingMilestoneIndex === -1}
-            className="mt-6 w-full rounded-xl bg-emerald-600 px-5 py-3 text-base font-black text-white transition hover:bg-emerald-700 disabled:opacity-60"
-          >
-            {releasingMilestoneIndex === -1 ? tx.releasingTotalPayment : tx.releaseTotalPayment}
-          </button>
+          <div className="mt-6 rounded-xl border border-blue-200 bg-blue-50 p-4">
+            <p className="text-sm font-black text-[#0033A0]">{tx.fundsSecuredTitle}</p>
+            <p className="mt-1 text-sm text-slate-700">{tx.fundsSecuredBody}</p>
+            <button
+              type="button"
+              onClick={requestReleaseTotal}
+              disabled={releasingMilestoneIndex === -1}
+              className="mt-4 w-full rounded-xl bg-emerald-600 px-5 py-3 text-base font-black text-white transition hover:bg-emerald-700 disabled:opacity-60"
+            >
+              {releasingMilestoneIndex === -1 ? tx.releasingTotalPayment : tx.releaseTotalPayment}
+            </button>
+          </div>
         ) : null}
 
         {agreement.status === "pending" ? (
@@ -978,6 +1267,161 @@ export default function AgreementClientPage() {
         ) : null}
         <p className="mt-4 break-words text-center text-xs text-slate-500 [overflow-wrap:anywhere]">{tx.escrowLegalNote}</p>
       </div>
+
+      {releaseConfirmIndex !== null && (releaseConfirmIsTotal || releaseConfirmMilestone) ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setReleaseConfirmIndex(null);
+          }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="release-confirm-title"
+            className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl"
+          >
+            <h2 id="release-confirm-title" className="text-base font-black text-slate-900">
+              {releaseConfirmIsTotal ? tx.releaseTotalPayment : tx.releaseMilestone}
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              {releaseConfirmIsTotal ? tx.confirmReleaseTotal : tx.confirmReleaseMilestone}
+            </p>
+            <p className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800">
+              {releaseConfirmIsTotal
+                ? `${agreement.project_title} · ${money(Number(agreement.total_price || 0))} ֏`
+                : `${releaseConfirmIndex + 1}. ${releaseConfirmMilestone!.title} · ${money(
+                    Number(releaseConfirmMilestone!.amount || 0)
+                  )} ֏`}
+            </p>
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setReleaseConfirmIndex(null)}
+                className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+              >
+                {tx.cancelRelease}
+              </button>
+              <button
+                type="button"
+                onClick={() =>
+                  void (releaseConfirmIsTotal ? confirmReleaseTotal() : confirmReleaseMilestone())
+                }
+                className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-black text-white transition hover:bg-emerald-700"
+              >
+                {tx.approveRelease}
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
+
+      {transferModalIndex !== null && (transferIsTotal || transferMilestone) ? (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/60 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+          role="presentation"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) setTransferModalIndex(null);
+          }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="bank-transfer-title"
+            className="max-h-[92vh] w-full overflow-y-auto rounded-t-3xl bg-white shadow-2xl sm:max-w-xl sm:rounded-3xl"
+          >
+            <div className="border-b border-slate-200 bg-gradient-to-r from-[#0033A0] to-[#0754c9] px-5 py-5 text-white sm:px-7">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/15">
+                    <Landmark className="h-6 w-6" />
+                  </span>
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-100">
+                      {tx.demoOnly}
+                    </p>
+                    <h2 id="bank-transfer-title" className="mt-1 text-xl font-black">
+                      {tx.transferTitle}
+                    </h2>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setTransferModalIndex(null)}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 transition hover:bg-white/20"
+                  aria-label={tx.cancelTransfer}
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-5 p-5 sm:p-7">
+              <p className="text-sm leading-6 text-slate-600">{tx.transferIntro}</p>
+
+              <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-4">
+                <p className="text-xs font-bold uppercase tracking-wide text-blue-700">
+                  {tx.depositAmount}
+                </p>
+                <p className="mt-1 text-2xl font-black tabular-nums text-[#0033A0]">
+                  {money(transferAmount)} ֏
+                </p>
+                {transferTitleLabel ? (
+                  <p className="mt-1 text-sm font-semibold text-slate-700">{transferTitleLabel}</p>
+                ) : null}
+              </div>
+
+              <dl className="divide-y divide-slate-200 overflow-hidden rounded-2xl border border-slate-200">
+                {[
+                  [tx.bankName, DEMO_BANK_NAME],
+                  [tx.accountNumber, DEMO_BANK_ACCOUNT],
+                  [tx.beneficiaryName, DEMO_BENEFICIARY],
+                  [tx.paymentReference, transferReference]
+                ].map(([label, value]) => (
+                  <div key={label} className="px-4 py-3.5">
+                    <dt className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                      {label}
+                    </dt>
+                    <dd className="mt-1 break-all font-mono text-sm font-bold text-slate-900">
+                      {value}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+
+              <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <Building2 className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
+                <div>
+                  <p className="text-sm font-black text-amber-950">{tx.transferInstructions}</p>
+                  <p className="mt-1 text-sm leading-5 text-amber-900">
+                    {tx.transferInstructionsBody}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <button
+                  type="button"
+                  onClick={() => setTransferModalIndex(null)}
+                  className="rounded-xl border border-slate-300 px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
+                >
+                  {tx.cancelTransfer}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void submitDemoTransfer()}
+                  disabled={verifyingIndex !== null}
+                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#F2A800] px-5 py-3 text-sm font-black text-slate-950 transition hover:brightness-95 disabled:opacity-60"
+                >
+                  <CheckCircle2 className="h-5 w-5" />
+                  {verifyingIndex !== null ? tx.verifyingPayment : tx.madeTransfer}
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </main>
   );
 }

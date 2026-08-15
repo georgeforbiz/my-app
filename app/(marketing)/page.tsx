@@ -1,22 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { ComingSoonOverlay } from "@/components/coming-soon-overlay";
+import { FloatingPillHeader } from "@/components/floating-pill-header";
+import { Reveal } from "@/components/reveal";
 import { OrangeButton, OutlineLightButton } from "@/components/vstah-button";
+import { MarketingPricingFaqSection } from "@/components/marketing-pricing-faq-section";
 import { NAVY, ORANGE, RED, SITE_BG_GRADIENT } from "@/lib/brand";
-import { formatProMonthly } from "@/lib/currency";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { useLanguage } from "@/lib/i18n/language-context";
 import type { Language } from "@/lib/i18n/locales";
 import {
   AlertTriangle,
-  ArrowRight,
   Check,
   CircleCheck,
   Clock,
   Facebook,
   FileText,
-  Globe,
   Hammer,
   Headphones,
   Flag,
@@ -25,7 +24,6 @@ import {
   Layers,
   ListOrdered,
   Lock,
-  Menu,
   Shield,
   ShieldCheck,
   Wallet,
@@ -42,7 +40,6 @@ type TranslationBundle = {
   navHome: string;
   navHowItWorks: string;
   navPricing: string;
-  btnCreateDeal: string;
   btnProtectProject: string;
   btnSeeHow: string;
   btnStartProtected: string;
@@ -51,7 +48,6 @@ type TranslationBundle = {
   heroTitleBefore: string;
   heroTitleHighlight: string;
   heroTitleAfter: string;
-  heroSubtitle: string;
   cardChip1: string;
   cardChip2: string;
   projectLabel: string;
@@ -103,6 +99,8 @@ type TranslationBundle = {
   footerTerms: string;
   footerPrivacy: string;
   footerFollow: string;
+  footerCompany: string;
+  footerLegal: string;
   tableCategory: string;
   heroSlideAria: string;
   langSwitcherAria: string;
@@ -144,24 +142,25 @@ type TranslationBundle = {
   pricingValueFree: string;
   pricingValuePro: string;
   pricingCta: string;
+  faqEyebrow: string;
+  faqTitle: string;
+  faqSubtitle: string;
+  faqs: { q: string; a: string }[];
 };
 
 const translations: Record<Locale, TranslationBundle> = {
   en: {
-    brand: "VSTAH.am",
+    brand: "VSTAH",
     navHome: "Home",
     navHowItWorks: "How it works",
     navPricing: "Pricing",
-    btnCreateDeal: "Create Deal",
-    btnProtectProject: "Protect My Project",
+    btnProtectProject: "Try For Free",
     btnSeeHow: "See how it works",
     btnStartProtected: "Start a protected project",
     heroEyebrow: "Build Professional Trust. Get Paid on Time.",
-    heroTitleBefore: "Secure Your ",
-    heroTitleHighlight: "Project Deals",
-    heroTitleAfter: " in Armenia.",
-    heroSubtitle:
-      "Stop chasing payments. Start working with certainty. VSTAH ensures your funds are locked and ready for release.",
+    heroTitleBefore: "Work with confidence.",
+    heroTitleHighlight: "",
+    heroTitleAfter: " Get paid with certainty.",
     cardChip1: "Secured Project Deposit",
     cardChip2: "Digital Work Agreement",
     projectLabel: "Project",
@@ -187,7 +186,7 @@ const translations: Record<Locale, TranslationBundle> = {
     feature3: "Built for Armenia.",
     feature4: "Secure Deals.",
     diffEyebrow: "The difference",
-    diffTitle: "With VSTAH vs. Without Us",
+    diffTitle: "Can you see the difference?",
     diffSubtitle:
       "Stop the arguments before they start. See how VSTAH protects your project.",
     recommended: "(Recommended)",
@@ -197,7 +196,7 @@ const translations: Record<Locale, TranslationBundle> = {
     comparisonRows: [
       {
         label: "Payment Security",
-        withVstah: "Funds locked in escrow before you start",
+        withVstah: "Funds locked before you start",
         withoutUs: "Hoping the client pays after work"
       },
       {
@@ -234,41 +233,44 @@ const translations: Record<Locale, TranslationBundle> = {
       {
         step: "01",
         title: "Create Project Deal",
-        desc: "Set the scope, milestones, and costs in minutes."
+        desc: "Set the scope, milestones, and costs in minutes using our structured forms."
       },
       {
         step: "02",
         title: "Verify Secured Funds",
-        desc: "Funds are locked in escrow. Money is ready before you start."
+        desc: "Funds are safely locked in a secure trust account. Money is verified before work begins."
       },
       {
         step: "03",
         title: "Work with Confidence",
-        desc: "Start the project knowing the payment is guaranteed and waiting."
+        desc: "Start the project knowing the payment is fully guaranteed and waiting."
       },
       {
         step: "04",
-        title: "Automatic Payouts",
-        desc: "Get paid instantly as each stage is completed and approved."
+        title: "Secured Payouts",
+        desc: "Get paid safely as each stage is completed and approved by the client."
       }
     ],
-    disputeEyebrow: "Dispute Assistance",
-    disputeTitle: "We help facilitate clear and structured communication when issues arise.",
+    disputeEyebrow: "Support",
+    disputeTitle: "Dispute Assistance",
     disputeBody:
-      "VSTAH provides a transparent process for both parties to review agreements, exchange information, and work toward a fair resolution in a professional and efficient way.",
-    badge24h: "Fast Support",
-    badge24hSub: "24h response time to help clarify issues and keep your project moving forward.",
-    badgeLaw: "Structured Agreements",
+      "We help facilitate clear and structured communication when issues arise. VSTAH provides a transparent digital framework for both parties to review the original agreement, exchange evidence, and settle conflicts independently.",
+    badge24h: "Guided Resolution",
+    badge24hSub:
+      "A structured step by step workflow that guides both parties to review facts and reach a mutual agreement without unnecessary delays.",
+    badgeLaw: "Smart Frameworks",
     badgeLawSub:
-      "Designed to support service deals through clear workflows aligned with Armenian business practices.",
-    badgeMed: "Quick Resolution",
+      "Contracts designed to protect service deals through clear milestones aligned with Armenian business practices, minimizing room for misunderstandings.",
+    badgeMed: "Expert Intervention",
     badgeMedSub:
-      "Simple 3-step process to help both parties review and resolve issues efficiently without unnecessary delays or costs.",
+      "If a mutual agreement cannot be reached independently, you can unlock our official human arbitration service to evaluate the facts and deliver a definitive verdict.",
     footerTagline: "Building Trust in Every Project",
-    footerRights: "© 2026 VSTAH.am. All rights reserved.",
+    footerRights: "© 2026 VSTAH. All rights reserved.",
     footerTerms: "Terms of Service",
     footerPrivacy: "Privacy Policy",
     footerFollow: "Follow us",
+    footerCompany: "Company",
+    footerLegal: "Legal",
     tableCategory: "Topic",
     heroSlideAria: "Go to hero slide",
     langSwitcherAria: "Change language",
@@ -276,7 +278,7 @@ const translations: Record<Locale, TranslationBundle> = {
     completionDashboard: "Completion Dashboard",
     successCompleted: "Success: Contract completed",
     leaveFeedback: "Leave Feedback",
-    awaitingFundsEscrow: "Awaiting Funds in Escrow",
+    awaitingFundsEscrow: "Awaiting Funds",
     depositRequired: "Deposit required before any release.",
     setupDashboard: "Setup Dashboard",
     totalTransferred: "Total Transferred",
@@ -297,7 +299,7 @@ const translations: Record<Locale, TranslationBundle> = {
     providerDashboardTitle: "Provider Dashboard",
     agreementsTrackedMonth: "18 agreements tracked this month",
     finalPayoutCompleted: "Final payout completed",
-    fundsSecuredEscrow: "Funds secured in escrow",
+    fundsSecuredEscrow: "Funds secured",
     awaitingClientDeposit: "Awaiting client deposit",
     statusPaid: "Paid",
     statusSecured: "Secured",
@@ -309,30 +311,52 @@ const translations: Record<Locale, TranslationBundle> = {
     pricingPerMonth: "/ month",
     pricingValueFree: "3 free agreements included",
     pricingValuePro: "Unlimited after upgrade",
-    pricingCta: "Start Free Trial"
+    pricingCta: "Start Free Trial",
+    faqEyebrow: "Questions",
+    faqTitle: "Frequently asked Questions",
+    faqSubtitle: "Quick answers before you start your first protected deal.",
+    faqs: [
+      {
+        q: "What is VSTAH and how does it work?",
+        a: "VSTAH is a digital platform designed to secure payments and build absolute trust between businesses and clients in Armenia. The provider creates a deal and a secure payment link, and the client deposits the funds into our system. The money is locked safely and is only released to the provider once the client confirms that the work has been completed or the product delivered."
+      },
+      {
+        q: "Is my money safe while it’s on hold?",
+        a: "Absolutely. The funds are completely inaccessible to the provider and are never used for VSTAH's operations. Your money is held in a dedicated, secure institutional Trust Account at a top-tier Armenian bank, under strict monitoring, until the deal is successfully finalized."
+      },
+      {
+        q: "How much does it cost to get started?",
+        a: "Signing up and creating a deal is completely free. Our pricing model is straightforward: a flat fee of 7% per successful transaction arranged in advance, or a fixed subscription of 25,000 AMD per month for high-volume businesses. You decide who covers the fee: the provider, the client, or a 50/50 split."
+      },
+      {
+        q: "What happens if there is a disagreement?",
+        a: "Our deal-creation form enforces such clear expectations and milestones that 95% of disputes are prevented before they even start. If a conflict does arise, the money remains safely locked in the bank. If you cannot settle it independently, you can initiate our official human arbitration service for a small fee, and we will make a fair decision based on the evidence."
+      },
+      {
+        q: "Do my clients need to create an account to sign and pay?",
+        a: "No. Your client receives a direct link via text, WhatsApp, or email. They can review the terms, digitally sign with a single checkbox, and complete the secure payment via card or bank transfer in under a minute without going through any tedious registration process."
+      }
+    ]
   },
   hy: {
-    brand: "VSTAH.am",
+    brand: "VSTAH",
     navHome: "Գլխավոր",
     navHowItWorks: "Ինչպես է աշխատում",
     navPricing: "Գին",
-    btnCreateDeal: "Ստեղծել գործարք",
-    btnProtectProject: "Պաշտպանել նախագիծը",
-    btnSeeHow: "Տեսնել քայլերը",
+    btnProtectProject: "Փորձել անվճար",
+    btnSeeHow: "Տեսնել ինչպես է աշխատում",
     btnStartProtected: "Սկսել պաշտպանված նախագիծ",
-    heroEyebrow: "Մասնագիտական վստահություն · Վճարումը ժամանակին",
-    heroTitleBefore: "Պաշտպանեք ձեր ",
-    heroTitleHighlight: "նախագծային գործարքները",
-    heroTitleAfter: " Հայաստանում",
-    heroSubtitle:
-      "Չվազեք վճարների հետևից։ Աշխատեք վստահ։ Գումարը կողպված է էսկրոուում՝ արձակելու պատրաստ։",
-    cardChip1: "Դեպոզիտը էսկրոուում",
-    cardChip2: "Թվային պայմանագիր",
+    heroEyebrow: "Կառուցեք վստահելի գործարքներ · Ստացեք վճարումները ժամանակին",
+    heroTitleBefore: "Աշխատեք վստահությամբ։",
+    heroTitleHighlight: "",
+    heroTitleAfter: " Ստացեք վճարումը վստահությամբ։",
+    cardChip1: "Դեպոզիտը պահված է",
+    cardChip2: "Թվային աշխատանքային պայմանագիր",
     projectLabel: "Նախագիծ",
     projectId: "#AM-2841",
     projectTitle: "Բնակարանի վերանորոգում",
     projectStatus: "Ակտիվ",
-    fundsLabel: "Գումարը՝ էսկրոուում",
+    fundsLabel: "Գումարը պահվում է",
     lockedNote: "3 փուլով կողպված",
     stage1Name: "Քանդում և նախապատրաստում",
     stage1Amount: "150,000 ֏",
@@ -343,97 +367,99 @@ const translations: Record<Locale, TranslationBundle> = {
     stage3Name: "Վերջնահարդարում",
     stage3Amount: "100,000 ֏",
     stage3State: "Սպասում",
-    cardMediation: "Գումարը ապահով · տեղային պաշտպանություն",
+    cardMediation: "Գումարը ապահովված է և տեղայնորեն պաշտպանված",
     cardTagline1: "Վեճերին վերջ։",
     cardTagline2: "Նախագիծը առաջ։",
-    feature1: "Ստուգված գումար",
-    feature2: "Երաշխավորված վճարում",
+    feature1: "Հաստատված միջոցներ",
+    feature2: "Երաշխավորված վճարումներ",
     feature3: "Հայաստանի համար",
     feature4: "Ապահով գործարքներ",
     diffEyebrow: "Տարբերությունը",
-    diffTitle: "VSTAH-ով և առանց VSTAH-ի",
+    diffTitle: "Տեսնո՞ւմ եք տարբերությունը։",
     diffSubtitle:
-      "Կանխիր վեճերը նախօրոք։ Տե՛ս՝ VSTAH-ը ինչպես է պաշտպանում նախագիծը։",
-    recommended: "(Առաջարկվող)",
+      "Կանխեք վեճերը նախապես։ Տե՛ս՝ VSTAH-ը ինչպես է պաշտպանում նախագիծը։",
+    recommended: "(Առաջարկված)",
     colWith: "VSTAH-ով",
-    colWithout: "Առանց մեզ",
-    diffWithoutEyebrow: "(Հին մոտեցում)",
+    colWithout: "Առանց VSTAH-ի",
+    diffWithoutEyebrow: "(Հին եղանակ)",
     comparisonRows: [
       {
         label: "Վճարման անվտանգություն",
-        withVstah: "Մինչև մեկնարկ՝ գումարը էսկրոուում",
-        withoutUs: "Հույս՝ վճարեն աշխատանքից հետո"
+        withVstah: "Մինչև մեկնարկ՝ գումարը պահված է",
+        withoutUs: "Հույս ունենալ, որ հաճախորդը կվճարի աշխատանքի ավարտից հետո"
       },
       {
-        label: "Թվային պայմանագիր",
+        label: "Թվային աշխատանքային պայմանագիր",
         withVstah: "Պայմանագիր՝ երկու ստորագրությամբ",
-        withoutUs: "Բանավոր խոստումներ, WhatsApp"
+        withoutUs: "Բանավոր պայմանավորվածություններ և WhatsApp հաղորդագրություններ"
       },
       {
         label: "Նախագծի փուլեր",
         withVstah: "Վճարում ըստ փուլերի",
-        withoutUs: "Ամբողջ գումարը վերջում"
+        withoutUs: "Ամբողջ վճարմանը սպասել նախագծի վերջում"
       },
       {
         label: "Վեճեր",
-        withVstah: "Գումարը կողպված՝ մինչև լուծում",
-        withoutUs: "Անձնական վեճեր, կորած ժամանակ"
+        withVstah: "Գումարը պաշտպանված է մինչև խնդրի լուծումը",
+        withoutUs: "Անձնական վեճեր և կորցրած ժամանակ"
       },
       {
         label: "Թափանցիկություն",
         withVstah: "Աշխատանքի ապացույց · ժամանակագրություն",
-        withoutUs: "Կապի խզում, սխալ հասկացողություն"
+        withoutUs: "Թյուրըմբռնումներ և հաղորդակցության խնդիրներ"
       },
       {
         label: "Պրոֆեսիոնալիզմ",
         withVstah: "Երաշխիք՝ պլատֆորմից",
-        withoutUs: "Կախված է կապերից"
+        withoutUs: "Կախված է անձնական վստահությունից"
       }
     ],
-    processEyebrow: "Քայլերը",
+    processEyebrow: "Գործընթացը",
     processTitle: "Ինչպես է աշխատում",
     processSubtitle:
-      "Չորս քայլ։ Անորոշություն չկա։ Ապահով գործարքներ։",
+      "Չորս պարզ քայլ։ Առանց անորոշության։ Պրոֆեսիոնալ գործարքներ՝ լիովին ապահովված։",
     processSteps: [
       {
         step: "01",
         title: "Ստեղծեք գործարքը",
-        desc: "Սահմանեք ծավալը, փուլերը, գինը՝ րոպեներում։"
+        desc: "Սահմանեք ծավալը, փուլերը և արժեքը րոպեներում՝ մեր կառուցվածքային ձևերով։"
       },
       {
         step: "02",
-        title: "Ստուգեք գումարը",
-        desc: "Գումարը էսկրոուում է։ Պատրաստ է աշխատանքին։"
+        title: "Ստուգեք ապահով գումարը",
+        desc: "Գումարը ապահով կողպված է վստահության հաշվին։ Միջոցները ստուգվում են մինչև աշխատանքի մեկնարկը։"
       },
       {
         step: "03",
         title: "Աշխատեք վստահ",
-        desc: "Սկսեք նախագիծը՝ վճարումը երաշխավորված է։"
+        desc: "Սկսեք նախագիծը՝ իմանալով, որ վճարումը լիովին երաշխավորված է և սպասում է։"
       },
       {
         step: "04",
-        title: "Ավտոմատ վճարում",
-        desc: "Փուլը հաստատվելուց հետո՝ անմիջապես։"
+        title: "Ապահով վճարումներ",
+        desc: "Ստացեք վճարումը ապահով՝ յուրաքանչյուր փուլը հաճախորդի կողմից հաստատվելուց հետո։"
       }
     ],
-    disputeEyebrow: "Վեճերի աջակցություն",
-    disputeTitle: "Խնդիրների դեպքում՝ հստակ հաղորդակցություն։",
+    disputeEyebrow: "Աջակցություն",
+    disputeTitle: "Վեճերի աջակցություն",
     disputeBody:
-      "VSTAH-ը թափանցիկ գործընթաց է տալիս՝ երկու կողմերն էլ տեսնում են պայմանագիրը, կիսվում են տեղեկություններով, քայլ են անում դեպի արդար լուծում։",
-    badge24h: "Արագ աջակցություն",
+      "Մենք օգնում ենք ապահովել հստակ և կառուցվածքային հաղորդակցություն, երբ խնդիրներ են առաջանում։ VSTAH-ը թափանցիկ թվային շրջանակ է տալիս՝ երկու կողմերն էլ վերանայում են սկզբնական պայմանագիրը, փոխանակում ապացույցներ և ինքնուրույն լուծում վեճերը։",
+    badge24h: "Ուղղորդված\nլուծում",
     badge24hSub:
-      "24 ժ՝ կարճ պատասխան, նախագիծը առաջ։",
-    badgeLaw: "Կառուցված պայմանագրեր",
+      "Կառուցվածքային քայլ առ քայլ գործընթաց, որը օգնում է երկու կողմերին վերանայել փաստերը և հասնել փոխադարձ համաձայնության՝ առանց ավելորդ ձգձգումների։",
+    badgeLaw: "Խելացի\nշրջանակներ",
     badgeLawSub:
-      "Պարզ հոսք՝ տեղային պրակտիկային մոտ։",
-    badgeMed: "Արագ լուծում",
+      "Պայմանագրեր՝ ծառայությունների գործարքները պաշտպանելու համար՝ հստակ փուլերով, համահունչ հայկական բիզնես պրակտիկային, նվազեցնելով թյուրըմբռնումների հնարավորությունը։",
+    badgeMed: "Փորձագիտական միջամտություն",
     badgeMedSub:
-      "3 քայլ՝ առանց ձգձգման ու ավելորդ ծախսի։",
+      "Եթե ինքնուրույն փոխադարձ համաձայնության չեք հասնում, կարող եք միացնել մեր պաշտոնական մարդկային արբիտրաժային ծառայությունը՝ փաստերը գնահատելու և վերջնական որոշում կայացնելու համար։",
     footerTagline: "Վստահություն յուրաքանչյուր նախագծում",
-    footerRights: "© 2026 VSTAH.am · Բոլոր իրավունքները պաշտպանված են",
+    footerRights: "© 2026 VSTAH · Բոլոր իրավունքները պաշտպանված են",
     footerTerms: "Օգտագործման պայմաններ",
     footerPrivacy: "Գաղտնիության քաղաքականություն",
     footerFollow: "Հետևեք մեզ",
+    footerCompany: "Ընկերություն",
+    footerLegal: "Իրավական",
     tableCategory: "Թեմա",
     heroSlideAria: "Անցնել սլայդին",
     langSwitcherAria: "Փոխել լեզուն",
@@ -441,7 +467,7 @@ const translations: Record<Locale, TranslationBundle> = {
     completionDashboard: "Ավարտման վահանակ",
     successCompleted: "Ավարտված · պայմանագիր փակված",
     leaveFeedback: "Կարծիք թողնել",
-    awaitingFundsEscrow: "Սպասվող գումար էսկրոուում",
+    awaitingFundsEscrow: "Սպասվող գումար",
     depositRequired: "Դեպոզիտ՝ մինչև արձակում",
     setupDashboard: "Մեկնարկի վահանակ",
     totalTransferred: "Ընդհանուր փոխանցված",
@@ -462,7 +488,7 @@ const translations: Record<Locale, TranslationBundle> = {
     providerDashboardTitle: "Մատակարարի վահանակ",
     agreementsTrackedMonth: "18 պայմանագիր այս ամիս",
     finalPayoutCompleted: "Վերջին վճարումը կատարված",
-    fundsSecuredEscrow: "Գումարը՝ էսկրոուում",
+    fundsSecuredEscrow: "Գումարը պահվում է",
     awaitingClientDeposit: "Սպասում է հաճախորդի դեպոզիտին",
     statusPaid: "Վճարված",
     statusSecured: "Ապահովված",
@@ -474,30 +500,52 @@ const translations: Record<Locale, TranslationBundle> = {
     pricingPerMonth: "/ ամիս",
     pricingValueFree: "3 անվճար պայմանագիր ներառված է",
     pricingValuePro: "Թարմացումից հետո՝ անսահմանափակ պայմանագրեր",
-    pricingCta: "Սկսել անվճար փորձարկում"
+    pricingCta: "Սկսել անվճար փորձարկում",
+    faqEyebrow: "Հարցեր",
+    faqTitle: "Հաճախ տրվող հարցեր",
+    faqSubtitle: "Կարճ պատասխաններ՝ առաջին պաշտպանված գործարքը սկսելուց առաջ։",
+    faqs: [
+      {
+        q: "Ի՞նչ է VSTAH-ը և ինչպե՞ս է աշխատում։",
+        a: "VSTAH-ը թվային հարթակ է՝ վճարումները ապահովելու և Հայաստանում բիզնեսների ու հաճախորդների միջև վստահություն կառուցելու համար։ Մատակարարը ստեղծում է գործարք և անվտանգ վճարման հղում, իսկ հաճախորդը գումարը մուտքագրում է մեր համակարգ։ Գումարը ապահով կողպվում է և արձակվում է մատակարարին միայն այն ժամանակ, երբ հաճախորդը հաստատում է, որ աշխատանքն ավարտված է կամ ապրանքը մատակարարված։"
+      },
+      {
+        q: "Ապահո՞վ է գումարս, քանի դեռ այն պահված է։",
+        a: "Անշուշտ։ Գումարը լիովին անհասանելի է մատակարարին և երբեք չի օգտագործվում VSTAH-ի գործունեության համար։ Ձեր գումարը պահվում է Հայաստանի առաջատար բանկում՝ նվիրված, անվտանգ ինստիտուցիոնալ Trust Account-ում՝ խիստ վերահսկողությամբ, մինչև գործարքի հաջող ավարտը։"
+      },
+      {
+        q: "Որքա՞ն արժե սկսելը։",
+        a: "Գրանցումը և գործարքի ստեղծումը լիովին անվճար են։ Մեր գնագոյացումը պարզ է՝ կամ 7% ֆիքսված վճար յուրաքանչյուր հաջող գործարքի համար (նախապես համաձայնեցված), կամ ամսական 25,000 AMD բաժանորդագրություն՝ մեծ ծավալով աշխատող բիզնեսների համար։ Դուք որոշում եք՝ վճարը կրում է մատակարարը, հաճախորդը, թե 50/50 բաժանում։"
+      },
+      {
+        q: "Ի՞նչ է լինում տարաձայնության դեպքում։",
+        a: "Մեր գործարքի ստեղծման ձևը այնքան հստակ սպասումներ և փուլեր է սահմանում, որ վեճերի 95%-ը կանխվում է դեռ սկզբից։ Եթե հակամարտություն առաջանա, գումարը մնում է ապահով՝ բանկում կողպված։ Եթե ինքնուրույն չեք կարողանում լուծել, կարող եք սկսել մեր պաշտոնական մարդկային արբիտրաժային ծառայությունը՝ փոքր վճարով, և մենք արդար որոշում կկայացնենք՝ հիմնվելով ապացույցների վրա։"
+      },
+      {
+        q: "Հաճախորդներս պե՞տք է հաշիվ ստեղծեն՝ ստորագրելու և վճարելու համար։",
+        a: "Ոչ։ Հաճախորդը ստանում է ուղիղ հղում տեքստով, WhatsApp-ով կամ էլ․ փոստով։ Նա կարող է վերանայել պայմանները, թվայնորեն ստորագրել մեկ նշման վանդակով և անվտանգ վճարել քարտով կամ բանկային փոխանցմամբ՝ մեկ րոպեից պակասում, առանց երկար գրանցման գործընթացի։"
+      }
+    ]
   },
   ru: {
-    brand: "VSTAH.am",
+    brand: "VSTAH",
     navHome: "Главная",
     navHowItWorks: "Как это работает",
     navPricing: "Тарифы",
-    btnCreateDeal: "Создать соглашение",
-    btnProtectProject: "Защитить проект",
+    btnProtectProject: "Попробовать бесплатно",
     btnSeeHow: "Как это устроено",
     btnStartProtected: "Начать защищённый проект",
     heroEyebrow: "Профессиональное доверие · Оплата в срок",
-    heroTitleBefore: "Защитите ",
-    heroTitleHighlight: "проектные сделки",
-    heroTitleAfter: " в Армении",
-    heroSubtitle:
-      "Не гонитесь за оплатой. Работайте спокойно: VSTAH удерживает средства и готовит выплату.",
-    cardChip1: "Депозит в эскроу",
+    heroTitleBefore: "Работайте уверенно.",
+    heroTitleHighlight: "",
+    heroTitleAfter: " Получайте оплату наверняка.",
+    cardChip1: "Депозит удержан",
     cardChip2: "Цифровое соглашение на работы",
     projectLabel: "Проект",
     projectId: "#AM-2841",
     projectTitle: "Ремонт квартиры",
     projectStatus: "Активен",
-    fundsLabel: "Средства в эскроу",
+    fundsLabel: "Средства удерживаются",
     lockedNote: "Удержание по 3 этапам",
     stage1Name: "Демонтаж и подготовка",
     stage1Amount: "150 000 ֏",
@@ -508,7 +556,7 @@ const translations: Record<Locale, TranslationBundle> = {
     stage3Name: "Финишная отделка",
     stage3Amount: "100 000 ֏",
     stage3State: "Ожидание",
-    cardMediation: "Средства под защитой — в рамках законодательства Армении",
+    cardMediation: "Средства защищены и локально охраняются",
     cardTagline1: "Меньше споров.",
     cardTagline2: "Быстрее проект.",
     feature1: "Проверенные средства.",
@@ -516,17 +564,17 @@ const translations: Record<Locale, TranslationBundle> = {
     feature3: "Сделано для Армении.",
     feature4: "Сделки под защитой.",
     diffEyebrow: "Разница",
-    diffTitle: "С VSTAH и без VSTAH",
+    diffTitle: "Видите разницу?",
     diffSubtitle:
       "Снимите риски до старта. Посмотрите, как VSTAH защищает проект.",
-    recommended: "(Рекомендуется)",
+    recommended: "(Рекомендуем)",
     colWith: "С VSTAH",
-    colWithout: "Без нас",
-    diffWithoutEyebrow: "(По-старому)",
+    colWithout: "Без VSTAH",
+    diffWithoutEyebrow: "(Старый способ)",
     comparisonRows: [
       {
         label: "Безопасность оплаты",
-        withVstah: "Деньги в эскроу до начала работ",
+        withVstah: "Деньги удерживаются до начала работ",
         withoutUs: "Надежда, что заплатят после работ"
       },
       {
@@ -558,47 +606,49 @@ const translations: Record<Locale, TranslationBundle> = {
     processEyebrow: "Процесс",
     processTitle: "Как это работает",
     processSubtitle:
-      "Четыре шага. Без догадок. Сделки под защитой.",
+      "Четыре простых шага. Без догадок. Профессиональные сделки под полной защитой.",
     processSteps: [
       {
         step: "01",
         title: "Создайте соглашение",
-        desc: "Объём, этапы и сумма — за пару минут."
+        desc: "Определите объём, этапы и стоимость за минуты с помощью наших структурированных форм."
       },
       {
         step: "02",
-        title: "Проверьте средства",
-        desc: "Деньги в эскроу до старта работ."
+        title: "Проверьте защищённые средства",
+        desc: "Деньги надёжно заблокированы на трастовом счёте. Средства проверяются до начала работ."
       },
       {
         step: "03",
         title: "Работайте спокойно",
-        desc: "Оплата зарезервирована и ждёт приёмки."
+        desc: "Начинайте проект, зная, что оплата полностью гарантирована и ждёт."
       },
       {
         step: "04",
-        title: "Автоматические выплаты",
-        desc: "Оплата сразу после приёмки этапа."
+        title: "Защищённые выплаты",
+        desc: "Получайте оплату безопасно по мере завершения каждого этапа и подтверждения клиентом."
       }
     ],
-    disputeEyebrow: "При спорах",
-    disputeTitle: "Помогаем выстроить ясный диалог, когда возникают вопросы.",
+    disputeEyebrow: "Поддержка",
+    disputeTitle: "Помощь при спорах",
     disputeBody:
-      "Прозрачный процесс: обе стороны видят условия, обмениваются фактами и двигаются к решению без лишнего шума.",
-    badge24h: "Быстрая поддержка",
+      "Мы помогаем выстроить ясное и структурированное общение, когда возникают проблемы. VSTAH даёт прозрачную цифровую рамку: обе стороны пересматривают исходное соглашение, обмениваются доказательствами и урегулируют конфликт самостоятельно.",
+    badge24h: "Управляемое разрешение",
     badge24hSub:
-      "Ответ за 24 ч — разобраться и не тормозить проект.",
-    badgeLaw: "Чёткие договорённости",
+      "Пошаговый процесс, который ведёт обе стороны к разбору фактов и взаимному соглашению без лишних задержек.",
+    badgeLaw: "Умные рамки",
     badgeLawSub:
-      "Для сервисных соглашений и понятных процессов в духе практики Армении.",
-    badgeMed: "Быстрое решение",
+      "Договоры, которые защищают сервисные сделки через чёткие этапы в духе армянской бизнес-практики и снижают риск недопонимания.",
+    badgeMed: "Экспертное вмешательство",
     badgeMedSub:
-      "Три шага: смотрите вопрос вместе и двигаетесь к исходу без лишних задержек и затрат.",
+      "Если самостоятельно договориться не получается, вы можете подключить наш официальный сервис человеческого арбитража — мы оценим факты и вынесем окончательное решение.",
     footerTagline: "Доверие в каждом проекте",
-    footerRights: "© 2026 VSTAH.am. Все права защищены.",
+    footerRights: "© 2026 VSTAH. Все права защищены.",
     footerTerms: "Условия использования",
     footerPrivacy: "Политика конфиденциальности",
     footerFollow: "Мы в соцсетях",
+    footerCompany: "Компания",
+    footerLegal: "Правовая информация",
     tableCategory: "Тема",
     heroSlideAria: "Перейти к промо-слайду",
     langSwitcherAria: "Сменить язык",
@@ -606,7 +656,7 @@ const translations: Record<Locale, TranslationBundle> = {
     completionDashboard: "Экран завершения",
     successCompleted: "Успешно: соглашение закрыто",
     leaveFeedback: "Оставить отзыв",
-    awaitingFundsEscrow: "Ожидание зачисления в эскроу",
+    awaitingFundsEscrow: "Ожидание зачисления",
     depositRequired: "Сначала депозит, затем выплаты.",
     setupDashboard: "Стартовый экран",
     totalTransferred: "Всего переведено",
@@ -627,7 +677,7 @@ const translations: Record<Locale, TranslationBundle> = {
     providerDashboardTitle: "Кабинет исполнителя",
     agreementsTrackedMonth: "18 соглашений за месяц",
     finalPayoutCompleted: "Финальная выплата прошла",
-    fundsSecuredEscrow: "Средства в эскроу",
+    fundsSecuredEscrow: "Средства удерживаются",
     awaitingClientDeposit: "Ждём депозит клиента",
     statusPaid: "Оплачено",
     statusSecured: "Под защитой",
@@ -639,17 +689,43 @@ const translations: Record<Locale, TranslationBundle> = {
     pricingPerMonth: "/ месяц",
     pricingValueFree: "3 соглашения бесплатно включено",
     pricingValuePro: "Безлимит после перехода на тариф Про",
-    pricingCta: "Начать бесплатный период"
+    pricingCta: "Начать бесплатный период",
+    faqEyebrow: "Вопросы",
+    faqTitle: "Частые вопросы",
+    faqSubtitle: "Короткие ответы перед первой защищённой сделкой.",
+    faqs: [
+      {
+        q: "Что такое VSTAH и как это работает?",
+        a: "VSTAH — цифровая платформа для безопасных платежей и абсолютного доверия между бизнесом и клиентами в Армении. Исполнитель создаёт сделку и защищённую ссылку на оплату, а клиент вносит средства в нашу систему. Деньги надёжно блокируются и переводятся исполнителю только после того, как клиент подтвердит, что работа выполнена или товар доставлен."
+      },
+      {
+        q: "Безопасны ли мои деньги, пока они на удержании?",
+        a: "Абсолютно. Средства полностью недоступны исполнителю и никогда не используются в операционной деятельности VSTAH. Ваши деньги хранятся на выделенном институциональном Trust Account в ведущем армянском банке под строгим контролем — до успешного завершения сделки."
+      },
+      {
+        q: "Сколько стоит начать?",
+        a: "Регистрация и создание сделки полностью бесплатны. Модель простая: фиксированная комиссия 7% с каждой успешной сделки (согласовывается заранее) или подписка 25 000 AMD в месяц для бизнеса с большим объёмом. Вы решаете, кто оплачивает комиссию: исполнитель, клиент или 50/50."
+      },
+      {
+        q: "Что если возникнет разногласие?",
+        a: "Форма создания сделки задаёт настолько чёткие ожидания и этапы, что 95% споров предотвращаются ещё до начала. Если конфликт всё же возникает, деньги остаются надёжно заблокированными в банке. Если не удаётся договориться самостоятельно, вы можете запустить наш официальный сервис человеческого арбитража за небольшую плату — мы примем справедливое решение на основе доказательств."
+      },
+      {
+        q: "Нужно ли клиентам создавать аккаунт, чтобы подписать и оплатить?",
+        a: "Нет. Клиент получает прямую ссылку в SMS, WhatsApp или по email. Он может ознакомиться с условиями, подписать цифровой галочкой в одном чекбоксе и безопасно оплатить картой или банковским переводом менее чем за минуту — без долгой регистрации."
+      }
+    ]
   }
 };
 
 const processIcons = [FileText, Landmark, Hammer, CircleCheck] as const;
 
 export default function Page() {
-  const { language: locale, setLanguage: setLocale } = useLanguage();
+  const { language: locale } = useLanguage();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [langMenuOpen, setLangMenuOpen] = useState(false);
   const [activeHeroSlide, setActiveHeroSlide] = useState(0);
+  const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
   const heroDotStyles = [
     {
       active: "bg-[#D90012] ring-2 ring-[#D90012]/65",
@@ -665,190 +741,24 @@ export default function Page() {
     }
   ] as const;
 
-  const langButtons = useMemo(
-    () => [
-      { code: "en" as const, short: "EN", label: "English" },
-      { code: "hy" as const, short: "HY", label: "Հայերեն" },
-      { code: "ru" as const, short: "RU", label: "Русский" }
-    ],
-    []
-  );
-
   const t: TranslationBundle = translations[locale] ?? translations.en;
   const heroChipsHyRu = locale === "hy" || locale === "ru";
   const isHy = locale === "hy";
   const pricingLongLocale = locale === "hy" || locale === "ru";
-  const loginLabel = locale === "hy" ? "Մուտք" : locale === "ru" ? "Войти" : "Log in";
-  const headerAuthBtnClass =
-    "inline-flex h-10 items-center justify-center rounded-xl px-5 text-sm font-semibold";
-  const createDealCtaClass = `${headerAuthBtnClass} bg-[#F2A800] font-extrabold text-slate-900 shadow-lg shadow-amber-800/25 transition-all duration-200 hover:!bg-[#F2A800] hover:!text-slate-900 hover:shadow-lg hover:shadow-amber-800/35 hover:-translate-y-0.5 active:translate-y-0 active:!bg-[#F2A800] active:!text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-slate-900/40`;
   return (
-    <ComingSoonOverlay>
-    <div className="flex min-h-screen w-full min-w-0 max-w-[100%] flex-col overflow-x-hidden bg-white text-slate-900">
-      <header className="sticky top-0 z-50 border-b border-black/10 bg-white shadow-lg shadow-black/10">
-        <div className="mx-auto flex h-[76px] w-full min-w-0 max-w-[min(100%,90rem)] items-center justify-between gap-2 px-3 sm:gap-3 sm:px-4 md:h-[84px] md:px-6">
-          <Link href="/" className="flex shrink-0 items-center gap-2.5 text-slate-900">
-            <img src="/logo-vstah-clean.png" alt="VSTAH logo" className="h-10 w-10 shrink-0 object-contain md:h-11 md:w-11" />
-            <span className="text-lg font-bold tracking-tight md:text-xl">{t.brand}</span>
-          </Link>
-
-          <nav className="hidden items-center gap-8 text-sm font-semibold text-slate-700 md:flex">
-            <Link href="/" className="transition hover:text-slate-900">
-              {t.navHome}
-            </Link>
-            <a href="#difference" className="transition hover:text-slate-900">
-              {t.navHowItWorks}
-            </a>
-            <a href="#pricing" className="transition hover:text-slate-900">
-              {t.navPricing}
-            </a>
-          </nav>
-
-          <div className="hidden items-center gap-4 md:flex">
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setLangMenuOpen((o) => !o)}
-                aria-label={t.langSwitcherAria}
-                className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-white text-slate-900 transition hover:opacity-85"
-              >
-                <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-[#F2A800] via-[#D90012] to-[#0033A0] text-white shadow-sm">
-                  <Globe className="h-5 w-5" />
-                </span>
-              </button>
-              {langMenuOpen ? (
-                <div className="absolute right-0 top-12 z-50 min-w-[180px] rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
-                  {langButtons.map((item) => (
-                    <button
-                      key={item.code}
-                      type="button"
-                      onClick={() => {
-                        setLocale(item.code);
-                        setLangMenuOpen(false);
-                      }}
-                      className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-semibold transition ${
-                        locale === item.code ? "bg-slate-100 text-[#0033A0]" : "text-slate-700 hover:bg-slate-50"
-                      }`}
-                    >
-                      <span>{item.label}</span>
-                      {locale === item.code ? <Check className="h-4 w-4" /> : null}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-            <Link
-              href="/login?next=%2Fdashboard"
-              className={`${headerAuthBtnClass} border border-slate-300 bg-white text-slate-700 transition hover:border-slate-400 hover:text-slate-900`}
-            >
-              {loginLabel}
-            </Link>
-            <OrangeButton
-              href="/register?next=%2Fdashboard"
-              className={`${createDealCtaClass} !h-10 !min-h-0 !px-5 !py-0 !text-sm sm:!text-sm`}
-            >
-              {t.btnCreateDeal}
-            </OrangeButton>
-          </div>
-
-          <div className="flex items-center gap-2 md:hidden">
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setLangMenuOpen((o) => !o)}
-                aria-label={t.langSwitcherAria}
-                className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white text-slate-900"
-              >
-                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-[#F2A800] via-[#D90012] to-[#0033A0] text-white shadow-sm">
-                  <Globe className="h-4 w-4" />
-                </span>
-              </button>
-              {langMenuOpen ? (
-                <div className="absolute left-0 top-10 z-50 min-w-[150px] rounded-xl border border-slate-200 bg-white p-1.5 shadow-xl">
-                  {langButtons.map((item) => (
-                    <button
-                      key={item.code}
-                      type="button"
-                      onClick={() => {
-                        setLocale(item.code);
-                        setLangMenuOpen(false);
-                      }}
-                      className={`flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-left text-xs font-semibold transition ${
-                        locale === item.code ? "bg-slate-100 text-[#0033A0]" : "text-slate-700 hover:bg-slate-50"
-                      }`}
-                    >
-                      <span>{item.label}</span>
-                      {locale === item.code ? <Check className="h-3.5 w-3.5" /> : null}
-                    </button>
-                  ))}
-                </div>
-              ) : null}
-            </div>
-            <button
-              type="button"
-              className="rounded-xl border border-slate-300 bg-white p-2.5 text-slate-700 transition hover:border-slate-400 hover:text-slate-900"
-              aria-expanded={mobileOpen}
-              aria-label={t.menuAria}
-              onClick={() => setMobileOpen((o) => !o)}
-            >
-              {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </button>
-          </div>
-        </div>
-
-        {mobileOpen ? (
-          <div className="border-t border-slate-200 bg-white px-4 pb-4 pt-3 md:hidden">
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 shadow-sm">
-              <nav className="flex flex-col gap-1.5">
-                <Link
-                  href="/"
-                  className="rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-white hover:text-slate-900"
-                  onClick={() => setMobileOpen(false)}
-                >
-                  {t.navHome}
-                </Link>
-                <a
-                  href="#difference"
-                  className="rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-white hover:text-slate-900"
-                  onClick={() => setMobileOpen(false)}
-                >
-                  {t.navHowItWorks}
-                </a>
-                <a
-                  href="#pricing"
-                  className="rounded-xl px-3 py-2 text-sm font-semibold text-slate-700 transition hover:bg-white hover:text-slate-900"
-                  onClick={() => setMobileOpen(false)}
-                >
-                  {t.navPricing}
-                </a>
-              </nav>
-              <div className="my-3 h-px bg-slate-200" />
-              <div className="grid grid-cols-2 gap-2">
-                <Link
-                  href="/login?next=%2Fdashboard"
-                  onClick={() => setMobileOpen(false)}
-                  className={`${headerAuthBtnClass} border border-slate-300 bg-white text-slate-700`}
-                >
-                  {loginLabel}
-                </Link>
-                <Link
-                  href="/register?next=%2Fdashboard"
-                  onClick={() => setMobileOpen(false)}
-                  className={createDealCtaClass}
-                >
-                  {t.btnCreateDeal}
-                </Link>
-              </div>
-            </div>
-          </div>
-        ) : null}
-      </header>
-
-      <main className="min-w-0 flex-1 overflow-x-hidden" style={{ background: SITE_BG_GRADIENT }}>
+    <div className="flex min-h-screen w-full min-w-0 max-w-full flex-col overflow-x-clip bg-white text-slate-900">
+      <main className="min-w-0 flex-1 overflow-x-clip bg-white">
         <section
-          className="relative z-10 h-auto min-h-screen w-full min-w-0 overflow-x-hidden pb-12 pt-8 shadow-[0_4px_12px_-2px_rgba(15,23,42,0.14)] md:pb-24 md:pt-14"
+          className="relative z-10 h-auto min-h-dvh w-full min-w-0 overflow-x-clip pb-12 shadow-[0_4px_12px_-2px_rgba(15,23,42,0.14)] md:pb-24"
           style={{ background: SITE_BG_GRADIENT }}
         >
+          <FloatingPillHeader
+            mobileOpen={mobileOpen}
+            onMobileOpenChange={setMobileOpen}
+            langMenuOpen={langMenuOpen}
+            onLangMenuOpenChange={setLangMenuOpen}
+          />
+
           {/* Tighten off-viewport blurs on small screens — full -left-32 / -right-24 widens iOS scroll width */}
           <div
             className="pointer-events-none absolute -left-16 top-0 h-64 w-64 rounded-full bg-white/[0.06] blur-3xl sm:-left-24 sm:h-80 sm:w-80 md:-left-32 md:h-96 md:w-96"
@@ -858,7 +768,7 @@ export default function Page() {
             className="pointer-events-none absolute -right-8 bottom-0 h-64 w-64 rounded-full bg-orange-400/10 blur-3xl sm:-right-16 sm:h-72 sm:w-72 md:-right-24 md:h-80 md:w-80"
             aria-hidden
           />
-          <div className="relative mx-auto grid w-full min-w-0 max-w-[min(100%,75rem)] gap-8 px-4 sm:gap-10 md:grid-cols-2 md:items-center md:gap-16 lg:gap-20 md:px-6">
+          <div className="relative mx-auto grid w-full min-w-0 max-w-7xl gap-8 px-4 pt-8 sm:gap-10 md:grid-cols-2 md:items-center md:gap-16 md:px-6 md:pt-10 lg:gap-20">
             <div
               lang={heroChipsHyRu ? locale : undefined}
               className="flex min-w-0 w-full flex-col justify-center text-left"
@@ -870,59 +780,29 @@ export default function Page() {
               >
                 {isHy ? (
                   <>
-                    <span className="block">Մասնագիտական վստահություն</span>
-                    <span className="block">Վճարումը ժամանակին</span>
+                    <span className="block">Կառուցեք վստահելի գործարքներ</span>
+                    <span className="block">Ստացեք վճարումները ժամանակին</span>
                   </>
                 ) : (
                   t.heroEyebrow
                 )}
               </p>
               <h1
-                className={`mt-6 min-w-0 break-words font-black tracking-tight text-white hyphens-none sm:mt-8 ${
+                className={`mt-6 w-full min-w-0 text-balance break-words font-black tracking-tight text-white hyphens-none sm:mt-8 ${
                   isHy
-                    ? "text-[1.7rem] leading-[1.12] sm:text-[2rem] md:text-[2.35rem] lg:text-[2.9rem] xl:text-[3.3rem]"
-                    : "text-balance text-3xl leading-tight sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl"
+                    ? "text-[2rem] leading-[1.14] sm:text-[2.5rem] md:text-[2.1rem] lg:text-[2.8rem] xl:text-[3.35rem]"
+                    : "text-[2.3rem] leading-[1.1] sm:text-[2.9rem] md:text-[2.35rem] lg:text-[3.1rem] xl:text-[3.7rem]"
                 }`}
               >
-                {isHy ? (
-                  <span className="block text-balance">
-                    Ապահովեք ձեր նախագծային{" "}
-                    <span className="relative inline-block" style={{ color: ORANGE }}>
-                      <span className="relative z-10">գործարքները</span>
-                      <span
-                        className="absolute -bottom-1 left-0 right-0 h-[3px] rounded-full bg-gradient-to-r from-transparent via-orange-300/90 to-transparent"
-                        aria-hidden
-                      />
-                      <span className="absolute bottom-0 left-0 right-0 h-px bg-white/25" aria-hidden />
-                    </span>{" "}
-                    Հայաստանում
-                  </span>
-                ) : (
-                  <>
-                    {t.heroTitleBefore}
-                    <span className="relative inline" style={{ color: ORANGE }}>
-                      <span className="relative z-10">{t.heroTitleHighlight}</span>
-                      <span
-                        className="absolute -bottom-1 left-0 right-0 h-[3px] rounded-full bg-gradient-to-r from-transparent via-orange-300/90 to-transparent"
-                        aria-hidden
-                      />
-                      <span className="absolute bottom-0 left-0 right-0 h-px bg-white/25" aria-hidden />
-                    </span>
-                    {t.heroTitleAfter}
-                  </>
-                )}
+                <span className="block" style={{ color: ORANGE }}>
+                  {t.heroTitleBefore}
+                </span>
+                <span className="block text-white">{t.heroTitleAfter.trim()}</span>
               </h1>
-              <p
-                className={`mt-4 w-full text-left text-sm font-medium leading-relaxed text-white/85 hyphens-none break-words sm:mt-6 sm:text-base md:text-lg lg:text-xl ${
-                  isHy ? "max-w-[640px]" : "max-w-[800px]"
-                }`}
-              >
-                {t.heroSubtitle}
-              </p>
               <div className="mt-8 flex w-full flex-col gap-3 sm:mt-10 sm:flex-row sm:flex-wrap sm:items-center">
                 <Link
                   href="/register?next=%2Fdashboard"
-                  className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-[#DC2626] px-6 text-sm font-semibold text-white shadow-sm shadow-red-900/30 transition hover:bg-[#B91C1C] sm:h-12 sm:w-auto sm:px-8 sm:text-base"
+                  className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-[#DC2626] px-6 text-sm font-semibold text-white shadow-sm shadow-red-900/30 transition hover:-translate-y-0.5 hover:bg-[#B91C1C] hover:shadow-md sm:h-12 sm:w-auto sm:px-8 sm:text-base"
                 >
                   {t.btnProtectProject}
                 </Link>
@@ -954,7 +834,25 @@ export default function Page() {
               </ul>
             </div>
 
-            <div className="relative w-full min-w-0 pb-10 sm:pb-14 lg:pb-12">
+            <div className="relative w-full min-w-0 pb-10 sm:pb-14 lg:pb-12 vstah-animate-in">
+              <div
+                className="pointer-events-none absolute left-0 top-1/2 z-0 hidden w-28 -translate-x-[86%] -translate-y-1/2 flex-col items-center gap-9 xl:flex 2xl:w-32"
+                aria-hidden
+              >
+                <div className="absolute inset-y-3 left-1/2 w-px -translate-x-1/2 bg-gradient-to-b from-white/0 via-white/35 to-white/0" />
+                {[
+                  { icon: FileText, tone: "border-white/25 bg-white/10 text-white" },
+                  { icon: Lock, tone: "border-orange-300/40 bg-orange-400/15 text-orange-200" },
+                  { icon: Wallet, tone: "border-emerald-300/40 bg-emerald-400/15 text-emerald-200" }
+                ].map(({ icon: Icon, tone }, index) => (
+                  <span
+                    key={`hero-rail-node-${index}`}
+                    className={`relative flex h-12 w-12 items-center justify-center rounded-2xl border shadow-[0_10px_28px_rgba(2,6,23,0.35)] backdrop-blur-sm ${tone}`}
+                  >
+                    <Icon className="h-5 w-5" strokeWidth={2} />
+                  </span>
+                ))}
+              </div>
               <div className="relative">
                 <div
                   className="pointer-events-none absolute -inset-px rounded-2xl bg-gradient-to-br from-slate-200/80 to-slate-100/50 blur-sm"
@@ -1177,11 +1075,14 @@ export default function Page() {
                   </div>
                 </div>
               </div>
-              </div>
-              <div className="absolute -bottom-2 left-1/2 z-10 w-[min(100%,22rem)] -translate-x-1/2 px-2 sm:w-full sm:max-w-sm">
-                <div className="rounded-xl border border-slate-200/90 bg-white px-4 py-2.5 text-center text-xs font-semibold text-slate-700">
+              <div className="absolute -bottom-5 left-1/2 z-10 w-[min(100%,22rem)] -translate-x-1/2 px-2 sm:-bottom-6 sm:w-full sm:max-w-sm">
+                <div
+                  className="rounded-xl px-4 py-2.5 text-center text-xs font-semibold text-slate-900 shadow-sm"
+                  style={{ backgroundColor: ORANGE }}
+                >
                   {t.cardMediation}
                 </div>
+              </div>
               </div>
             </div>
           </div>
@@ -1195,17 +1096,14 @@ export default function Page() {
               { text: t.feature3, icon: Flag },
               { text: t.feature4, icon: Shield }
             ].map(({ text, icon: Icon }, index) => (
-              <div
-                key={`feature-${index}`}
-                className="group flex min-h-[4.75rem] w-full min-w-0 max-w-none items-center gap-3 rounded-2xl border border-slate-100 bg-gradient-to-br from-slate-50 to-white p-4 shadow-sm ring-1 ring-slate-100/70 transition-colors duration-200 hover:from-blue-50 hover:to-blue-50 md:min-h-[5rem] md:p-5"
-              >
-                <span
-                  className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#E30A17] text-white shadow-md transition-colors duration-200 group-hover:bg-[#F2A800] group-hover:text-slate-900"
-                >
-                  <Icon className="h-6 w-6" />
-                </span>
-                <p className="min-w-0 flex-1 break-words pt-1 font-extrabold leading-snug text-[clamp(12px,1.2vw,16px)]">{text}</p>
-              </div>
+              <Reveal key={`feature-${index}`} delay={index * 30}>
+                <div className="group flex min-h-[4.75rem] w-full min-w-0 max-w-none items-center gap-3 rounded-2xl border border-slate-100 bg-gradient-to-br from-slate-50 to-white p-4 shadow-sm ring-1 ring-slate-100/70 transition-all duration-300 hover:-translate-y-1 hover:from-blue-50 hover:to-blue-50 hover:shadow-md md:min-h-[5rem] md:p-5">
+                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#E30A17] text-white shadow-md transition-colors duration-200 group-hover:bg-[#F2A800] group-hover:text-slate-900">
+                    <Icon className="h-6 w-6" />
+                  </span>
+                  <p className="min-w-0 flex-1 break-words pt-1 font-extrabold leading-snug text-[clamp(12px,1.2vw,16px)]">{text}</p>
+                </div>
+              </Reveal>
             ))}
           </div>
         </section>
@@ -1218,72 +1116,76 @@ export default function Page() {
             </h2>
             <p className="mx-auto mt-4 max-w-2xl text-center text-base font-medium text-slate-700 md:text-lg">{t.diffSubtitle}</p>
 
-            {/* Narrow screens: stacked cards */}
-            <div className="mt-10 flex flex-col gap-5 md:hidden">
-              <article className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-900/10">
-                <div className="flex items-center gap-3 px-5 py-4 text-white" style={{ backgroundColor: "#0f43ac" }}>
-                  <span className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white/15">
-                    <Shield className="h-5 w-5" />
+            {/* Mobile: stacked cards */}
+            <div className="mt-10 grid gap-5 md:hidden">
+              <Reveal>
+                <article className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-900/10">
+                <div className="flex min-h-[5.25rem] items-center gap-3 border-b border-white/10 bg-gradient-to-br from-blue-800 via-slate-950 to-black px-5 py-4 text-white">
+                  <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-black/25 text-blue-400 ring-1 ring-blue-500/30">
+                    <Shield className="h-5 w-5" strokeWidth={2.25} />
                   </span>
-                  <div>
-                    <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-white/75">{t.recommended}</p>
-                    <p className="text-3xl font-black leading-none md:text-[2.1rem]">{t.colWith}</p>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-blue-200/85">{t.recommended}</p>
+                    <p className="text-2xl font-black leading-none sm:text-3xl">{t.colWith}</p>
                   </div>
                 </div>
                 <ul className="divide-y divide-slate-100">
                   {t.comparisonRows.map((row) => (
-                    <li key={`with-${row.label}`} className="flex items-start gap-3 px-5 py-4 transition-colors duration-200 hover:bg-blue-50">
+                    <li key={`m-with-${row.label}`} className="grid min-h-[5.5rem] grid-cols-[1.75rem_minmax(0,1fr)] items-start gap-3 px-5 py-4">
                       <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-50">
                         <Check className="h-4 w-4 text-blue-700" strokeWidth={3} />
                       </span>
                       <div className="min-w-0">
-                        <p className="font-extrabold text-slate-900">{row.label}</p>
-                        <p className="text-[15px] leading-relaxed text-slate-600">{row.withVstah}</p>
+                        <p className="font-extrabold leading-snug text-slate-900">{row.label}</p>
+                        <p className="mt-1 text-sm leading-snug text-slate-600 sm:text-[15px]">{row.withVstah}</p>
                       </div>
                     </li>
                   ))}
                 </ul>
               </article>
+              </Reveal>
 
-              <article className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-900/10">
-                <div className="flex items-center gap-3 border-b border-white/10 bg-gradient-to-br from-red-900 via-neutral-950 to-black px-5 py-4 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+              <Reveal delay={40}>
+                <article className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-900/10">
+                <div className="flex min-h-[5.25rem] items-center gap-3 border-b border-white/10 bg-gradient-to-br from-red-900 via-neutral-950 to-black px-5 py-4 text-white">
                   <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-black/25 text-red-400 ring-1 ring-red-500/30">
                     <AlertTriangle className="h-5 w-5" strokeWidth={2.25} />
                   </span>
                   <div className="min-w-0">
                     <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-red-200/85">{t.diffWithoutEyebrow}</p>
-                    <p className="text-3xl font-black leading-none text-white md:text-[2.1rem]">{t.colWithout}</p>
+                    <p className="text-2xl font-black leading-none text-white sm:text-3xl">{t.colWithout}</p>
                   </div>
                 </div>
                 <ul className="divide-y divide-slate-100">
                   {t.comparisonRows.map((row) => (
-                    <li key={`without-${row.label}`} className="flex items-start gap-3 px-5 py-4 transition-colors duration-200 hover:bg-blue-50">
+                    <li key={`m-without-${row.label}`} className="grid min-h-[5.5rem] grid-cols-[1.75rem_minmax(0,1fr)] items-start gap-3 px-5 py-4">
                       <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-red-50">
                         <X className="h-4 w-4 text-red-500" strokeWidth={3} />
                       </span>
                       <div className="min-w-0">
-                        <p className="font-extrabold text-slate-900">{row.label}</p>
-                        <p className="text-[15px] leading-relaxed text-slate-600">{row.withoutUs}</p>
+                        <p className="font-extrabold leading-snug text-slate-900">{row.label}</p>
+                        <p className="mt-1 text-sm leading-snug text-slate-600 sm:text-[15px]">{row.withoutUs}</p>
                       </div>
                     </li>
                   ))}
                 </ul>
               </article>
+              </Reveal>
             </div>
 
-            {/* md+: each comparison row is one CSS grid row — horizontal rules stay aligned */}
-            <div className="mt-10 hidden overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-900/10 md:block">
-              <div className="grid grid-cols-2 border-b border-slate-100">
-                <div className="flex items-center gap-3 border-r border-slate-100 px-5 py-4 text-white" style={{ backgroundColor: "#0f43ac" }}>
-                  <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15">
-                    <Shield className="h-5 w-5" />
+            {/* Desktop: one grid so matching rows share height in every language */}
+            <Reveal className="mt-10 hidden md:block">
+              <div className="grid grid-cols-2 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-900/10">
+                <div className="flex min-h-[5.5rem] items-center gap-3 border-b border-white/10 bg-gradient-to-br from-blue-800 via-slate-950 to-black px-5 py-4 text-white lg:px-6">
+                  <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-black/25 text-blue-400 ring-1 ring-blue-500/30">
+                    <Shield className="h-5 w-5" strokeWidth={2.25} />
                   </span>
                   <div className="min-w-0">
-                    <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-white/75">{t.recommended}</p>
+                    <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-blue-200/85">{t.recommended}</p>
                     <p className="text-3xl font-black leading-none md:text-[2.1rem]">{t.colWith}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 bg-gradient-to-br from-red-900 via-neutral-950 to-black px-5 py-4 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+                <div className="flex min-h-[5.5rem] items-center gap-3 border-b border-l border-white/10 bg-gradient-to-br from-red-900 via-neutral-950 to-black px-5 py-4 text-white lg:px-6">
                   <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-black/25 text-red-400 ring-1 ring-red-500/30">
                     <AlertTriangle className="h-5 w-5" strokeWidth={2.25} />
                   </span>
@@ -1292,253 +1194,258 @@ export default function Page() {
                     <p className="text-3xl font-black leading-none text-white md:text-[2.1rem]">{t.colWithout}</p>
                   </div>
                 </div>
-              </div>
-              {t.comparisonRows.map((row) => (
-                <div
-                  key={`row-${row.label}`}
-                  className="grid grid-cols-2 border-b border-slate-100 last:border-b-0"
-                >
-                  <div className="flex items-start gap-3 border-r border-slate-100 px-5 py-4 transition-colors duration-200 hover:bg-blue-50">
-                    <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-50">
-                      <Check className="h-4 w-4 text-blue-700" strokeWidth={3} />
-                    </span>
-                    <div className="min-w-0">
-                      <p className="font-extrabold text-slate-900">{row.label}</p>
-                      <p className="text-[15px] leading-relaxed text-slate-600">{row.withVstah}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3 px-5 py-4 transition-colors duration-200 hover:bg-blue-50">
-                    <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-red-50">
-                      <X className="h-4 w-4 text-red-500" strokeWidth={3} />
-                    </span>
-                    <div className="min-w-0">
-                      <p className="font-extrabold text-slate-900">{row.label}</p>
-                      <p className="text-[15px] leading-relaxed text-slate-600">{row.withoutUs}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
 
-        <section id="process" className="scroll-mt-28 border-t border-white/10 bg-white py-16 text-slate-900 md:py-24">
-          <div className="mx-auto max-w-6xl px-4 md:px-6">
-            <p className="text-center text-xs font-black uppercase tracking-[0.25em]" style={{ color: NAVY }}>
-              {t.processEyebrow}
-            </p>
-            <h2 className="mt-3 text-center text-3xl font-black tracking-tight md:text-4xl" style={{ color: NAVY }}>
-              {t.processTitle}
-            </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-center text-base font-medium text-slate-700 md:text-lg">{t.processSubtitle}</p>
-
-            <div className="relative mt-14">
-              <div className="pointer-events-none absolute left-[8%] right-[8%] top-8 hidden h-1 rounded-full opacity-40 lg:block" style={{ background: `linear-gradient(90deg, transparent, ${NAVY}, transparent)` }} aria-hidden />
-              <ol className="relative grid gap-8 lg:grid-cols-4">
-                {t.processSteps.map((step, idx) => {
-                  const Icon = processIcons[Math.min(idx, processIcons.length - 1)] ?? FileText;
+                {t.comparisonRows.map((row, idx) => {
+                  const isLast = idx === t.comparisonRows.length - 1;
                   return (
-                    <li
-                      key={step.step}
-                      className="group relative flex flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white p-7 shadow-lg transition-colors duration-200 hover:border-slate-200 hover:bg-blue-50"
-                    >
-                      <span className="absolute right-4 top-4 font-mono text-5xl font-black text-slate-100">{step.step}</span>
-                      <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-[#0033A0] text-white shadow-lg transition-colors duration-200 group-hover:bg-[#F2A800] group-hover:text-slate-900">
-                        <Icon className="h-7 w-7" strokeWidth={2} />
+                    <div key={row.label} className="contents">
+                      <div
+                        className={`grid grid-cols-[1.75rem_minmax(0,1fr)] items-start gap-3 px-5 py-4 transition-colors duration-200 hover:bg-blue-50 lg:px-6 ${
+                          isLast ? "" : "border-b border-slate-100"
+                        }`}
+                      >
+                        <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-50">
+                          <Check className="h-4 w-4 text-blue-700" strokeWidth={3} />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="font-extrabold leading-snug text-slate-900">{row.label}</p>
+                          <p className="mt-1 text-[15px] leading-snug text-slate-600">{row.withVstah}</p>
+                        </div>
                       </div>
-                      <h3 className="relative mt-5 text-lg font-black" style={{ color: NAVY }}>
-                        {step.title}
-                      </h3>
-                      <p className="relative mt-2 flex-1 text-sm leading-relaxed text-slate-600">{step.desc}</p>
-                      <div className="relative mt-4 flex items-center gap-1 text-xs font-bold uppercase" style={{ color: RED }}>
-                        <ArrowRight className="h-4 w-4" />
-                        VSTAH
+                      <div
+                        className={`grid grid-cols-[1.75rem_minmax(0,1fr)] items-start gap-3 border-l border-slate-100 px-5 py-4 transition-colors duration-200 hover:bg-red-50 lg:px-6 ${
+                          isLast ? "" : "border-b border-slate-100"
+                        }`}
+                      >
+                        <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-red-50">
+                          <X className="h-4 w-4 text-red-500" strokeWidth={3} />
+                        </span>
+                        <div className="min-w-0">
+                          <p className="font-extrabold leading-snug text-slate-900">{row.label}</p>
+                          <p className="mt-1 text-[15px] leading-snug text-slate-600">{row.withoutUs}</p>
+                        </div>
                       </div>
-                    </li>
+                    </div>
                   );
                 })}
-              </ol>
-            </div>
+              </div>
+            </Reveal>
           </div>
-        </section>
-
-        <section className="relative overflow-hidden pt-16 pb-12 md:pt-24 md:pb-16" style={{ background: SITE_BG_GRADIENT }}>
-          <div className="pointer-events-none absolute inset-0 opacity-10" style={{ backgroundImage: `radial-gradient(circle at 20% 20%, ${RED}, transparent 40%)` }} aria-hidden />
-          <div className="relative mx-auto max-w-5xl px-4 text-center md:px-6">
-            <p className="text-xs font-black uppercase tracking-[0.25em] text-white/70">{t.disputeEyebrow}</p>
-            <h2 className="mt-4 text-3xl font-black leading-tight text-white md:text-4xl">{t.disputeTitle}</h2>
-            <p className="mt-5 text-base font-medium leading-relaxed text-white/90 md:text-lg">{t.disputeBody}</p>
-            <div className="mt-8 flex justify-center">
-              <OrangeButton
-                href="/register?next=%2Fdashboard"
-                className="hover:!bg-[#E30A17] hover:!text-white hover:shadow-[0_14px_36px_-6px_rgba(227,10,23,0.45)] active:!bg-[#c40914] focus-visible:!outline-[#E30A17]"
-              >
-                {t.btnStartProtected}
-              </OrangeButton>
-            </div>
-            <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-4">
-              {[
-                { main: t.badge24h, sub: t.badge24hSub, icon: Headphones },
-                { main: t.badgeLaw, sub: t.badgeLawSub, icon: Layers },
-                { main: t.badgeMed, sub: t.badgeMedSub, icon: ListOrdered }
-              ].map(({ main, sub, icon: Icon }, idx) => (
-                <div
-                  key={`dispute-badge-${idx}`}
-                  className="flex min-h-[12rem] min-w-0 flex-col items-center rounded-2xl border border-white/20 bg-white/10 px-4 py-4 text-white backdrop-blur-sm sm:min-h-[13rem]"
-                >
-                  <Icon className="h-6 w-6 shrink-0" style={{ color: ORANGE }} />
-                  <p className={`mt-2 text-center font-black leading-tight [overflow-wrap:anywhere] ${isHy ? "text-base sm:text-lg" : "text-lg sm:text-xl"}`}>
-                    {main}
-                  </p>
-                  <p
-                    className="mt-2 min-w-0 max-w-full text-center text-xs font-medium leading-snug text-white/85 [overflow-wrap:anywhere] sm:text-sm"
-                    title={sub}
-                  >
-                    {sub}
-                  </p>
-                </div>
-              ))}
-            </div>
-          </div>
-
         </section>
 
         <section
-          id="pricing"
-          className="relative scroll-mt-28 bg-slate-50 py-12 md:py-14"
-          aria-label={t.pricingTitle}
+          id="process"
+          className="scroll-mt-28 relative overflow-hidden py-14 text-white md:py-20"
+          style={{ background: SITE_BG_GRADIENT }}
         >
-          <div className="mx-auto max-w-6xl px-4 md:px-6">
-            <div className="rounded-2xl bg-white/95 p-6 shadow-[0_12px_40px_-12px_rgba(15,23,42,0.18)] backdrop-blur-sm md:p-8">
-              <div className="flex flex-col gap-6 md:gap-8">
-                <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between sm:gap-6 md:gap-8">
-                  <div className="min-w-0 flex-1 sm:max-w-md lg:max-w-lg">
-                  <p className="text-xs font-black uppercase tracking-[0.2em]" style={{ color: NAVY }}>
-                    {t.pricingPlanName}
+          <div
+            className="pointer-events-none absolute -left-20 top-10 h-72 w-72 rounded-full bg-white/[0.06] blur-3xl"
+            aria-hidden
+          />
+          <div
+            className="pointer-events-none absolute -right-16 bottom-0 h-80 w-80 rounded-full bg-[#F2A800]/10 blur-3xl"
+            aria-hidden
+          />
+
+          <div className="relative mx-auto max-w-7xl px-4 md:px-6 lg:px-8">
+            <div className="max-w-2xl">
+              <p className="text-[11px] font-black uppercase tracking-[0.22em] text-white/65">{t.processEyebrow}</p>
+              <h2 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">{t.processTitle}</h2>
+              <p className="mt-2 text-sm leading-relaxed text-white/75">{t.processSubtitle}</p>
+            </div>
+
+            <ol className="mt-8 grid gap-3 sm:grid-cols-2 sm:gap-4 lg:mt-10">
+              {t.processSteps.map((step, idx) => {
+                const Icon = processIcons[Math.min(idx, processIcons.length - 1)] ?? FileText;
+                return (
+                  <li key={step.step} className="h-full min-w-0">
+                    <Reveal delay={idx * 35} className="h-full">
+                      <div className="group flex h-full gap-3 rounded-2xl border border-white/15 bg-white/[0.06] p-4 transition duration-300 hover:-translate-y-1 hover:border-white/25 hover:bg-white/[0.1] sm:gap-4 sm:p-5">
+                        <div className="flex shrink-0 flex-col items-center gap-2">
+                          <span className="text-xs font-black tabular-nums tracking-wide text-[#F2A800]">{step.step}</span>
+                          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-[#F2A800] ring-1 ring-white/15 transition duration-300 group-hover:bg-[#F2A800] group-hover:text-slate-900">
+                            <Icon className="h-5 w-5" strokeWidth={2.2} />
+                          </div>
+                        </div>
+                        <div className="min-w-0 pt-0.5">
+                          <h3 className="text-base font-bold leading-snug">{step.title}</h3>
+                          <p className="mt-1.5 text-sm leading-relaxed text-white/70">{step.desc}</p>
+                        </div>
+                      </div>
+                    </Reveal>
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
+        </section>
+
+        <section className="relative overflow-hidden border-t border-[#d7e0ef] bg-[#E8EEF8] py-14 text-slate-900 md:py-20">
+          <div className="pointer-events-none absolute -right-24 top-1/2 h-80 w-80 -translate-y-1/2 rounded-full bg-[#0033A0]/[0.08] blur-3xl" aria-hidden />
+          <div className="pointer-events-none absolute -left-16 bottom-0 h-64 w-64 rounded-full bg-[#E30A17]/[0.06] blur-3xl" aria-hidden />
+
+          <div className="relative mx-auto max-w-7xl px-4 md:px-6 lg:px-8">
+            <Reveal>
+              <div className="flex flex-col gap-5 rounded-2xl border border-[#0033A0]/12 bg-white/80 p-5 shadow-sm sm:p-6 md:flex-row md:items-end md:justify-between md:gap-10 md:p-7">
+                <div className="min-w-0 max-w-2xl">
+                  <p className="text-[11px] font-black uppercase tracking-[0.22em]" style={{ color: RED }}>
+                    {t.disputeEyebrow}
                   </p>
-                  <h2
-                    className={`mt-2 font-black leading-tight tracking-tight text-slate-900 ${
-                      pricingLongLocale ? "text-xl sm:text-2xl" : "text-2xl md:text-[1.65rem]"
-                    }`}
-                  >
-                    {t.pricingTitle}
+                  <h2 className="mt-2 text-2xl font-black leading-tight tracking-tight sm:text-3xl" style={{ color: NAVY }}>
+                    {t.disputeTitle}
                   </h2>
-                  <p className="mt-2 text-sm font-medium leading-relaxed text-slate-600 [overflow-wrap:anywhere]">
-                    {t.pricingSubtitle}
-                  </p>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-600 sm:text-[15px]">{t.disputeBody}</p>
                 </div>
-
-                <div className="w-full shrink-0 sm:w-auto sm:max-w-[min(100%,20rem)]">
-                  <div
-                    className="flex min-h-[4.5rem] items-center justify-center rounded-2xl border border-amber-700/30 px-5 py-4 text-center shadow-sm ring-1 ring-amber-900/15 sm:min-h-0 sm:justify-start sm:px-6 sm:py-5 sm:text-left"
-                    style={{ backgroundColor: ORANGE }}
+                <div className="shrink-0 md:pb-0.5">
+                  <OrangeButton
+                    href="/register?next=%2Fdashboard"
+                    className="w-full hover:!bg-[#E30A17] hover:!text-white hover:shadow-[0_14px_36px_-6px_rgba(227,10,23,0.45)] active:!bg-[#c40914] focus-visible:!outline-[#E30A17] md:w-auto"
                   >
-                    <p
-                      className={`whitespace-nowrap font-black tabular-nums leading-tight tracking-tight text-slate-900 ${
-                        pricingLongLocale ? "text-2xl sm:text-3xl" : "text-3xl md:text-4xl"
-                      }`}
-                    >
-                      {formatProMonthly(t.pricingPerMonth, locale)}
-                    </p>
-                  </div>
+                    {t.btnStartProtected}
+                  </OrangeButton>
                 </div>
-                </div>
+              </div>
+            </Reveal>
 
-                <div className="flex flex-col gap-5 border-t border-slate-200/80 pt-6 lg:flex-row lg:items-end lg:justify-between lg:gap-10">
-                <ul className="min-w-0 flex-1 space-y-3 md:max-w-xl lg:max-w-2xl">
-                  <li className="flex items-start gap-3">
-                    <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 ring-1 ring-emerald-600/15">
-                      <Check className="h-3.5 w-3.5" strokeWidth={3} />
-                    </span>
-                    <span className="min-w-0 text-sm font-semibold leading-snug text-slate-800 [overflow-wrap:anywhere]">
-                      {t.pricingValueFree}
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-3">
-                    <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-[#0033A0] ring-1 ring-[#0033A0]/15">
-                      <Check className="h-3.5 w-3.5" strokeWidth={3} />
-                    </span>
-                    <span className="min-w-0 text-sm font-semibold leading-snug text-slate-700 [overflow-wrap:anywhere]">
-                      {t.pricingValuePro}
-                    </span>
-                  </li>
-                </ul>
+            <ol className="mt-6 grid gap-3 sm:mt-8 sm:grid-cols-3 sm:gap-4">
+              {[
+                { main: t.badge24h, sub: t.badge24hSub, icon: Headphones, accent: NAVY },
+                { main: t.badgeLaw, sub: t.badgeLawSub, icon: Layers, accent: RED },
+                { main: t.badgeMed, sub: t.badgeMedSub, icon: ListOrdered, accent: ORANGE }
+              ].map(({ main, sub, icon: Icon, accent }, idx) => (
+                <li key={`dispute-step-${idx}`} className="h-full min-w-0">
+                  <Reveal delay={idx * 40} className="h-full">
+                    <div className="flex h-full flex-col rounded-2xl border border-[#0033A0]/10 bg-white/70 p-4 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-md sm:p-5">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white"
+                          style={{ backgroundColor: accent }}
+                        >
+                          <Icon className="h-5 w-5" strokeWidth={2.25} />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[10px] font-black uppercase tracking-[0.18em]" style={{ color: accent }}>
+                            0{idx + 1}
+                          </p>
+                          <h3
+                            className={`whitespace-pre-line font-bold leading-snug [overflow-wrap:anywhere] ${
+                              isHy ? "text-sm sm:text-[15px]" : "text-[15px] sm:text-base"
+                            }`}
+                            style={{ color: NAVY }}
+                          >
+                            {main}
+                          </h3>
+                        </div>
+                      </div>
+                      <p className="mt-3 text-sm leading-relaxed text-slate-600" title={sub}>
+                        {sub}
+                      </p>
+                    </div>
+                  </Reveal>
+                </li>
+              ))}
+            </ol>
+          </div>
+        </section>
+        <MarketingPricingFaqSection
+          locale={locale}
+          pricingLongLocale={pricingLongLocale}
+          openFaqIndex={openFaqIndex}
+          onToggleFaq={(index) => setOpenFaqIndex(openFaqIndex === index ? null : index)}
+          pricingPlanName={t.pricingPlanName}
+          pricingTitle={t.pricingTitle}
+          pricingSubtitle={t.pricingSubtitle}
+          pricingPerMonth={t.pricingPerMonth}
+          pricingValueFree={t.pricingValueFree}
+          pricingValuePro={t.pricingValuePro}
+          pricingCta={t.pricingCta}
+          faqEyebrow={t.faqEyebrow}
+          faqTitle={t.faqTitle}
+          faqSubtitle={t.faqSubtitle}
+          faqs={t.faqs}
+        />
+</main>
 
-                <Link
-                  href="/register?next=%2Fdashboard"
-                  className={`group inline-flex w-full shrink-0 items-center justify-center gap-2 rounded-xl bg-[#0033A0] px-5 py-3.5 font-bold text-white shadow-lg shadow-[#0033A0]/30 transition hover:bg-[#002a7a] hover:shadow-xl hover:shadow-[#0033A0]/35 hover:-translate-y-0.5 active:translate-y-0 md:w-auto md:self-end ${
-                    pricingLongLocale
-                      ? "max-w-full text-center text-sm leading-snug sm:px-6 lg:max-w-[15rem] xl:max-w-[17rem]"
-                      : "text-sm sm:px-6 lg:min-w-[12.5rem]"
-                  }`}
+      <footer className="border-t border-slate-200 bg-white text-slate-600">
+        <div className="mx-auto w-full max-w-6xl px-4 py-10 md:px-6 md:py-12">
+          <div className="flex w-full flex-col gap-10 sm:flex-row sm:flex-wrap sm:justify-between sm:gap-x-8 sm:gap-y-10 lg:flex-nowrap">
+            <div className="min-w-0 shrink-0 sm:max-w-[14rem]">
+              <div className="flex items-center gap-2">
+                <img src="/logo-vstah-clean.png" alt="VSTAH logo" className="h-8 w-8 shrink-0 object-contain" />
+                <span className="text-base font-semibold tracking-tight text-slate-900">{t.brand}</span>
+              </div>
+              <p className="mt-3 text-sm leading-relaxed text-slate-500">{t.footerTagline}</p>
+            </div>
+
+            <div className="min-w-0 shrink-0">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-900">{t.footerCompany}</p>
+              <ul className="mt-3 space-y-2 text-sm">
+                <li>
+                  <Link href="/" className="text-slate-600 transition hover:text-slate-900">
+                    {t.navHome}
+                  </Link>
+                </li>
+                <li>
+                  <a href="#difference" className="text-slate-600 transition hover:text-slate-900">
+                    {t.navHowItWorks}
+                  </a>
+                </li>
+                <li>
+                  <a href="#pricing" className="text-slate-600 transition hover:text-slate-900">
+                    {t.navPricing}
+                  </a>
+                </li>
+              </ul>
+            </div>
+
+            <div className="min-w-0 shrink-0">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-900">{t.footerLegal}</p>
+              <ul className="mt-3 space-y-2 text-sm">
+                <li>
+                  <Link href="/terms" className="text-slate-600 transition hover:text-slate-900">
+                    {t.footerTerms}
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/privacy" className="text-slate-600 transition hover:text-slate-900">
+                    {t.footerPrivacy}
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            <div className="min-w-0 shrink-0 sm:text-right">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-900">{t.footerFollow}</p>
+              <div className="mt-3 flex items-center gap-3 sm:justify-end">
+                <a
+                  href="https://instagram.com/vstah.am"
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label="Instagram"
+                  className="text-slate-500 transition hover:text-slate-800"
                 >
-                  <span className="[overflow-wrap:anywhere]">{t.pricingCta}</span>
-                  <ArrowRight className="h-4 w-4 shrink-0 transition group-hover:translate-x-0.5" strokeWidth={2.5} />
-                </Link>
-                </div>
+                  <Instagram className="h-5 w-5" />
+                </a>
+                <a
+                  href="https://facebook.com/vstah.am"
+                  target="_blank"
+                  rel="noreferrer"
+                  aria-label="Facebook"
+                  className="text-slate-500 transition hover:text-slate-800"
+                >
+                  <Facebook className="h-5 w-5" />
+                </a>
               </div>
             </div>
           </div>
-        </section>
-      </main>
+        </div>
 
-      <footer className="bg-slate-50 py-10 text-slate-700 md:py-12">
-        <div className="mx-auto grid max-w-6xl gap-8 px-4 md:grid-cols-[1.6fr_1fr_1fr] md:gap-10 md:px-6">
-          <div className="space-y-2.5">
-            <div className="flex items-center gap-2">
-              <img src="/logo-vstah-clean.png" alt="VSTAH logo" className="h-9 w-9 shrink-0 object-contain" />
-              <span className="text-lg font-bold tracking-tight md:text-xl" style={{ color: NAVY }}>
-                {t.brand}
-              </span>
-            </div>
-            <p className="max-w-md text-sm leading-relaxed text-slate-600">{t.footerTagline}</p>
-          </div>
-
-          <div className="space-y-2 text-sm">
-            <p>
-              <Link href="/" className="font-medium text-slate-900 underline-offset-4 transition hover:underline">
-                {t.navHome}
-              </Link>
-            </p>
-            <p>
-              <Link href="/terms" className="text-slate-600 underline-offset-4 transition hover:text-slate-900 hover:underline">
-                {t.footerTerms}
-              </Link>
-            </p>
-            <p>
-              <Link href="/privacy" className="text-slate-600 underline-offset-4 transition hover:text-slate-900 hover:underline">
-                {t.footerPrivacy}
-              </Link>
-            </p>
-          </div>
-
-          <div className="space-y-2.5 text-sm">
-            <p className="font-medium text-slate-900">{t.footerFollow}</p>
-            <div className="flex items-center gap-2.5">
-              <a
-                href="https://instagram.com/vstah.am"
-                target="_blank"
-                rel="noreferrer"
-                aria-label="Instagram"
-                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-[#E4405F] transition hover:opacity-90"
-              >
-                <Instagram className="h-5 w-5" />
-              </a>
-              <a
-                href="https://facebook.com/vstah.am"
-                target="_blank"
-                rel="noreferrer"
-                aria-label="Facebook"
-                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-[#1877F2] transition hover:opacity-90"
-              >
-                <Facebook className="h-5 w-5" />
-              </a>
-            </div>
+        <div className="border-t border-slate-200">
+          <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-4 md:px-6">
             <p className="text-xs text-slate-500">{t.footerRights}</p>
           </div>
         </div>
       </footer>
     </div>
-    </ComingSoonOverlay>
   );
 }

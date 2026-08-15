@@ -24,7 +24,7 @@ export type CreateDealCopy = {
 
 export const createDealCopy: Record<Language, CreateDealCopy> = {
   en: {
-    eyebrow: "Escrow",
+    eyebrow: "Protected deal",
     title: "Create a deal",
     subtitle: "Define your renovation project and deposit terms. Data is structured for your database.",
     projectTitle: "Project title",
@@ -45,7 +45,7 @@ export const createDealCopy: Record<Language, CreateDealCopy> = {
     backHome: "Back to home"
   },
   hy: {
-    eyebrow: "Էսկրոու",
+    eyebrow: "Պաշտպանված գործարք",
     title: "Ստեղծել գործարք",
     subtitle:
       "Վերանորոգման նախագիծ և դեպոզիտ։ Տվյալները՝ պատրաստ բազային։",
@@ -67,7 +67,7 @@ export const createDealCopy: Record<Language, CreateDealCopy> = {
     backHome: "Գլխավոր"
   },
   ru: {
-    eyebrow: "Эскроу",
+    eyebrow: "Защищённая сделка",
     title: "Создать соглашение",
     subtitle:
       "Опишите ремонт и условия депозита. Поля уже в формате для сохранения в базу.",
@@ -113,7 +113,7 @@ export const protectCopy: Record<Language, ProtectCopy> = {
   en: {
     eyebrow: "Protection",
     title: "Protect my project",
-    subtitle: "Invite your contractor to a clear, escrow-backed agreement.",
+    subtitle: "Invite your contractor to a clear, protected agreement.",
     yourEmail: "Your email",
     yourNameOptional: "Your name (optional)",
     contractorEmail: "Contractor email to invite",
@@ -130,8 +130,8 @@ export const protectCopy: Record<Language, ProtectCopy> = {
   },
   hy: {
     eyebrow: "Պաշտպանություն",
-    title: "Պաշտպանել նախագիծը",
-    subtitle: "Հրավիրեք կապալառուն՝ պարզ պայմանագիր էսկրոուով։",
+    title: "Պաշտպանեք նախագիծը",
+    subtitle: "Հրավիրեք կապալառուն՝ պարզ պաշտպանված պայմանագիր։",
     yourEmail: "Էլ․ փոստ",
     yourNameOptional: "Անուն (ըստ ցանկության)",
     contractorEmail: "Կապալառուի էլ․ փոստ",
@@ -149,7 +149,7 @@ export const protectCopy: Record<Language, ProtectCopy> = {
   ru: {
     eyebrow: "Защита",
     title: "Защитить проект",
-    subtitle: "Пригласите подрядчика к прозрачному соглашению с оплатой через эскроу.",
+    subtitle: "Пригласите подрядчика к прозрачному соглашению с защитой платежа.",
     yourEmail: "Эл. почта",
     yourNameOptional: "Ваше имя (необязательно)",
     contractorEmail: "Эл. почта подрядчика для приглашения",
@@ -209,7 +209,7 @@ export const dealPageCopy: Record<Language, DealPageCopy> = {
     terms: "Terms",
     paymentInstructions: "Payment instructions",
     paymentInstructionsBody:
-      "Sign by proceeding with the protected deposit flow. Funds remain held in escrow until milestones are approved.",
+      "Sign by proceeding with the protected deposit flow. Funds remain held until milestones are approved.",
     approveConfirm:
       "Are you sure the work is completed? This will authorize VSTAH to pay the contractor.",
     approveFailed: "Failed to approve payment. Please try again.",
@@ -237,7 +237,7 @@ export const dealPageCopy: Record<Language, DealPageCopy> = {
     terms: "Պայմաններ",
     paymentInstructions: "Վճարման քայլեր",
     paymentInstructionsBody:
-      "Անցեք դեպոզիտի քայլերին։ Գումարը մնում է էսկրոուում՝ մինչև փուլերի հաստատումը։",
+      "Անցեք դեպոզիտի քայլերին։ Գումարը մնում է պահված՝ մինչև փուլերի հաստատումը։",
     approveConfirm:
       "Աշխատանքը ավարտված է՞ VSTAH-ը կփոխանցի կապալառուին։",
     approveFailed: "Չհաջողվեց հաստատել։ Փորձեք կրկին։",
@@ -246,7 +246,7 @@ export const dealPageCopy: Record<Language, DealPageCopy> = {
     approveRelease: "Հաստատել և արձակել",
     statusDraft: "Սևագիր",
     statusPendingDeposit: "Սպասում է դեպոզիտին",
-    statusFundsSecured: "Գումարը՝ էսկրոուում",
+    statusFundsSecured: "Գումարը պահվում է",
     statusPaymentRequested: "Վճարման սպասում",
     statusCompleted: "Ավարտված"
   },
@@ -265,7 +265,7 @@ export const dealPageCopy: Record<Language, DealPageCopy> = {
     terms: "Условия",
     paymentInstructions: "Как оплатить",
     paymentInstructionsBody:
-      "Пройдите защищённый депозит. Средства остаются в эскроу до приёмки этапов.",
+      "Пройдите защищённый депозит. Средства остаются удержанными до приёмки этапов.",
     approveConfirm:
       "Работы завершены? После подтверждения VSTAH переведёт оплату исполнителю.",
     approveFailed: "Не удалось подтвердить выплату. Попробуйте снова.",
@@ -274,7 +274,7 @@ export const dealPageCopy: Record<Language, DealPageCopy> = {
     approveRelease: "Подтвердить и выплатить",
     statusDraft: "Черновик",
     statusPendingDeposit: "Ожидает депозита",
-    statusFundsSecured: "Средства в эскроу",
+    statusFundsSecured: "Средства удерживаются",
     statusPaymentRequested: "Запрошена выплата",
     statusCompleted: "Завершено"
   }

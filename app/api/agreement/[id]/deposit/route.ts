@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { recordActivityEvent } from "@/lib/admin/activity";
 import { normalizeAgreementRow, type Milestone } from "@/lib/agreements/row";
 import { getAgreementServerClient } from "@/lib/supabase/agreement-server";
 
@@ -96,6 +97,15 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
         { status: 403 }
       );
     }
+    await recordActivityEvent(
+      {
+        actor_type: "user",
+        action: "deposit.confirmed",
+        agreement_id: agreementId,
+        meta: { milestoneIndex, source: "deposit_api" }
+      },
+      supabase
+    );
     return NextResponse.json({ ok: true });
   }
 
@@ -117,5 +127,14 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       { status: 403 }
     );
   }
+  await recordActivityEvent(
+    {
+      actor_type: "user",
+      action: "deposit.confirmed",
+      agreement_id: agreementId,
+      meta: { milestoneIndex: -1, source: "deposit_api" }
+    },
+    supabase
+  );
   return NextResponse.json({ ok: true });
 }

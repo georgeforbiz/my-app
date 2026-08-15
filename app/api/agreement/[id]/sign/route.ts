@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { recordActivityEvent } from "@/lib/admin/activity";
 import { getAgreementServerClient } from "@/lib/supabase/agreement-server";
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
@@ -74,6 +75,16 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   const updatedRow = updatedRows[0] as { client_signature?: string | null };
   const signatureStored =
     typeof updatedRow?.client_signature === "string" && updatedRow.client_signature.length > 0;
+
+  await recordActivityEvent(
+    {
+      actor_type: "user",
+      action: "agreement.signed",
+      agreement_id: agreementId,
+      meta: { signatureSaved: Boolean(normalizedSignature) }
+    },
+    supabase
+  );
 
   return NextResponse.json({
     ok: true,
