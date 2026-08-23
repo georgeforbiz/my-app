@@ -1,4 +1,3 @@
-"use client";
 
 import type { Language } from "@/lib/i18n/locales";
 import { formatDateDMY } from "@/lib/format-date";

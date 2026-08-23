@@ -167,7 +167,7 @@ export default function LoginPage() {
   const showResend = Boolean(error && error.toLowerCase().includes("confirm"));
 
   return (
-    <VstahShell eyebrow={tx.eyebrow} title={tx.title} subtitle={tx.subtitle}>
+    <VstahShell eyebrow={tx.eyebrow} title={tx.title} subtitle={tx.subtitle} hideAuthControls hideHeader>
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         <FormField
           id="email"

@@ -18,7 +18,7 @@ function isMainProductionDomain(): boolean {
 export function ComingSoonOverlay({ children }: ComingSoonOverlayProps) {
   const searchParams = useSearchParams();
   const enabledByEnv = process.env.NEXT_PUBLIC_COMING_SOON === "1";
-  const [onMainDomain, setOnMainDomain] = useState(() => isMainProductionDomain());
+  const [onMainDomain] = useState(() => isMainProductionDomain());
 
   const bypassOverlay = useMemo(() => {
     const adminParam = searchParams.get("admin");

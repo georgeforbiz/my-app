@@ -52,6 +52,8 @@ export default function AdminActivityPage() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let cancelled = false;
+
     void (async () => {
       setLoading(true);
       try {
@@ -65,6 +67,7 @@ export default function AdminActivityPage() {
           events?: ActivityEvent[];
           derived?: Derived;
         };
+        if (cancelled) return;
         if (!res.ok) {
           setError(data.error ?? "Failed to load activity.");
           return;
@@ -74,11 +77,15 @@ export default function AdminActivityPage() {
         setWarning(data.warning ?? "");
         setError("");
       } catch {
-        setError("Failed to load activity.");
+        if (!cancelled) setError("Failed to load activity.");
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return (

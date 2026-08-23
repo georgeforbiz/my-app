@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin/require-admin";
 import { getAdminSupabase } from "@/lib/admin/supabase";
+import { withAdminTimeout } from "@/lib/admin/with-timeout";
 
 export const dynamic = "force-dynamic";
 
@@ -60,13 +61,16 @@ export async function GET() {
   }
   const { supabase } = client;
 
-  let usersRes: { count: number | null; error: { message: string } | null };
+  let usersRes: {
+    data: { users: unknown[]; total?: number };
+    error: { message: string } | null;
+  };
   let agreementsRes: { data: unknown[] | null; error: { message: string } | null };
   let pendingRes: { data: unknown[] | null; error: { message: string } | null };
 
   try {
-    [usersRes, agreementsRes, pendingRes] = await Promise.all([
-      supabase.from("profiles").select("id", { count: "exact", head: true }),
+    [usersRes, agreementsRes, pendingRes] = await withAdminTimeout(Promise.all([
+      supabase.auth.admin.listUsers({ page: 1, perPage: 1000 }),
       supabase
         .from("agreements")
         .select("id,status,payment_status,created_at,client_name,project_title,total_price"),
@@ -74,7 +78,7 @@ export async function GET() {
         .from("deposit_verifications")
         .select("id,agreement_id,milestone_index,submitted_at")
         .eq("status", "submitted")
-    ]);
+    ]));
   } catch (err) {
     const msg = err instanceof Error ? err.message : "fetch failed";
     return NextResponse.json(
@@ -95,7 +99,7 @@ export async function GET() {
     project_title?: string;
     total_price?: number;
   }>;
-  const userCount = usersRes.error ? 0 : usersRes.count ?? 0;
+  const userCount = usersRes.error ? 0 : usersRes.data.total ?? usersRes.data.users.length;
   const pendingDeps = (pendingRes.error ? [] : pendingRes.data ?? []) as Array<{
     agreement_id: string;
     milestone_index: number;

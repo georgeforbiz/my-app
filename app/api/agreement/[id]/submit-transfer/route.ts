@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { recordActivityEvent } from "@/lib/admin/activity";
+import { withAdminTimeout } from "@/lib/admin/with-timeout";
 import { normalizeAgreementRow } from "@/lib/agreements/row";
 import { getAgreementServerClient } from "@/lib/supabase/agreement-server";
 
@@ -29,11 +30,15 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     // default total
   }
 
-  const { data: raw, error: fetchError } = await supabase
-    .from("agreements")
-    .select("*")
-    .eq("id", agreementId)
-    .single();
+  let raw: unknown = null;
+  let fetchError: { message: string } | null = null;
+  try {
+    ({ data: raw, error: fetchError } = await withAdminTimeout(
+      supabase.from("agreements").select("*").eq("id", agreementId).single()
+    ));
+  } catch {
+    return NextResponse.json({ error: "Supabase is unavailable." }, { status: 503 });
+  }
 
   if (fetchError || !raw) {
     return NextResponse.json({ error: fetchError?.message ?? "Agreement not found." }, { status: 404 });
@@ -59,23 +64,41 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     }
   }
 
-  const { data: existing } = await supabase
-    .from("deposit_verifications")
-    .select("id")
-    .eq("agreement_id", agreementId)
-    .eq("milestone_index", milestoneIndex)
-    .eq("status", "submitted")
-    .maybeSingle();
+  let existing: { id: string } | null = null;
+  try {
+    const result = await withAdminTimeout(
+      supabase
+        .from("deposit_verifications")
+        .select("id")
+        .eq("agreement_id", agreementId)
+        .eq("milestone_index", milestoneIndex)
+        .eq("status", "submitted")
+        .maybeSingle()
+    );
+    existing = result.data as { id: string } | null;
+    if (result.error) {
+      return NextResponse.json({ error: result.error.message }, { status: 500 });
+    }
+  } catch {
+    return NextResponse.json({ error: "Supabase is unavailable." }, { status: 503 });
+  }
 
   if (existing) {
     return NextResponse.json({ ok: true, alreadySubmitted: true });
   }
 
-  const { error: insertError } = await supabase.from("deposit_verifications").insert({
-    agreement_id: agreementId,
-    milestone_index: milestoneIndex,
-    status: "submitted"
-  });
+  let insertError: { message: string } | null = null;
+  try {
+    ({ error: insertError } = await withAdminTimeout(
+      supabase.from("deposit_verifications").insert({
+        agreement_id: agreementId,
+        milestone_index: milestoneIndex,
+        status: "submitted"
+      })
+    ));
+  } catch {
+    return NextResponse.json({ error: "Supabase is unavailable." }, { status: 503 });
+  }
 
   if (insertError) {
     return NextResponse.json(

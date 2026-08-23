@@ -5,7 +5,7 @@
 @layer base {
   :root {
     color-scheme: light;
-    --vstah-navy: #003366;
+    --vstah-navy: #0033A0;
     --vstah-navy-dark: #00264d;
     --vstah-surface: #f8fafc;
   }
@@ -105,6 +105,76 @@ body {
     animation-delay: var(--vstah-delay, 0ms);
   }
 
+  .vstah-soft-shadow {
+    box-shadow:
+      0 1px 2px rgba(15, 23, 42, 0.04),
+      0 4px 12px -4px rgba(15, 23, 42, 0.06);
+  }
+
+  .vstah-soft-shadow-lg {
+    box-shadow:
+      0 2px 4px rgba(15, 23, 42, 0.04),
+      0 8px 20px -6px rgba(15, 23, 42, 0.07);
+  }
+
+  .vstah-soft-shadow-hero {
+    box-shadow:
+      0 6px 20px -6px rgba(2, 6, 23, 0.18),
+      0 2px 8px -2px rgba(2, 6, 23, 0.1);
+  }
+
+  .vstah-soft-shadow-feature {
+    box-shadow:
+      0 1px 2px rgba(15, 23, 42, 0.03),
+      0 3px 10px -3px rgba(15, 23, 42, 0.05);
+  }
+
+  @keyframes vstah-pulse-dot {
+    0%,
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.35;
+      transform: scale(0.78);
+    }
+  }
+
+  .vstah-pulse-dot {
+    animation: vstah-pulse-dot 1.7s ease-in-out infinite;
+  }
+
+  @keyframes vstah-pain-in {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes vstah-pain-out {
+    from {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(-4px);
+    }
+  }
+
+  .vstah-pain-in {
+    animation: vstah-pain-in 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .vstah-pain-out {
+    animation: vstah-pain-out 0.28s ease-in both;
+  }
+
   .vstah-reveal {
     opacity: 0;
     transform: translateY(12px);
@@ -141,6 +211,17 @@ body {
   @media (prefers-reduced-motion: reduce) {
     .vstah-animate-in {
       animation: none !important;
+    }
+
+    .vstah-pulse-dot {
+      animation: none !important;
+    }
+
+    .vstah-pain-in,
+    .vstah-pain-out {
+      animation: none !important;
+      opacity: 1 !important;
+      transform: none !important;
     }
 
     .vstah-reveal {

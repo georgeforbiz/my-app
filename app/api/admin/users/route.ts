@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin/require-admin";
 import { getAdminSupabase } from "@/lib/admin/supabase";
+import { withAdminTimeout } from "@/lib/admin/with-timeout";
 
 export const dynamic = "force-dynamic";
 
@@ -28,25 +29,40 @@ export async function GET(request: NextRequest) {
 
   const q = (request.nextUrl.searchParams.get("q") ?? "").trim().toLowerCase();
 
-  const { data: profiles, error } = await supabase
-    .from("profiles")
-    .select(
-      "id,email,full_name,business_name,phone_number,service_category,service_area,created_at"
+  const [authResult, profileResult, agreementResult] = await Promise.all([
+    withAdminTimeout(supabase.auth.admin.listUsers({ page: 1, perPage: 1000 }))
+      .then((result) => ({ result, message: "" }))
+      .catch((error: unknown) => ({
+        result: null,
+        message: error instanceof Error ? error.message : "Could not load auth users."
+      })),
+    withAdminTimeout(
+      supabase
+        .from("profiles")
+        .select("id,email,full_name,business_name,phone_number,service_category,service_area,created_at")
+        .order("created_at", { ascending: false })
     )
-    .order("created_at", { ascending: false });
+      .then((result) => ({ result, message: "" }))
+      .catch((error: unknown) => ({
+        result: null,
+        message: error instanceof Error ? error.message : "Could not load profiles."
+      })),
+    withAdminTimeout(supabase.from("agreements").select("provider_id"))
+      .then((result) => ({ result, message: "" }))
+      .catch((error: unknown) => ({
+        result: null,
+        message: error instanceof Error ? error.message : "Could not load agreement counts."
+      }))
+  ]);
 
-  if (error) {
-    const soft =
-      error.message.toLowerCase().includes("fetch failed") ||
-      error.message.toLowerCase().includes("failed to fetch")
-        ? "Supabase is unreachable from this server. Local mock users may still appear below."
-        : error.message;
-    return NextResponse.json({ total: 0, filtered: 0, users: [], error: soft }, { status: 200 });
-  }
+  const profileError = profileResult.result?.error?.message ?? profileResult.message;
+  const authError = authResult.result?.error?.message ?? authResult.message;
+  const agreementError = agreementResult.result?.error?.message ?? agreementResult.message;
 
-  const rows = (profiles ?? []) as Omit<AdminUserRow, "agreement_count">[];
-
-  const { data: agreements } = await supabase.from("agreements").select("provider_id");
+  const profiles = (profileResult.result?.data ?? []) as Omit<AdminUserRow, "agreement_count">[];
+  const profilesById = new Map(profiles.map((profile) => [profile.id, profile]));
+  const authUsers = authResult.result?.data.users ?? [];
+  const agreements = agreementResult.result?.data ?? [];
   const counts: Record<string, number> = {};
   for (const row of agreements ?? []) {
     const pid = String((row as { provider_id?: string }).provider_id ?? "");
@@ -54,12 +70,33 @@ export async function GET(request: NextRequest) {
     counts[pid] = (counts[pid] ?? 0) + 1;
   }
 
-  let users: AdminUserRow[] = rows.map((p) => ({
-    ...p,
-    full_name: p.full_name ?? "",
-    business_name: p.business_name ?? "",
-    agreement_count: counts[p.id] ?? 0
-  }));
+  // Auth is the source of truth. Profiles only enrich contact/business fields.
+  // Fall back to profiles for projects where auth.admin.listUsers is unavailable.
+  let users: AdminUserRow[] =
+    authUsers.length > 0
+      ? authUsers.map((authUser) => {
+          const profile = profilesById.get(authUser.id);
+          const metadata = authUser.user_metadata as Record<string, unknown> | undefined;
+          return {
+            id: authUser.id,
+            email: authUser.email ?? profile?.email ?? "",
+            full_name: profile?.full_name ?? String(metadata?.full_name ?? ""),
+            business_name: profile?.business_name ?? String(metadata?.business_name ?? ""),
+            phone_number: profile?.phone_number ?? (metadata?.phone_number ? String(metadata.phone_number) : null),
+            service_category:
+              profile?.service_category ?? (metadata?.service_category ? String(metadata.service_category) : null),
+            service_area: profile?.service_area ?? (metadata?.service_area ? String(metadata.service_area) : null),
+            created_at: authUser.created_at ?? profile?.created_at ?? "",
+            agreement_count: counts[authUser.id] ?? 0
+          };
+        })
+      : profiles.map((profile) => ({
+          ...profile,
+          full_name: profile.full_name ?? "",
+          business_name: profile.business_name ?? "",
+          agreement_count: counts[profile.id] ?? 0
+        }));
+  const total = users.length;
 
   if (q) {
     users = users.filter((u) => {
@@ -79,8 +116,16 @@ export async function GET(request: NextRequest) {
   }
 
   return NextResponse.json({
-    total: rows.length,
+    total,
     filtered: users.length,
-    users
+    users,
+    ...((authError || profileError || agreementError) && users.length === 0
+      ? {
+          error:
+            "Supabase is unavailable right now. The admin page stopped waiting and is showing local browser accounts."
+        }
+      : profileError || agreementError
+        ? { warning: "Some profile details or deal counts could not be loaded." }
+        : {})
   });
 }

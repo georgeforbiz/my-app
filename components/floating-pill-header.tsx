@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Check, Globe, Menu, X } from "lucide-react";
 import { useMemo } from "react";
+import { VstahLogo } from "@/components/vstah-logo";
 import { ORANGE } from "@/lib/brand";
 import { useLanguage } from "@/lib/i18n/language-context";
 import type { Language } from "@/lib/i18n/locales";
@@ -90,7 +91,7 @@ export function FloatingPillHeader({
         aria-label={tx.langSwitcherAria}
         className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition hover:bg-slate-100 sm:h-11 sm:w-11"
       >
-        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-[#F2A800] via-[#D90012] to-[#0033A0] text-white shadow-sm sm:h-8 sm:w-8">
+        <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-[#F2A800] via-[#E30A17] to-[#0033A0] text-white shadow-sm sm:h-8 sm:w-8">
           <Globe className={compact ? "h-4 w-4" : "h-5 w-5"} />
         </span>
       </button>
@@ -168,11 +169,7 @@ export function FloatingPillHeader({
               href="/"
               className="flex min-w-0 shrink items-center gap-2 text-slate-900 sm:gap-2.5"
             >
-              <img
-                src="/logo-vstah-clean.png"
-                alt="VSTAH logo"
-                className="h-9 w-9 shrink-0 object-contain sm:h-10 sm:w-10 md:h-11 md:w-11"
-              />
+              <VstahLogo size={36} alt="VSTAH logo" className="h-9 w-9 sm:h-10 sm:w-10 md:h-11 md:w-11" priority />
               <span className="truncate text-base font-bold tracking-tight sm:text-lg md:text-xl">{tx.brand}</span>
             </Link>
 

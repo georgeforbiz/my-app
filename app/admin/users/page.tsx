@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { listLocalAgreements } from "@/lib/agreements/local-store";
 import { listMockUsers } from "@/lib/auth/mock-storage";
 import { formatDateDMY } from "@/lib/format-date";
@@ -38,8 +38,12 @@ export default function AdminUsersPage() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [notice, setNotice] = useState("");
+  const loadSeqRef = useRef(0);
 
   const load = useCallback(async (q: string) => {
+    const seq = ++loadSeqRef.current;
+    const isStale = () => seq !== loadSeqRef.current;
+
     setLoading(true);
     const local = localUsers();
     try {
@@ -50,12 +54,14 @@ export default function AdminUsersPage() {
       });
       const data = (await res.json().catch(() => ({}))) as {
         error?: string;
+        warning?: string;
         total?: number;
         users?: AdminUser[];
       };
 
       const cloud = data.users ?? [];
-      if (!res.ok || cloud.length === 0) {
+      if (!res.ok) {
+        if (isStale()) return;
         const filtered = q.trim()
           ? local.filter((u) =>
               [u.email, u.full_name, u.business_name, u.phone_number]
@@ -71,6 +77,24 @@ export default function AdminUsersPage() {
           data.error ||
             "Cloud users unavailable — showing mock accounts registered in this browser."
         );
+        return;
+      }
+
+      // Empty cloud with an API error still means the backend is down.
+      if (cloud.length === 0 && data.error) {
+        if (isStale()) return;
+        const filtered = q.trim()
+          ? local.filter((u) =>
+              [u.email, u.full_name, u.business_name, u.phone_number]
+                .filter(Boolean)
+                .join(" ")
+                .toLowerCase()
+                .includes(q.trim().toLowerCase())
+            )
+          : local;
+        setUsers(filtered);
+        setTotal(local.length);
+        setNotice(data.error);
         return;
       }
 
@@ -91,10 +115,12 @@ export default function AdminUsersPage() {
             .includes(needle)
         );
       }
+      if (isStale()) return;
       setUsers(merged);
       setTotal(Math.max(data.total ?? cloud.length, local.length));
-      setNotice(data.error ?? "");
+      setNotice(data.warning ?? data.error ?? "");
     } catch {
+      if (isStale()) return;
       const filtered = q.trim()
         ? local.filter((u) =>
             [u.email, u.full_name, u.business_name].join(" ").toLowerCase().includes(q.trim().toLowerCase())
@@ -104,7 +130,7 @@ export default function AdminUsersPage() {
       setTotal(local.length);
       setNotice("Cloud users unavailable — showing mock accounts registered in this browser.");
     } finally {
-      setLoading(false);
+      if (!isStale()) setLoading(false);
     }
   }, []);
 
@@ -137,6 +163,7 @@ export default function AdminUsersPage() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search email, phone, name, business…"
+          aria-label="Search users"
           className="mt-4 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500 md:max-w-md"
         />
       </header>

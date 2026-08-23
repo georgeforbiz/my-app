@@ -39,8 +39,8 @@ export function FormField({
   return (
     <div className={wrapperClassName}>
       {labelExtra ? (
-        <div className="flex items-center justify-between gap-2">
-          <label htmlFor={id} className="block text-sm font-semibold text-slate-700">
+        <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
+          <label htmlFor={id} className="block min-w-0 shrink text-sm font-semibold text-slate-700">
             {label}
           </label>
           {labelExtra}

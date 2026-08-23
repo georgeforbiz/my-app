@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { requireAdmin } from "@/lib/admin/require-admin";
 import { getAdminSupabase } from "@/lib/admin/supabase";
+import { withAdminTimeout } from "@/lib/admin/with-timeout";
 
 export const dynamic = "force-dynamic";
 
@@ -15,11 +16,23 @@ export async function GET() {
   }
   const { supabase } = client;
 
-  const { data: events, error } = await supabase
-    .from("activity_events")
-    .select("id,created_at,actor_type,actor_id,action,agreement_id,meta")
-    .order("created_at", { ascending: false })
-    .limit(100);
+  let events: unknown[] | null = [];
+  let error: { message: string } | null = null;
+  try {
+    ({ data: events, error } = await withAdminTimeout(
+      supabase
+        .from("activity_events")
+        .select("id,created_at,actor_type,actor_id,action,agreement_id,meta")
+        .order("created_at", { ascending: false })
+        .limit(100)
+    ));
+  } catch {
+    return NextResponse.json({
+      events: [],
+      derived: { recentUsers: [], recentAgreements: [] },
+      warning: "Supabase is unavailable right now. Activity loading was stopped instead of delaying the panel."
+    });
+  }
 
   if (error) {
     if (
@@ -41,21 +54,27 @@ export async function GET() {
 }
 
 async function buildDerivedHistory(supabase: SupabaseClient) {
-  const [{ data: profiles }, { data: agreements }] = await Promise.all([
-    supabase
-      .from("profiles")
-      .select("id,email,full_name,business_name,created_at")
-      .order("created_at", { ascending: false })
-      .limit(25),
-    supabase
-      .from("agreements")
-      .select("id,client_name,project_title,status,payment_status,created_at,total_price")
-      .order("created_at", { ascending: false })
-      .limit(25)
-  ]);
+  try {
+    const [{ data: profiles }, { data: agreements }] = await withAdminTimeout(
+      Promise.all([
+        supabase
+          .from("profiles")
+          .select("id,email,full_name,business_name,created_at")
+          .order("created_at", { ascending: false })
+          .limit(25),
+        supabase
+          .from("agreements")
+          .select("id,client_name,project_title,status,payment_status,created_at,total_price")
+          .order("created_at", { ascending: false })
+          .limit(25)
+      ])
+    );
 
-  return {
-    recentUsers: profiles ?? [],
-    recentAgreements: agreements ?? []
-  };
+    return {
+      recentUsers: profiles ?? [],
+      recentAgreements: agreements ?? []
+    };
+  } catch {
+    return { recentUsers: [], recentAgreements: [] };
+  }
 }

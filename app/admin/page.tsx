@@ -100,6 +100,8 @@ export default function AdminOverviewPage() {
     const local = localStats();
     setStats(local);
 
+    let cancelled = false;
+
     void (async () => {
       setLoading(true);
       try {
@@ -109,6 +111,8 @@ export default function AdminOverviewPage() {
           warning?: string;
           source?: string;
         };
+
+        if (cancelled) return;
 
         const cloud: Stats = {
           users: Number(data.users ?? 0),
@@ -140,12 +144,18 @@ export default function AdminOverviewPage() {
           setNotice(data.warning ?? "");
         }
       } catch {
-        setStats(local);
-        setNotice("Cloud data unavailable — showing local demo data from this browser.");
+        if (!cancelled) {
+          setStats(local);
+          setNotice("Cloud data unavailable — showing local demo data from this browser.");
+        }
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const cards = [
@@ -183,7 +193,7 @@ export default function AdminOverviewPage() {
         {cards.map((card) => (
           <div key={card.label} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{card.label}</p>
-            <p className={`mt-2 text-3xl font-black text-[#0033A0] ${loading ? "opacity-50" : ""}`}>
+            <p className="mt-2 text-3xl font-black text-[#0033A0]">
               {card.value}
             </p>
           </div>

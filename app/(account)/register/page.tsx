@@ -190,7 +190,14 @@ export default function RegisterPage() {
   }
 
   return (
-    <VstahShell eyebrow={tx.eyebrow} title={tx.title} subtitle={tx.subtitle} maxWidthClass="max-w-2xl">
+    <VstahShell
+      eyebrow={tx.eyebrow}
+      title={tx.title}
+      subtitle={tx.subtitle}
+      maxWidthClass="max-w-2xl"
+      hideAuthControls
+      hideHeader
+    >
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         <div className="grid gap-5 md:grid-cols-2">
           <FormField

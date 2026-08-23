@@ -515,6 +515,9 @@ export default function DashboardPage() {
   const termsHydratedRef = useRef(false);
   /** Protects against overwriting user-typed terms mid-session. */
   const termsDirtyRef = useRef(false);
+  const contractTermsRef = useRef(contractTerms);
+  const agreementsFetchSeqRef = useRef(0);
+  contractTermsRef.current = contractTerms;
 
   useEffect(() => {
     setMockPlan(readMockPlan());
@@ -625,16 +628,6 @@ export default function DashboardPage() {
   const getDerivedStatus = (agreement: Agreement): DerivedAgreementStatus =>
     getDerivedAgreementStatus(agreement);
 
-  /** Amount not yet paid out (escrow + awaiting approval), excluding unsigned offers. */
-  const getPendingReleaseAmount = (agreement: Agreement): number => {
-    const total = Number(agreement.total_price || 0);
-    const { released } = getReleaseProgress(agreement);
-    const outstanding = Math.max(0, total - released);
-    if (outstanding <= 0) return 0;
-    if (getDerivedStatus(agreement) === "pending") return 0;
-    return outstanding;
-  };
-
   const isHistoryAgreement = (agreement: Agreement) => {
     // History only lists fully finished deals.
     if (agreement.status === "completed") return true;
@@ -691,8 +684,12 @@ export default function DashboardPage() {
   const milestonesValid = paymentType === "single" || Math.abs(milestonesTotal - totalPrice) < 0.0001;
 
   const fetchAgreements = useCallback(async () => {
+    const seq = ++agreementsFetchSeqRef.current;
+    const isStale = () => seq !== agreementsFetchSeqRef.current;
+
     const local = user?.id ? (listLocalAgreements(user.id) as Agreement[]) : [];
     if (!supabase || !user?.id || user.source === "mock") {
+      if (isStale()) return;
       setAgreements(local);
       setLoadingAgreements(false);
       return;
@@ -709,6 +706,7 @@ export default function DashboardPage() {
           window.setTimeout(() => resolve(null), 8_000);
         })
       ]);
+      if (isStale()) return;
       if (!result) {
         setAgreements(local);
         setLoadingAgreements(false);
@@ -724,14 +722,15 @@ export default function DashboardPage() {
       const cloud = (data ?? []).map((row) =>
         normalizeAgreementRow(row as Record<string, unknown>)
       ) as Agreement[];
+      if (isStale()) return;
       setAgreements(
         [...local, ...cloud].sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
       );
     } catch {
-      // Supabase unreachable — fall back to agreements saved in this browser.
+      if (isStale()) return;
       setAgreements(local);
     } finally {
-      setLoadingAgreements(false);
+      if (!isStale()) setLoadingAgreements(false);
     }
   }, [supabase, user?.id, user?.source]);
 
@@ -778,8 +777,12 @@ export default function DashboardPage() {
   const copyAgreementLink = async (id: string) => {
     const base = typeof window !== "undefined" ? window.location.origin : "https://vstah.am";
     const link = `${base}/agreement/${id}`;
-    await navigator.clipboard.writeText(link);
-    setCopiedAgreementId(id);
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopiedAgreementId(id);
+    } catch {
+      setToast("Could not copy link.");
+    }
   };
 
   const getAgreementPublicUrl = (id: string) => {
@@ -945,52 +948,38 @@ export default function DashboardPage() {
   useEffect(() => {
     if (termsHydratedRef.current || loadingAgreements) return;
 
-    // 1) Prefer the user's saved default template from auth metadata.
-    // This is persisted per-user and survives across devices/sessions.
+    let cancelled = false;
+
     void (async () => {
-      if (!supabase || !user?.id || user.source === "mock") return;
-      const authData = await withNetworkTimeout(supabase.auth.getUser());
-      if (!authData) return;
-      const meta = (authData.data.user?.user_metadata ?? {}) as Record<string, unknown>;
-      const saved = String(meta.default_agreement_terms ?? "").trim();
-      if (saved.length > 0) {
-        setGlobalTermsTemplate(saved);
-        if (!termsDirtyRef.current) setContractTerms(saved);
-        termsHydratedRef.current = true;
+      if (supabase && user?.id && user.source !== "mock") {
+        const authData = await withNetworkTimeout(supabase.auth.getUser());
+        if (cancelled) return;
+        if (authData) {
+          const meta = (authData.data.user?.user_metadata ?? {}) as Record<string, unknown>;
+          const saved = String(meta.default_agreement_terms ?? "").trim();
+          if (saved.length > 0) {
+            setGlobalTermsTemplate(saved);
+            if (!termsDirtyRef.current) setContractTerms(saved);
+            termsHydratedRef.current = true;
+            return;
+          }
+        }
       }
-    })();
 
-    if (termsHydratedRef.current) return;
-
-    if (agreements.length > 0) {
-      const latest = agreements[0];
-      const t = (latest.custom_terms ?? "").trim();
-      if (t.length > 0) {
-        termsHydratedRef.current = true;
-        setGlobalTermsTemplate(t);
-        if (!termsDirtyRef.current) setContractTerms(t);
-        return;
+      if (agreements.length > 0) {
+        const latest = agreements[0];
+        const t = (latest.custom_terms ?? "").trim();
+        if (t.length > 0) {
+          termsHydratedRef.current = true;
+          setGlobalTermsTemplate(t);
+          if (!termsDirtyRef.current) setContractTerms(t);
+          return;
+        }
       }
+
       termsHydratedRef.current = true;
-      void (async () => {
-        const pn = await resolveProviderDisplayName();
-        if (termsDirtyRef.current) return;
-        setContractTerms(
-          buildDefaultTerms({
-            providerName: pn,
-            clientName: "",
-            serviceArea: "Armenia",
-            totalPrice: 0
-          })
-        );
-      })();
-      return;
-    }
-
-    termsHydratedRef.current = true;
-    void (async () => {
       const pn = await resolveProviderDisplayName();
-      if (termsDirtyRef.current) return;
+      if (cancelled || termsDirtyRef.current) return;
       setContractTerms(
         buildDefaultTerms({
           providerName: pn,
@@ -1000,19 +989,27 @@ export default function DashboardPage() {
         })
       );
     })();
-  }, [loadingAgreements, agreements, buildDefaultTerms, resolveProviderDisplayName]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [loadingAgreements, agreements, buildDefaultTerms, resolveProviderDisplayName, supabase, user?.id, user?.source]);
 
   useEffect(() => {
     // When the user navigates into the Create view, prefill the textarea from
     // the saved default template (or fallback boilerplate) if it's currently empty.
     if (view !== "create") return;
-    if (contractTerms.trim().length > 0) return;
+    if (contractTermsRef.current.trim().length > 0) return;
     if (globalTermsTemplate.trim().length > 0) {
       setContractTerms(globalTermsTemplate);
       return;
     }
+
+    let cancelled = false;
+
     void (async () => {
       const pn = await resolveProviderDisplayName();
+      if (cancelled) return;
       setContractTerms(
         buildDefaultTerms({
           providerName: pn,
@@ -1022,7 +1019,11 @@ export default function DashboardPage() {
         })
       );
     })();
-  }, [view, contractTerms, globalTermsTemplate, buildDefaultTerms, resolveProviderDisplayName]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [view, globalTermsTemplate, buildDefaultTerms, resolveProviderDisplayName]);
 
   const submitAgreement = async () => {
     if (!user?.id) {
@@ -1152,7 +1153,21 @@ export default function DashboardPage() {
   const stats = useMemo(
     () => ({
       totalValue: agreements.reduce((sum, a) => sum + Number(a.total_price || 0), 0),
-      pendingRelease: agreements.reduce((sum, a) => sum + getPendingReleaseAmount(a), 0),
+      pendingRelease: agreements.reduce((sum, a) => {
+        if (getDerivedAgreementStatus(a) === "pending") return sum;
+        const total = Number(a.total_price || 0);
+        let released = 0;
+        if (a.payment_type === "milestones") {
+          released = (a.milestones ?? []).reduce(
+            (milestoneSum, m) =>
+              milestoneSum + (m.status === "released" ? Number(m.amount || 0) : 0),
+            0
+          );
+        } else if (a.payment_status === "released") {
+          released = total;
+        }
+        return sum + Math.max(0, total - released);
+      }, 0),
       signedCount: agreements.filter((a) => a.payment_status === "escrow_held" || a.payment_status === "released").length
     }),
     [agreements]
@@ -1239,8 +1254,8 @@ export default function DashboardPage() {
 
             <header className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="flex items-center gap-2 md:gap-3">
-                  <h2 className="text-2xl font-black text-[#0033A0]">{pageTitle}</h2>
+                <div className="flex min-w-0 items-center gap-2 md:gap-3">
+                  <h2 className="min-w-0 text-xl font-black text-[#0033A0] sm:text-2xl">{pageTitle}</h2>
                   <div className="relative">
                     <button
                       type="button"
@@ -1275,7 +1290,7 @@ export default function DashboardPage() {
                   <button
                     type="button"
                     onClick={tryOpenCreate}
-                    className={`inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#F2A800] px-4 py-2 text-sm font-bold text-slate-900 ${
+                    className={`hidden md:inline-flex min-h-10 items-center gap-2 rounded-xl bg-[#F2A800] px-4 py-2 text-sm font-bold text-slate-900 ${
                       isAtFreeLimit ? "opacity-50" : ""
                     }`}
                   >
@@ -1333,6 +1348,7 @@ export default function DashboardPage() {
                             value={clientSearch}
                             onChange={(e) => setClientSearch(e.target.value)}
                             placeholder={tx.searchClientPlaceholder}
+                            aria-label={tx.searchClientPlaceholder}
                             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500 md:max-w-sm"
                           />
                         </div>
@@ -1362,7 +1378,7 @@ export default function DashboardPage() {
                                 <p className="mb-1 break-words text-xs font-semibold text-slate-600">{formatAmount(progress.released)} / {formatAmount(Number(item.total_price || 0))} {tx.releasedOfTotal}</p>
                                 <p className="mb-1 break-words text-[11px] font-semibold text-slate-500">{tx.vault}: {formatAmount(progress.escrow)} | {tx.waiting}: {formatAmount(progress.pending)}</p>
                                 <div className="h-2 w-full rounded-full bg-slate-200">
-                                  <div className="h-2 rounded-full bg-orange-500 transition-all" style={{ width: `${progress.pct}%` }} />
+                                  <div className="h-2 rounded-full bg-[#F2A800] transition-all" style={{ width: `${progress.pct}%` }} />
                                 </div>
                               </div>
                               <div className="mt-3 grid grid-cols-3 gap-2">
@@ -1405,7 +1421,7 @@ export default function DashboardPage() {
                                           {tx.vault}: {formatAmount(progress.escrow)} | {tx.waiting}: {formatAmount(progress.pending)}
                                         </p>
                                         <div className="h-2 w-full rounded-full bg-slate-200">
-                                          <div className="h-2 rounded-full bg-orange-500 transition-all" style={{ width: `${progress.pct}%` }} />
+                                          <div className="h-2 rounded-full bg-[#F2A800] transition-all" style={{ width: `${progress.pct}%` }} />
                                         </div>
                                       </div>
                                     );
@@ -1477,15 +1493,24 @@ export default function DashboardPage() {
                 <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <div className="flex items-center justify-between gap-3">
                     <div><p className="text-sm font-bold text-slate-900">{tx.milestones}</p><p className="text-xs text-slate-500">{tx.milestonesHint}</p></div>
-                    <button type="button" onClick={() => setPaymentType((p) => (p === "single" ? "milestones" : "single"))} className={`inline-flex h-8 w-16 items-center rounded-full p-1 transition ${paymentType === "milestones" ? "bg-[#0033A0]" : "bg-slate-300"}`}><span className={`h-6 w-6 rounded-full bg-white shadow-sm transition ${paymentType === "milestones" ? "translate-x-8" : "translate-x-0"}`} /></button>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={paymentType === "milestones"}
+                      aria-label={paymentType === "milestones" ? tx.milestones : tx.singlePayment}
+                      onClick={() => setPaymentType((p) => (p === "single" ? "milestones" : "single"))}
+                      className={`inline-flex h-8 w-16 shrink-0 items-center rounded-full p-1 transition ${paymentType === "milestones" ? "bg-[#0033A0]" : "bg-slate-300"}`}
+                    >
+                      <span className={`h-6 w-6 rounded-full bg-white shadow-sm transition ${paymentType === "milestones" ? "translate-x-8" : "translate-x-0"}`} />
+                    </button>
                   </div>
 
                   {paymentType === "milestones" ? (
                     <div className="mt-4 space-y-3">
                       {milestones.map((m, index) => (
                         <div key={m.id} className="grid gap-3 md:grid-cols-[1fr_160px_auto]">
-                          <input value={m.title} onChange={(e) => setMilestones((prev) => prev.map((x) => (x.id === m.id ? { ...x, title: e.target.value } : x)))} placeholder={`${tx.milestoneTitle} ${index + 1}`} className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500" />
-                          <input value={m.amount} onChange={(e) => setMilestones((prev) => prev.map((x) => (x.id === m.id ? { ...x, amount: formatGroupedNumberInput(e.target.value) } : x)))} placeholder={tx.milestoneAmount} inputMode="decimal" className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500" />
+                          <input value={m.title} onChange={(e) => setMilestones((prev) => prev.map((x) => (x.id === m.id ? { ...x, title: e.target.value } : x)))} placeholder={`${tx.milestoneTitle} ${index + 1}`} aria-label={`${tx.milestoneTitle} ${index + 1}`} className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500" />
+                          <input value={m.amount} onChange={(e) => setMilestones((prev) => prev.map((x) => (x.id === m.id ? { ...x, amount: formatGroupedNumberInput(e.target.value) } : x)))} placeholder={tx.milestoneAmount} aria-label={`${tx.milestoneAmount} ${index + 1}`} inputMode="decimal" className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500" />
                           <button type="button" onClick={() => setMilestones((prev) => prev.filter((x) => x.id !== m.id))} className="inline-flex items-center justify-center rounded-lg border border-red-300 bg-white px-3 py-2 text-red-600" aria-label="Remove milestone"><Trash2 className="h-4 w-4" /></button>
                         </div>
                       ))}
@@ -1677,7 +1702,7 @@ export default function DashboardPage() {
                   <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                     <h3 className="text-lg font-extrabold text-slate-900">{tx.upgradeToPro}</h3>
                     <div className="mt-3 inline-flex w-full max-w-sm items-center justify-center rounded-2xl border border-amber-700/30 bg-[#F2A800] px-5 py-4 shadow-sm ring-1 ring-amber-900/15 sm:justify-start">
-                      <p className="whitespace-nowrap text-2xl font-black tabular-nums text-slate-900">
+                      <p className="text-xl font-black tabular-nums text-slate-900 [overflow-wrap:anywhere] sm:text-2xl">
                         {formatProMonthly(tx.upgradePerMonth, lang)}
                       </p>
                     </div>
@@ -1717,12 +1742,12 @@ export default function DashboardPage() {
               key={id}
               type="button"
               onClick={() => handleNav(id, createAction)}
-              className={`inline-flex min-h-11 flex-col items-center justify-center gap-0.5 rounded-xl border px-1 py-1.5 text-[10px] font-semibold leading-tight ${
+              className={`inline-flex min-h-[3.25rem] flex-col items-center justify-center gap-0.5 rounded-xl border px-1 py-1.5 text-[11px] font-semibold leading-tight ${
                 view === id ? "border-[#0033A0] bg-[#0033A0] text-white" : "border-slate-300 bg-white text-slate-700"
               } ${createAction && isAtFreeLimit ? "opacity-70" : ""}`}
             >
               <Icon className="h-4 w-4 shrink-0" />
-              <span className="max-w-full truncate">{label}</span>
+              <span className="max-w-full line-clamp-2 whitespace-normal text-[11px] leading-tight [overflow-wrap:anywhere]">{label}</span>
             </button>
           ))}
         </div>

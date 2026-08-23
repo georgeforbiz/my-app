@@ -24,7 +24,13 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   const [adminEmail, setAdminEmail] = useState("");
 
   useEffect(() => {
+    if (isLoginRoute) {
+      setChecking(false);
+      return;
+    }
+
     let active = true;
+    setChecking(true);
     void (async () => {
       try {
         const res = await fetch("/api/admin/session", {
@@ -47,15 +53,24 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
     return () => {
       active = false;
     };
-  }, [pathname]);
+  }, [isLoginRoute]);
 
   useEffect(() => {
     if (checking || isLoginRoute || authenticated) return;
     router.replace(LOGIN_PATH);
   }, [checking, isLoginRoute, authenticated, router]);
 
+  useEffect(() => {
+    if (!authenticated) return;
+    for (const item of navItems) router.prefetch(item.href);
+  }, [authenticated, router]);
+
   const logout = useCallback(async () => {
-    await fetch("/api/admin/logout", { method: "POST" });
+    try {
+      await fetch("/api/admin/logout", { method: "POST" });
+    } catch {
+      // Network failure — still clear local session below.
+    }
     router.replace(LOGIN_PATH);
     router.refresh();
   }, [router]);
@@ -104,7 +119,7 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
 
       <main className="min-h-0 min-w-0 flex-1 overflow-x-clip overflow-y-auto overscroll-y-contain p-4 pb-24 md:p-6 md:pb-6 lg:p-8">
         <div className="mx-auto w-full max-w-7xl space-y-6">
-          <div className="flex items-center gap-2 overflow-x-auto lg:hidden">
+          <div className="-mx-1 flex items-center gap-2 overflow-x-auto px-1 pb-1 lg:hidden">
             {navItems.map(({ href, label }) => {
               const active = href === "/admin" ? pathname === href : pathname.startsWith(href);
               return (

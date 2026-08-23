@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useParams, useSearchParams } from "next/navigation";
 import { Building2, CheckCircle2, Landmark, Loader2, ShieldCheck, X } from "lucide-react";
 import html2canvas from "html2canvas";
@@ -14,8 +15,10 @@ import {
 } from "@/lib/agreements/local-store";
 import {
   addVerificationPendingIndex,
+  clearVerificationPending,
   getVerificationPendingIndexes,
-  hasVerificationPending
+  hasVerificationPending,
+  removeVerificationPendingIndex
 } from "@/lib/agreements/verification-pending";
 import { formatDateDMY } from "@/lib/format-date";
 import { useLanguage } from "@/lib/i18n/language-context";
@@ -453,6 +456,7 @@ export default function AgreementClientPage() {
   const drawing = useRef(false);
   const printableRef = useRef<HTMLDivElement | null>(null);
   const downloadTriggeredRef = useRef(false);
+  const fetchSeqRef = useRef(0);
 
   useEffect(() => {
     if (!id) return;
@@ -473,8 +477,11 @@ export default function AgreementClientPage() {
 
   const fetchAgreement = useCallback(async () => {
     if (!id) return;
+    const seq = ++fetchSeqRef.current;
+    const isStale = () => seq !== fetchSeqRef.current;
 
     const loadLocal = () => {
+      if (isStale()) return false;
       const local = getLocalAgreement(id) as Agreement | null;
       if (!local) return false;
       setAgreement(local);
@@ -502,23 +509,32 @@ export default function AgreementClientPage() {
 
       if (fetchError || !data) {
         if (loadLocal()) return;
+        if (isStale()) return;
         setError(tx.notFound);
         setLoading(false);
         return;
       }
 
+      if (isStale()) return;
       setAgreement(normalizeAgreementRow(data as Record<string, unknown>) as Agreement);
       const remote = await fetch(`/api/agreement/${encodeURIComponent(id)}/verification`)
         .then((r) => r.json())
         .catch(() => ({ indexes: [] as number[] }));
-      const local = getVerificationPendingIndexes(id);
-      setVerificationPendingIndexes([...new Set([...(remote.indexes ?? []), ...local])]);
+      if (isStale()) return;
+      if (isLocalAgreementId(id)) {
+        const local = getVerificationPendingIndexes(id);
+        setVerificationPendingIndexes([...new Set([...(remote.indexes ?? []), ...local])]);
+      } else {
+        clearVerificationPending(id);
+        setVerificationPendingIndexes(remote.indexes ?? []);
+      }
       setError("");
       setActionError("");
       setLoading(false);
     } catch {
       // Supabase unreachable — fall back to an agreement saved in this browser.
       if (loadLocal()) return;
+      if (isStale()) return;
       setError(tx.notFound);
       setLoading(false);
     }
@@ -530,10 +546,12 @@ export default function AgreementClientPage() {
   }, [fetchAgreement]);
 
   useEffect(() => {
-    const onFocus = () => {
+    const refresh = () => {
       if (!id) return;
       void fetchAgreement();
-      setVerificationPendingIndexes(getVerificationPendingIndexes(id));
+      if (isLocalAgreementId(id)) {
+        setVerificationPendingIndexes(getVerificationPendingIndexes(id));
+      }
     };
     const onStorage = (event: StorageEvent) => {
       if (!id) return;
@@ -541,14 +559,18 @@ export default function AgreementClientPage() {
         event.key === "vstah_local_agreements" ||
         event.key === "vstah_verification_pending"
       ) {
-        void fetchAgreement();
-        setVerificationPendingIndexes(getVerificationPendingIndexes(id));
+        refresh();
       }
     };
-    window.addEventListener("focus", onFocus);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", onVisible);
     window.addEventListener("storage", onStorage);
     return () => {
-      window.removeEventListener("focus", onFocus);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", onVisible);
       window.removeEventListener("storage", onStorage);
     };
   }, [id, fetchAgreement]);
@@ -568,20 +590,6 @@ export default function AgreementClientPage() {
       void supabase.removeChannel(channel);
     };
   }, [supabase, id, fetchAgreement]);
-
-  useEffect(() => {
-    const onVisibleOrFocus = () => {
-      if (document.visibilityState === "visible") {
-        void fetchAgreement();
-      }
-    };
-    window.addEventListener("focus", onVisibleOrFocus);
-    document.addEventListener("visibilitychange", onVisibleOrFocus);
-    return () => {
-      window.removeEventListener("focus", onVisibleOrFocus);
-      document.removeEventListener("visibilitychange", onVisibleOrFocus);
-    };
-  }, [fetchAgreement]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -795,6 +803,8 @@ export default function AgreementClientPage() {
       }
     }
 
+    let submitted = false;
+
     if (isLocalAgreementId(agreement.id)) {
       addVerificationPendingIndex(agreement.id, index);
       setVerificationPendingIndexes(getVerificationPendingIndexes(agreement.id));
@@ -803,6 +813,7 @@ export default function AgreementClientPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "deposit.submitted", meta: { milestoneIndex: index } })
       }).catch(() => {});
+      submitted = true;
     } else {
       try {
         const res = await fetch(`/api/agreement/${encodeURIComponent(agreement.id)}/submit-transfer`, {
@@ -811,24 +822,35 @@ export default function AgreementClientPage() {
           body: JSON.stringify({ milestoneIndex: index })
         });
         const payload = (await res.json().catch(() => ({}))) as { error?: string };
-        if (!res.ok) {
-          // Fall back to local queue if migration not applied yet.
-          addVerificationPendingIndex(agreement.id, index);
-          if (payload.error && !payload.error.toLowerCase().includes("missing")) {
-            setActionError(payload.error);
+        if (res.ok) {
+          removeVerificationPendingIndex(agreement.id, index);
+          submitted = true;
+        } else {
+          const err = payload.error ?? "";
+          const missingMigration = err.toLowerCase().includes("missing");
+          if (missingMigration) {
+            addVerificationPendingIndex(agreement.id, index);
+            submitted = true;
+          } else {
+            setActionError(err || "Could not submit transfer.");
           }
         }
       } catch {
-        addVerificationPendingIndex(agreement.id, index);
+        setActionError("Network error. Please try again.");
       }
-      const remote = await fetch(`/api/agreement/${encodeURIComponent(agreement.id)}/verification`)
-        .then((r) => r.json())
-        .catch(() => ({ indexes: [] as number[] }));
-      const local = getVerificationPendingIndexes(agreement.id);
-      setVerificationPendingIndexes([...new Set([...(remote.indexes ?? []), ...local])]);
+
+      if (submitted) {
+        const remote = await fetch(`/api/agreement/${encodeURIComponent(agreement.id)}/verification`)
+          .then((r) => r.json())
+          .catch(() => ({ indexes: [] as number[] }));
+        clearVerificationPending(agreement.id);
+        setVerificationPendingIndexes(remote.indexes ?? []);
+      }
     }
 
-    setDepositConfirmation(tx.depositSubmitted);
+    if (submitted) {
+      setDepositConfirmation(tx.depositSubmitted);
+    }
     setVerifyingIndex(null);
   };
 
@@ -879,38 +901,43 @@ export default function AgreementClientPage() {
     const node = printableRef.current;
     if (!node || !agreement) return;
 
-    const canvas = await html2canvas(node, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
-    const imageData = canvas.toDataURL("image/png");
+    try {
+      const canvas = await html2canvas(node, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
+      const imageData = canvas.toDataURL("image/png");
 
-    const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-    const imgWidth = pageWidth;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pageWidth;
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
-    let heightLeft = imgHeight;
-    let position = 0;
+      let heightLeft = imgHeight;
+      let position = 0;
 
-    pdf.addImage(imageData, "PNG", 0, position, imgWidth, imgHeight);
-    heightLeft -= pageHeight;
-
-    while (heightLeft > 0) {
-      position = heightLeft - imgHeight;
-      pdf.addPage();
       pdf.addImage(imageData, "PNG", 0, position, imgWidth, imgHeight);
       heightLeft -= pageHeight;
-    }
 
-    pdf.save(`agreement-${agreement.id}.pdf`);
+      while (heightLeft > 0) {
+        position = heightLeft - imgHeight;
+        pdf.addPage();
+        pdf.addImage(imageData, "PNG", 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+
+      pdf.save(`agreement-${agreement.id}.pdf`);
+    } catch {
+      setActionError("Could not generate PDF. Try again or use Print.");
+    }
   }, [agreement]);
 
   useEffect(() => {
     if (!shouldAutoDownload || loading || !agreement) return;
     if (downloadTriggeredRef.current) return;
     downloadTriggeredRef.current = true;
-    window.setTimeout(() => {
+    const timerId = window.setTimeout(() => {
       void downloadRenderedAgreement();
     }, 450);
+    return () => window.clearTimeout(timerId);
   }, [shouldAutoDownload, loading, agreement, downloadRenderedAgreement]);
 
   if (loading) {
@@ -969,7 +996,7 @@ export default function AgreementClientPage() {
     <main key={routeKey} className="min-h-screen bg-slate-100 px-3 py-6 md:px-6 md:py-10">
       <div ref={printableRef} className="relative mx-auto w-full min-w-0 max-w-[min(100%,55rem)] rounded-md border border-slate-200 bg-white px-4 py-5 shadow-[0_8px_30px_rgba(15,23,42,0.08)] md:px-10 md:py-9">
         {paymentReleased ? (
-          <div className="pointer-events-none absolute right-4 top-6 rotate-[-12deg] rounded border-4 border-emerald-600 px-3 py-1.5 text-xs font-black tracking-widest text-emerald-700 opacity-90 md:right-8 md:top-8 md:text-sm">
+          <div className="pointer-events-none absolute right-3 top-5 hidden rotate-[-12deg] rounded border-4 border-emerald-600 px-3 py-1.5 text-xs font-black tracking-widest text-emerald-700 opacity-90 sm:block md:right-8 md:top-8 md:text-sm">
             {tx.paidInFull}
           </div>
         ) : null}
@@ -984,7 +1011,14 @@ export default function AgreementClientPage() {
 
         <div className="border-b border-slate-200 pb-4">
           <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">{tx.offer}</p>
-          <h1 className="mt-2 text-2xl font-black text-[#0033A0] md:text-3xl">{tx.title}</h1>
+          <div className="mt-2 flex flex-wrap items-start justify-between gap-2">
+            <h1 className="min-w-0 flex-1 text-2xl font-black text-[#0033A0] md:text-3xl">{tx.title}</h1>
+            {paymentReleased ? (
+              <span className="inline-flex shrink-0 rounded-full border border-emerald-600 bg-emerald-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-emerald-700 sm:hidden">
+                {tx.paidInFull}
+              </span>
+            ) : null}
+          </div>
           <p className="mt-1 text-sm text-slate-600">{tx.subtitle}</p>
         </div>
 
@@ -1079,9 +1113,12 @@ export default function AgreementClientPage() {
             <div className="bg-[linear-gradient(to_bottom,#f8fafc_0%,#ffffff_100%)] px-4 py-6 sm:px-8 sm:py-8">
               <div className="relative mx-auto max-w-lg rounded-xl bg-white p-6 shadow-inner ring-1 ring-slate-200/90 sm:p-8">
                 <div className="pointer-events-none absolute inset-x-8 bottom-6 border-b border-slate-300/90 sm:inset-x-10 sm:bottom-8" aria-hidden />
-                <img
+                <Image
                   src={signatureImage}
                   alt={`${agreement.client_name} — ${tx.clientSignature}`}
+                  width={640}
+                  height={180}
+                  unoptimized
                   className="relative z-[1] mx-auto block h-auto max-h-36 w-auto max-w-full object-contain sm:max-h-40"
                 />
               </div>
@@ -1112,7 +1149,7 @@ export default function AgreementClientPage() {
                     <p>
                       {i + 1}. {m.title} - {money(Number(m.amount || 0))} ֏
                     </p>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center justify-end gap-2">
                       {m.status === "released" ? (
                         <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-800">
                           <CheckCircle2 className="h-3.5 w-3.5" />
@@ -1214,6 +1251,7 @@ export default function AgreementClientPage() {
               ref={canvasRef}
               width={640}
               height={180}
+              aria-label={tx.optionalSignature}
               onPointerDown={onPointerDown}
               onPointerMove={onPointerMove}
               onPointerUp={stopDraw}

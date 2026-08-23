@@ -116,12 +116,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .getSession()
       .then(({ data: { session } }: { data: { session: Session | null } }) => {
         if (session?.user) {
+          mockLogout();
           setUser(mapSupabaseUser(session.user));
           return;
         }
-        // Supabase has no session — keep / restore local mock session (dev when cloud is down).
-        const m = mockGetSession();
-        setUser(m ? { ...m, source: "mock" } : null);
+        setUser(null);
       })
       .catch(() => {
         const m = mockGetSession();
@@ -135,12 +134,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       data: { subscription }
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
+        mockLogout();
         setUser(mapSupabaseUser(session.user));
         return;
       }
-      // Prefer localStorage over in-memory prev, so logout (mockLogout) is respected.
-      const m = mockGetSession();
-      setUser(m ? { ...m, source: "mock" } : null);
+      setUser(null);
     });
 
     return () => {
@@ -149,14 +147,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
-    // Local/offline accounts can be authenticated synchronously. Checking them
-    // first avoids waiting for a slow or unreachable Supabase project.
-    const local = mockLogin(email, password);
-    if (local.user) {
-      setUser({ ...local.user, source: "mock" });
-      return {};
-    }
-
     const supabase = getSupabaseBrowser();
     if (supabase) {
       try {
@@ -166,25 +156,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             window.setTimeout(() => resolve(null), 3_000);
           })
         ]);
-        if (result && !result.error) return {};
-        if (result?.error) {
-          // Fall through to mock if cloud auth fails / unreachable messaging.
-          const msg = result.error.message.toLowerCase();
-          if (!msg.includes("failed to fetch") && !msg.includes("network")) {
-            // Try mock before returning credential errors (dev offline mode).
-            return { error: humanizeAuthError(result.error.message) };
-          }
+        if (result === null) {
+          return { error: "Connection timed out. Check your network and try again." };
+        }
+        if (!result.error) {
+          mockLogout();
+          return {};
+        }
+        const msg = result.error.message.toLowerCase();
+        if (!msg.includes("failed to fetch") && !msg.includes("network")) {
+          return { error: humanizeAuthError(result.error.message) };
         }
       } catch {
-        // unreachable
+        // unreachable — fall through to mock
       }
+    }
+
+    const local = mockLogin(email, password);
+    if (local.user) {
+      setUser({ ...local.user, source: "mock" });
+      return {};
     }
     return { error: local.error ?? "Invalid email or password." };
   }, []);
 
   const resendConfirmation = useCallback(async (email: string) => {
     const supabase = getSupabaseBrowser();
-    if (!supabase) return {};
+    if (!supabase) return { error: "Email service is unavailable." };
     const { error } = await supabase.auth.resend({
       type: "signup",
       email
@@ -194,7 +192,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const requestPasswordReset = useCallback(async (email: string) => {
     const supabase = getSupabaseBrowser();
-    if (!supabase) return {};
+    if (!supabase) return { error: "Email service is unavailable." };
     const redirectTo =
       typeof window !== "undefined" ? `${window.location.origin}/login` : undefined;
     const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });

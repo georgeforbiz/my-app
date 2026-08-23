@@ -18,6 +18,7 @@ type CloudPending = {
   submitted_at: string;
   client_name: string;
   project_title: string;
+  provider_label?: string;
   total_price: number;
 };
 
@@ -34,28 +35,89 @@ type Row = {
 export default function AdminAgreementsPage() {
   const [cloud, setCloud] = useState<CloudPending[]>([]);
   const [localAgreements, setLocalAgreements] = useState<NormalizedAgreement[]>([]);
+  const [orphanLocal, setOrphanLocal] = useState<Row[]>([]);
   const [query, setQuery] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
-    setLocalAgreements(listLocalAgreements());
+    const agreements = listLocalAgreements();
+    setLocalAgreements(agreements);
+
+    let cancelled = false;
+
     void (async () => {
       try {
-        const res = await fetch("/api/admin/stats", { cache: "no-store", credentials: "same-origin" });
+        const res = await fetch("/api/admin/transfers", { cache: "no-store", credentials: "same-origin" });
         const data = (await res.json().catch(() => ({}))) as {
           error?: string;
-          pendingTransfers?: CloudPending[];
+          transfers?: CloudPending[];
         };
+        if (cancelled) return;
         if (!res.ok) {
           setError(data.error ?? "Failed to load pending transfers.");
           return;
         }
-        setCloud(data.pendingTransfers ?? []);
-        setError("");
+        const transfers = data.transfers ?? [];
+        setCloud(transfers);
+        setError(data.error ?? "");
+
+        // Pending cloud UUIDs may sit only in this browser's localStorage.
+        // Resolve them even when they are not in the local agreement store.
+        const known = new Set([
+          ...agreements.map((a) => a.id),
+          ...transfers.map((t) => t.agreement_id)
+        ]);
+        const orphanIds = listVerificationPendingAgreementIds().filter((id) => !known.has(id));
+        if (orphanIds.length === 0) {
+          if (!cancelled) setOrphanLocal([]);
+          return;
+        }
+
+        const resolved = await Promise.all(
+          orphanIds.map(async (id) => {
+            try {
+              const agrRes = await fetch(`/api/admin/agreements/${encodeURIComponent(id)}`, {
+                cache: "no-store",
+                credentials: "same-origin"
+              });
+              if (agrRes.ok) {
+                const payload = (await agrRes.json()) as { agreement?: NormalizedAgreement };
+                if (payload.agreement) {
+                  const a = payload.agreement;
+                  return {
+                    id: a.id,
+                    client_name: a.client_name,
+                    project_title: a.project_title,
+                    provider_label: a.business_name || a.provider_name || a.full_name || "—",
+                    total_price: Number(a.total_price),
+                    created_at: a.created_at,
+                    source: "local" as const
+                  } satisfies Row;
+                }
+              }
+            } catch {
+              // ignore and fall through to placeholder
+            }
+            return {
+              id,
+              client_name: "Pending transfer",
+              project_title: id.startsWith("local-") ? "Local demo deal" : "Cloud deal",
+              provider_label: "—",
+              total_price: 0,
+              created_at: "",
+              source: "local" as const
+            } satisfies Row;
+          })
+        );
+        if (!cancelled) setOrphanLocal(resolved);
       } catch {
-        setError("Failed to load pending transfers.");
+        if (!cancelled) setError("Failed to load pending transfers.");
       }
     })();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const rows: Row[] = useMemo(() => {
@@ -76,18 +138,18 @@ export default function AdminAgreementsPage() {
       id: c.agreement_id,
       client_name: c.client_name,
       project_title: c.project_title,
-      provider_label: "—",
+      provider_label: c.provider_label || "—",
       total_price: c.total_price,
       created_at: c.submitted_at,
       source: "cloud" as const
     }));
 
     const byId = new Map<string, Row>();
-    for (const r of [...cloudRows, ...localRows]) {
+    for (const r of [...cloudRows, ...localRows, ...orphanLocal]) {
       if (!byId.has(r.id)) byId.set(r.id, r);
     }
     return [...byId.values()];
-  }, [cloud, localAgreements]);
+  }, [cloud, localAgreements, orphanLocal]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -109,6 +171,7 @@ export default function AdminAgreementsPage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search client, provider, project…"
+            aria-label="Search transfers"
             className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500 md:max-w-sm"
           />
         </div>

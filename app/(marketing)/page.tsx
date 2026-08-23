@@ -1,34 +1,18 @@
 "use client";
 
-import Link from "next/link";
 import { FloatingPillHeader } from "@/components/floating-pill-header";
-import { Reveal } from "@/components/reveal";
-import { OrangeButton, OutlineLightButton } from "@/components/vstah-button";
+import { MarketingHeroSection } from "@/components/marketing-hero-section";
+import { MarketingPainPointsCarousel } from "@/components/marketing-pain-points-carousel";
+import { MarketingFeaturesSection } from "@/components/marketing-features-section";
+import { MarketingDifferenceSection } from "@/components/marketing-difference-section";
+import { MarketingProcessSection } from "@/components/marketing-process-section";
+import { MarketingDisputeSection } from "@/components/marketing-dispute-section";
 import { MarketingPricingFaqSection } from "@/components/marketing-pricing-faq-section";
-import { NAVY, ORANGE, RED, SITE_BG_GRADIENT } from "@/lib/brand";
+import { MarketingFooter } from "@/components/marketing-footer";
+import { SITE_BG_GRADIENT } from "@/lib/brand";
 import { useState } from "react";
 import { useLanguage } from "@/lib/i18n/language-context";
 import type { Language } from "@/lib/i18n/locales";
-import {
-  AlertTriangle,
-  Check,
-  CircleCheck,
-  Clock,
-  Facebook,
-  FileText,
-  Hammer,
-  Headphones,
-  Flag,
-  Instagram,
-  Landmark,
-  Layers,
-  ListOrdered,
-  Lock,
-  Shield,
-  ShieldCheck,
-  Wallet,
-  X
-} from "lucide-react";
 
 type Locale = Language;
 
@@ -48,6 +32,15 @@ type TranslationBundle = {
   heroTitleBefore: string;
   heroTitleHighlight: string;
   heroTitleAfter: string;
+  heroPainPoints: string[];
+  heroDashboardTitle: string;
+  heroPreviewLabel: string;
+  heroRow1Label: string;
+  heroRow1Badge: string;
+  heroRow2Label: string;
+  heroRow2Badge: string;
+  heroRow3Label: string;
+  heroRow3Badge: string;
   cardChip1: string;
   cardChip2: string;
   projectLabel: string;
@@ -72,6 +65,12 @@ type TranslationBundle = {
   feature2: string;
   feature3: string;
   feature4: string;
+  painPointsTitle: string;
+  painPoints: string[];
+  painCarouselAria: string;
+  painPrevAria: string;
+  painNextAria: string;
+  painSlideAria: string;
   diffEyebrow: string;
   diffTitle: string;
   diffSubtitle: string;
@@ -161,6 +160,22 @@ const translations: Record<Locale, TranslationBundle> = {
     heroTitleBefore: "Work with confidence.",
     heroTitleHighlight: "",
     heroTitleAfter: " Get paid with certainty.",
+    heroPainPoints: [
+      "When the client is terrified to pay you upfront, but you can't work for free...",
+      "When you feel awkward chasing your own money, but bills are due...",
+      "When you worry that asking for a contract will scare the client away...",
+      "When the project scope keeps growing, but the budget stays the same...",
+      "When you deliver 100% of the work, but only get 50% of the respect...",
+      "When a late payment forces you to put your entire business on pause..."
+    ],
+    heroDashboardTitle: "VSTAH Secured Dashboard",
+    heroPreviewLabel: "Live deal protection",
+    heroRow1Label: "Digital Work Agreement",
+    heroRow1Badge: "Signed & Locked",
+    heroRow2Label: "Secured Project Deposit",
+    heroRow2Badge: "Verified",
+    heroRow3Label: "Scope & Milestone Guard",
+    heroRow3Badge: "Active",
     cardChip1: "Secured Project Deposit",
     cardChip2: "Digital Work Agreement",
     projectLabel: "Project",
@@ -185,6 +200,20 @@ const translations: Record<Locale, TranslationBundle> = {
     feature2: "Guaranteed Payouts.",
     feature3: "Built for Armenia.",
     feature4: "Secure Deals.",
+    painPointsTitle: "Sound familiar?",
+    painPoints: [
+      "Working as a freelancer, acting as a debt collector.",
+      "Chasing your own hard-earned money feels embarrassing.",
+      "'We don't need a contract, we trust you.'",
+      "Afraid to ask for a deposit upfront.",
+      "Spending hours re-writing a polite payment reminder.",
+      "Doing endless free revisions just to get paid.",
+      "Starting the project based on a vague verbal promise."
+    ],
+    painCarouselAria: "Freelancer pain points",
+    painPrevAria: "Previous",
+    painNextAria: "Next",
+    painSlideAria: "Slide",
     diffEyebrow: "The difference",
     diffTitle: "Can you see the difference?",
     diffSubtitle:
@@ -346,10 +375,26 @@ const translations: Record<Locale, TranslationBundle> = {
     btnProtectProject: "Փորձել անվճար",
     btnSeeHow: "Տեսնել ինչպես է աշխատում",
     btnStartProtected: "Սկսել պաշտպանված նախագիծ",
-    heroEyebrow: "Կառուցեք վստահելի գործարքներ · Ստացեք վճարումները ժամանակին",
+    heroEyebrow: "Կառուցեք վստահելի գործարքներ։ Ստացեք վճարումները ժամանակին։",
     heroTitleBefore: "Աշխատեք վստահությամբ։",
     heroTitleHighlight: "",
     heroTitleAfter: " Ստացեք վճարումը վստահությամբ։",
+    heroPainPoints: [
+      "Երբ հաճախորդը վախենում է կանխավճարից, բայց դուք չեք կարող անվճար աշխատել...",
+      "Երբ ամաչում եք հետապնդել ձեր գումարը, բայց հաշիվները ժամանակին են...",
+      "Երբ վախենում եք, որ պայմանագրի խնդրանքը կվախեցնի հաճախորդին...",
+      "Երբ աշխատանքի ծավալը մեծանում է, բայց բյուջեն նույնն է մնում...",
+      "Երբ կատարում եք աշխատանքի 100%-ը, բայց ստանում եք հարգանքի միայն 50%-ը...",
+      "Երբ ուշ վճարումը ստիպում է դադարեցնել ողջ բիզնեսը..."
+    ],
+    heroDashboardTitle: "Պաշտպանված վահանակ",
+    heroPreviewLabel: "Կենդանի գործարքի պաշտպանություն",
+    heroRow1Label: "Թվային աշխատանքային պայմանագիր",
+    heroRow1Badge: "Ստորագրված և կողպված",
+    heroRow2Label: "Ապահովված նախագծի դեպոզիտ",
+    heroRow2Badge: "Հաստատված",
+    heroRow3Label: "Ծավալի և փուլերի պաշտպանություն",
+    heroRow3Badge: "Ակտիվ",
     cardChip1: "Դեպոզիտը պահված է",
     cardChip2: "Թվային աշխատանքային պայմանագիր",
     projectLabel: "Նախագիծ",
@@ -374,6 +419,20 @@ const translations: Record<Locale, TranslationBundle> = {
     feature2: "Երաշխավորված վճարումներ",
     feature3: "Հայաստանի համար",
     feature4: "Ապահով գործարքներ",
+    painPointsTitle: "Ծանո՞թ է",
+    painPoints: [
+      "Ֆրիլանսեր աշխատելիս՝ դուք եք պարտքի հավաքագրողը։",
+      "Ամաչում եք հետապնդել սեփական վաստակած գումարը։",
+      "«Պայմանագիր պետք չէ, մենք քեզ վստահում ենք»։",
+      "Վախենում եք նախապես ավանս խնդրել։",
+      "Շատ ժամանակ եք ծախսում հաճակական վճարային հիշեցումը գրելու համար։",
+      "Անվերջ անվճար փոփոխություններ անելու՝ միայն վճարվելու համար։",
+      "Նախագիծը սկսում եք անորոշ խոսքային պայմանավորվածության վրա։",
+    ],
+    painCarouselAria: "Ֆրիլանսերի խնդիրներ",
+    painPrevAria: "Նախորդ",
+    painNextAria: "Հաջորդ",
+    painSlideAria: "Կադր",
     diffEyebrow: "Տարբերությունը",
     diffTitle: "Տեսնո՞ւմ եք տարբերությունը։",
     diffSubtitle:
@@ -535,10 +594,26 @@ const translations: Record<Locale, TranslationBundle> = {
     btnProtectProject: "Попробовать бесплатно",
     btnSeeHow: "Как это устроено",
     btnStartProtected: "Начать защищённый проект",
-    heroEyebrow: "Профессиональное доверие · Оплата в срок",
+    heroEyebrow: "Стройте профессиональное доверие. Получайте оплату вовремя.",
     heroTitleBefore: "Работайте уверенно.",
     heroTitleHighlight: "",
     heroTitleAfter: " Получайте оплату наверняка.",
+    heroPainPoints: [
+      "Когда клиент боится платить вперёд, а вы не можете работать бесплатно...",
+      "Когда неловко требовать свои деньги, а счета уже пора оплачивать...",
+      "Когда боитесь, что просьба о договоре отпугнёт клиента...",
+      "Когда объём работ растёт, а бюджет остаётся прежним...",
+      "Когда вы делаете 100% работы, а уважения получаете только 50%...",
+      "Когда просроченная оплата ставит на паузу весь бизнес..."
+    ],
+    heroDashboardTitle: "Защищённая панель",
+    heroPreviewLabel: "Защита сделки в реальном времени",
+    heroRow1Label: "Цифровое рабочее соглашение",
+    heroRow1Badge: "Подписано и зафиксировано",
+    heroRow2Label: "Защищённый депозит проекта",
+    heroRow2Badge: "Проверено",
+    heroRow3Label: "Контроль объёма и этапов",
+    heroRow3Badge: "Активно",
     cardChip1: "Депозит удержан",
     cardChip2: "Цифровое соглашение на работы",
     projectLabel: "Проект",
@@ -563,6 +638,20 @@ const translations: Record<Locale, TranslationBundle> = {
     feature2: "Выплаты гарантированы.",
     feature3: "Сделано для Армении.",
     feature4: "Сделки под защитой.",
+    painPointsTitle: "Знакомо?",
+    painPoints: [
+      "Работая фрилансером, вы сами становитесь коллектором долгов.",
+      "Требовать свои честно заработанные деньги — неловко.",
+      "«Нам не нужен договор, мы вам доверяем».",
+      "Страшно просить предоплату заранее.",
+      "Тратите часы на вежливое напоминание об оплате.",
+      "Делаете бесконечные правки бесплатно, лишь бы получить оплату.",
+      "Начинаете проект на основе расплывчатого устного обещания."
+    ],
+    painCarouselAria: "Боли фрилансеров",
+    painPrevAria: "Назад",
+    painNextAria: "Далее",
+    painSlideAria: "Слайд",
     diffEyebrow: "Разница",
     diffTitle: "Видите разницу?",
     diffSubtitle:
@@ -718,48 +807,24 @@ const translations: Record<Locale, TranslationBundle> = {
   }
 };
 
-const processIcons = [FileText, Landmark, Hammer, CircleCheck] as const;
-
 export default function Page() {
   const { language: locale } = useLanguage();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [langMenuOpen, setLangMenuOpen] = useState(false);
-  const [activeHeroSlide, setActiveHeroSlide] = useState(0);
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
-  const heroDotStyles = [
-    {
-      active: "bg-[#D90012] ring-2 ring-[#D90012]/65",
-      inactive: "bg-[#D90012]/70 hover:bg-[#D90012]"
-    },
-    {
-      active: "bg-[#0033A0] ring-2 ring-[#0033A0]/65",
-      inactive: "bg-[#0033A0]/70 hover:bg-[#0033A0]"
-    },
-    {
-      active: "bg-[#F2A800] ring-2 ring-[#F2A800]/70",
-      inactive: "bg-[#F2A800]/75 hover:bg-[#F2A800]"
-    }
-  ] as const;
 
   const t: TranslationBundle = translations[locale] ?? translations.en;
   const heroChipsHyRu = locale === "hy" || locale === "ru";
   const isHy = locale === "hy";
   const pricingLongLocale = locale === "hy" || locale === "ru";
+
   return (
     <div className="flex min-h-screen w-full min-w-0 max-w-full flex-col overflow-x-clip bg-white text-slate-900">
       <main className="min-w-0 flex-1 overflow-x-clip bg-white">
         <section
-          className="relative z-10 h-auto min-h-dvh w-full min-w-0 overflow-x-clip pb-12 shadow-[0_4px_12px_-2px_rgba(15,23,42,0.14)] md:pb-24"
+          className="relative z-10 h-auto min-h-dvh w-full min-w-0 overflow-x-clip pb-12 md:pb-24"
           style={{ background: SITE_BG_GRADIENT }}
         >
-          <FloatingPillHeader
-            mobileOpen={mobileOpen}
-            onMobileOpenChange={setMobileOpen}
-            langMenuOpen={langMenuOpen}
-            onLangMenuOpenChange={setLangMenuOpen}
-          />
-
-          {/* Tighten off-viewport blurs on small screens — full -left-32 / -right-24 widens iOS scroll width */}
           <div
             className="pointer-events-none absolute -left-16 top-0 h-64 w-64 rounded-full bg-white/[0.06] blur-3xl sm:-left-24 sm:h-80 sm:w-80 md:-left-32 md:h-96 md:w-96"
             aria-hidden
@@ -768,585 +833,70 @@ export default function Page() {
             className="pointer-events-none absolute -right-8 bottom-0 h-64 w-64 rounded-full bg-orange-400/10 blur-3xl sm:-right-16 sm:h-72 sm:w-72 md:-right-24 md:h-80 md:w-80"
             aria-hidden
           />
-          <div className="relative mx-auto grid w-full min-w-0 max-w-7xl gap-8 px-4 pt-8 sm:gap-10 md:grid-cols-2 md:items-center md:gap-16 md:px-6 md:pt-10 lg:gap-20">
-            <div
-              lang={heroChipsHyRu ? locale : undefined}
-              className="flex min-w-0 w-full flex-col justify-center text-left"
-            >
-              <p
-                className={`inline-flex w-fit max-w-full flex-wrap rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-medium leading-snug text-white/90 shadow-sm backdrop-blur-sm hyphens-none break-words md:text-sm ${
-                  isHy ? "flex-col items-start gap-0.5" : ""
-                }`}
-              >
-                {isHy ? (
-                  <>
-                    <span className="block">Կառուցեք վստահելի գործարքներ</span>
-                    <span className="block">Ստացեք վճարումները ժամանակին</span>
-                  </>
-                ) : (
-                  t.heroEyebrow
-                )}
-              </p>
-              <h1
-                className={`mt-6 w-full min-w-0 text-balance break-words font-black tracking-tight text-white hyphens-none sm:mt-8 ${
-                  isHy
-                    ? "text-[2rem] leading-[1.14] sm:text-[2.5rem] md:text-[2.1rem] lg:text-[2.8rem] xl:text-[3.35rem]"
-                    : "text-[2.3rem] leading-[1.1] sm:text-[2.9rem] md:text-[2.35rem] lg:text-[3.1rem] xl:text-[3.7rem]"
-                }`}
-              >
-                <span className="block" style={{ color: ORANGE }}>
-                  {t.heroTitleBefore}
-                </span>
-                <span className="block text-white">{t.heroTitleAfter.trim()}</span>
-              </h1>
-              <div className="mt-8 flex w-full flex-col gap-3 sm:mt-10 sm:flex-row sm:flex-wrap sm:items-center">
-                <Link
-                  href="/register?next=%2Fdashboard"
-                  className="inline-flex h-11 w-full items-center justify-center rounded-xl bg-[#DC2626] px-6 text-sm font-semibold text-white shadow-sm shadow-red-900/30 transition hover:-translate-y-0.5 hover:bg-[#B91C1C] hover:shadow-md sm:h-12 sm:w-auto sm:px-8 sm:text-base"
-                >
-                  {t.btnProtectProject}
-                </Link>
-                <OutlineLightButton href="/#difference" className="h-11 w-full border-white/40 px-6 sm:h-12 sm:w-auto sm:px-8">
-                  {t.btnSeeHow}
-                </OutlineLightButton>
-              </div>
-              <ul className="mt-8 flex w-full min-w-0 max-w-full flex-wrap justify-start gap-3 text-sm text-white/90 sm:mt-10 sm:gap-4">
-                <li className="flex max-w-full items-center gap-2.5">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 text-orange-200 shadow-sm ring-1 ring-white/20">
-                    <Shield className="h-4 w-4 shrink-0 text-orange-200" strokeWidth={2} />
-                  </span>
-                  <span
-                    className={`max-w-full text-left font-medium leading-snug ${heroChipsHyRu ? "min-w-min whitespace-normal hyphens-none break-words" : ""}`}
-                  >
-                    {t.cardChip1}
-                  </span>
-                </li>
-                <li className="flex max-w-full items-center gap-2.5">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/10 text-orange-200 shadow-sm ring-1 ring-white/20">
-                    <FileText className="h-4 w-4 shrink-0 text-orange-200" strokeWidth={2} />
-                  </span>
-                  <span
-                    className={`max-w-full text-left font-medium leading-snug ${heroChipsHyRu ? "min-w-min whitespace-normal hyphens-none break-words" : ""}`}
-                  >
-                    {t.cardChip2}
-                  </span>
-                </li>
-              </ul>
-            </div>
-
-            <div className="relative w-full min-w-0 pb-10 sm:pb-14 lg:pb-12 vstah-animate-in">
-              <div
-                className="pointer-events-none absolute left-0 top-1/2 z-0 hidden w-28 -translate-x-[86%] -translate-y-1/2 flex-col items-center gap-9 xl:flex 2xl:w-32"
-                aria-hidden
-              >
-                <div className="absolute inset-y-3 left-1/2 w-px -translate-x-1/2 bg-gradient-to-b from-white/0 via-white/35 to-white/0" />
-                {[
-                  { icon: FileText, tone: "border-white/25 bg-white/10 text-white" },
-                  { icon: Lock, tone: "border-orange-300/40 bg-orange-400/15 text-orange-200" },
-                  { icon: Wallet, tone: "border-emerald-300/40 bg-emerald-400/15 text-emerald-200" }
-                ].map(({ icon: Icon, tone }, index) => (
-                  <span
-                    key={`hero-rail-node-${index}`}
-                    className={`relative flex h-12 w-12 items-center justify-center rounded-2xl border shadow-[0_10px_28px_rgba(2,6,23,0.35)] backdrop-blur-sm ${tone}`}
-                  >
-                    <Icon className="h-5 w-5" strokeWidth={2} />
-                  </span>
-                ))}
-              </div>
-              <div className="relative">
-                <div
-                  className="pointer-events-none absolute -inset-px rounded-2xl bg-gradient-to-br from-slate-200/80 to-slate-100/50 blur-sm"
-                  aria-hidden
-                />
-                <div className="relative overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] ring-1 ring-slate-900/[0.04]">
-                <div className="flex items-center gap-2 border-b border-slate-100 bg-slate-50/80 px-4 py-2.5 sm:px-5">
-                  <div className="flex items-center gap-2.5">
-                    {[0, 1, 2].map((index) => (
-                      <button
-                        key={`hero-slide-dot-header-${index}`}
-                        type="button"
-                        aria-label={`${t.heroSlideAria} ${index + 1}`}
-                        aria-current={activeHeroSlide === index ? "true" : undefined}
-                        onClick={() => setActiveHeroSlide(index)}
-                        className="inline-flex h-8 w-8 items-center justify-center rounded-full"
-                      >
-                        <span
-                          className={`h-3.5 w-3.5 rounded-full transition-all ${
-                            activeHeroSlide === index
-                              ? `scale-110 ${heroDotStyles[index].active}`
-                              : heroDotStyles[index].inactive
-                          }`}
-                        />
-                      </button>
-                    ))}
-                  </div>
-                  <span className="ml-auto text-right text-[11px] font-medium text-slate-400">vstah.app</span>
-                </div>
-                <div className="w-full min-w-0 overflow-hidden">
-                  <div
-                    className="flex w-full min-w-0 will-change-transform transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)]"
-                    style={{ transform: `translateX(-${activeHeroSlide * 100}%)` }}
-                  >
-                  <article className="w-full min-w-0 shrink-0 grow-0 basis-full">
-                    <div className="p-5 text-slate-900 sm:p-6">
-                      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-5">
-                        <div>
-                          <p className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-slate-600">
-                            {t.projectLabel}{" "}
-                            <span className="text-slate-900">{t.projectId}</span>
-                          </p>
-                          <h2 className="mt-2 text-lg font-semibold tracking-tight text-slate-900 sm:text-xl">{t.projectTitle}</h2>
-                        </div>
-                        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-600/15">
-                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                          {t.projectStatus}
-                        </span>
-                      </div>
-                      <div className="mt-5 overflow-hidden rounded-xl bg-gradient-to-br from-[#1D4ED8] to-[#1E40AF] p-5 text-white shadow-inner sm:p-6">
-                        <p className="text-xs font-medium uppercase tracking-wider text-white/75">{t.fundsLabel}</p>
-                        <p className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl">
-                          450,000 <span className="text-xl font-semibold text-white/80 sm:text-2xl">֏</span>
-                        </p>
-                        <p className="mt-2 text-sm font-medium text-white/90">{t.lockedNote}</p>
-                      </div>
-                      <ul className="mt-5 space-y-2.5">
-                        <li className="flex items-center justify-between gap-3 rounded-xl border border-emerald-100 bg-emerald-50/60 px-3.5 py-3 sm:px-4">
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-slate-900">{t.stage1Name}</p>
-                            <p className="text-xs font-medium text-slate-500">{t.stage1Amount}</p>
-                          </div>
-                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-emerald-800">
-                            <Check className="h-3 w-3" strokeWidth={2.5} />
-                            {t.stage1State}
-                          </span>
-                        </li>
-                        <li className="flex items-center justify-between gap-3 rounded-xl border border-blue-100 bg-blue-50/50 px-3.5 py-3 sm:px-4">
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-slate-900">{t.stage2Name}</p>
-                            <p className="text-xs font-medium text-slate-500">{t.stage2Amount}</p>
-                          </div>
-                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[#1D4ED8]">
-                            <Lock className="h-3 w-3" strokeWidth={2.5} />
-                            {t.stage2State}
-                          </span>
-                        </li>
-                        <li className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 sm:px-4">
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-slate-900">{t.stage3Name}</p>
-                            <p className="text-xs font-medium text-slate-500">{t.stage3Amount}</p>
-                          </div>
-                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-slate-200/80 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-slate-600">
-                            <Clock className="h-3 w-3" strokeWidth={2.5} />
-                            {t.stage3State}
-                          </span>
-                        </li>
-                      </ul>
-                    </div>
-                  </article>
-
-                  <article className="w-full min-w-0 shrink-0 grow-0 basis-full">
-                    <div className="p-5 text-slate-900 sm:p-6">
-                      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-4">
-                        <div>
-                          <p className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-slate-600">
-                            {t.projectLabel} <span className="text-slate-900">#AM-2842</span>
-                          </p>
-                          <h2 className="mt-2 text-lg font-semibold tracking-tight text-slate-900 sm:text-xl">{t.agreementPreviewTitle}</h2>
-                        </div>
-                        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-800 ring-1 ring-amber-600/20">
-                          <Clock className="h-3.5 w-3.5" />
-                          {t.pendingDeposit}
-                        </span>
-                      </div>
-
-                      <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                        <div className="flex items-center justify-between">
-                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t.clientLabel}</p>
-                          <p className="text-xs font-semibold text-slate-700">Aram Petrosyan</p>
-                        </div>
-                        <div className="mt-2 flex items-center justify-between">
-                          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t.serviceAreaLabel}</p>
-                          <p className="text-xs font-semibold text-slate-700">Yerevan</p>
-                        </div>
-                        <div className="mt-3 rounded-lg border border-slate-200 bg-white px-3 py-2">
-                          <p className="text-[11px] font-semibold text-slate-500">{t.termsSnapshot}</p>
-                          <p className="mt-1 text-xs text-slate-700">{t.termsSnapshotText}</p>
-                        </div>
-                      </div>
-
-                      <div className="mt-4 grid grid-cols-3 gap-2">
-                        <div className="rounded-lg border border-blue-100 bg-blue-50/60 px-2.5 py-2">
-                          <p className="text-[10px] font-semibold uppercase tracking-wide text-blue-700">{t.milestoneDemolition}</p>
-                          <p className="mt-1 text-[11px] font-bold text-blue-900">{t.stateLocked}</p>
-                        </div>
-                        <div className="rounded-lg border border-blue-100 bg-blue-50/60 px-2.5 py-2">
-                          <p className="text-[10px] font-semibold uppercase tracking-wide text-blue-700">{t.milestonePlumbing}</p>
-                          <p className="mt-1 text-[11px] font-bold text-blue-900">{t.stateLocked}</p>
-                        </div>
-                        <div className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-2">
-                          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-600">{t.milestoneFinishing}</p>
-                          <p className="mt-1 text-[11px] font-bold text-slate-700">{t.statePending}</p>
-                        </div>
-                      </div>
-
-                      <div className="mt-4 overflow-hidden rounded-xl bg-gradient-to-br from-[#1D4ED8] to-[#1E40AF] p-4 text-white shadow-inner sm:p-5">
-                        <p className="text-xs font-medium uppercase tracking-wider text-white/75">{t.awaitingFundsEscrow}</p>
-                        <p className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl">
-                          450,000 <span className="text-xl font-semibold text-white/80 sm:text-2xl">֏</span>
-                        </p>
-                        <p className="mt-1.5 text-xs font-medium text-white/90">{t.depositRequired}</p>
-                      </div>
-                      <button
-                        type="button"
-                        className="mt-4 inline-flex h-10 w-full items-center justify-center rounded-xl bg-[#DC2626] px-4 text-sm font-semibold text-white shadow-sm shadow-red-900/30 transition hover:bg-[#B91C1C]"
-                      >
-                        {t.depositFunds}
-                      </button>
-                    </div>
-                  </article>
-
-                  <article className="w-full min-w-0 shrink-0 grow-0 basis-full">
-                    <div className="p-5 text-slate-900 sm:p-6">
-                      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-slate-100 pb-5">
-                        <div>
-                          <p className="font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-slate-600">
-                            {t.projectLabel} <span className="text-slate-900">{t.projectId}</span>
-                          </p>
-                          <h2 className="mt-2 text-lg font-semibold tracking-tight text-slate-900 sm:text-xl">{t.providerDashboardTitle}</h2>
-                        </div>
-                        <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-800 ring-1 ring-emerald-600/15">
-                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                          {t.completed}
-                        </span>
-                      </div>
-
-                      <div className="mt-5 overflow-hidden rounded-xl bg-gradient-to-br from-[#1D4ED8] to-[#1E40AF] p-4 text-white shadow-inner sm:p-5">
-                        <p className="text-xs font-medium uppercase tracking-wider text-white/75">{t.totalTransferred}</p>
-                        <p className="mt-1 text-3xl font-bold tracking-tight sm:text-4xl">
-                          2,450,000 <span className="text-xl font-semibold text-white/80 sm:text-2xl">֏</span>
-                        </p>
-                        <p className="mt-1.5 text-xs font-medium text-white/90">{t.agreementsTrackedMonth}</p>
-                      </div>
-
-                      <ul className="mt-5 space-y-2.5">
-                        <li className="flex items-center justify-between gap-3 rounded-xl border border-emerald-100 bg-emerald-50/60 px-3.5 py-3 sm:px-4">
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-slate-900">Agreement #AM-2841</p>
-                            <p className="text-xs font-medium text-slate-500">{t.finalPayoutCompleted}</p>
-                          </div>
-                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-emerald-800">
-                            <Check className="h-3 w-3" strokeWidth={2.5} />
-                            {t.statusPaid}
-                          </span>
-                        </li>
-                        <li className="flex items-center justify-between gap-3 rounded-xl border border-blue-100 bg-blue-50/50 px-3.5 py-3 sm:px-4">
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-slate-900">Agreement #AM-2843</p>
-                            <p className="text-xs font-medium text-slate-500">{t.fundsSecuredEscrow}</p>
-                          </div>
-                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-[#1D4ED8]">
-                            <Lock className="h-3 w-3" strokeWidth={2.5} />
-                            {t.statusSecured}
-                          </span>
-                        </li>
-                        <li className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 sm:px-4">
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-slate-900">Agreement #AM-2844</p>
-                            <p className="text-xs font-medium text-slate-500">{t.awaitingClientDeposit}</p>
-                          </div>
-                          <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-slate-200/80 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-slate-600">
-                            <Clock className="h-3 w-3" strokeWidth={2.5} />
-                            {t.statePending}
-                          </span>
-                        </li>
-                      </ul>
-
-                      <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5">
-                        <div className="mb-2 flex items-center justify-between">
-                          <p className="text-xs font-semibold text-emerald-900">{t.releaseProgress}</p>
-                          <span className="text-[11px] font-semibold text-emerald-700">72%</span>
-                        </div>
-                        <div className="h-1.5 overflow-hidden rounded-full bg-emerald-100">
-                          <div className="h-full w-[72%] rounded-full bg-emerald-500" />
-                        </div>
-                      </div>
-                    </div>
-                  </article>
-                  </div>
-                </div>
-              </div>
-              <div className="absolute -bottom-5 left-1/2 z-10 w-[min(100%,22rem)] -translate-x-1/2 px-2 sm:-bottom-6 sm:w-full sm:max-w-sm">
-                <div
-                  className="rounded-xl px-4 py-2.5 text-center text-xs font-semibold text-slate-900 shadow-sm"
-                  style={{ backgroundColor: ORANGE }}
-                >
-                  {t.cardMediation}
-                </div>
-              </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="border-b border-slate-100 bg-white py-12 text-slate-900 md:py-16">
-          <div className="mx-auto grid w-full max-w-none grid-cols-1 gap-4 px-4 sm:grid-cols-2 sm:gap-4 lg:grid-cols-4 lg:gap-6 md:px-6">
-            {[
-              { text: t.feature1, icon: ShieldCheck },
-              { text: t.feature2, icon: Wallet },
-              { text: t.feature3, icon: Flag },
-              { text: t.feature4, icon: Shield }
-            ].map(({ text, icon: Icon }, index) => (
-              <Reveal key={`feature-${index}`} delay={index * 30}>
-                <div className="group flex min-h-[4.75rem] w-full min-w-0 max-w-none items-center gap-3 rounded-2xl border border-slate-100 bg-gradient-to-br from-slate-50 to-white p-4 shadow-sm ring-1 ring-slate-100/70 transition-all duration-300 hover:-translate-y-1 hover:from-blue-50 hover:to-blue-50 hover:shadow-md md:min-h-[5rem] md:p-5">
-                  <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[#E30A17] text-white shadow-md transition-colors duration-200 group-hover:bg-[#F2A800] group-hover:text-slate-900">
-                    <Icon className="h-6 w-6" />
-                  </span>
-                  <p className="min-w-0 flex-1 break-words pt-1 font-extrabold leading-snug text-[clamp(12px,1.2vw,16px)]">{text}</p>
-                </div>
-              </Reveal>
-            ))}
-          </div>
-        </section>
-
-        <section id="difference" className="scroll-mt-28 bg-slate-100 py-16 text-slate-900 md:py-24">
-          <div className="mx-auto max-w-6xl px-4 md:px-6">
-            <p className="text-center text-xs font-black uppercase tracking-[0.25em] text-slate-500">{t.diffEyebrow}</p>
-            <h2 className="mt-3 text-center text-3xl font-black tracking-tight md:text-4xl" style={{ color: NAVY }}>
-              {t.diffTitle}
-            </h2>
-            <p className="mx-auto mt-4 max-w-2xl text-center text-base font-medium text-slate-700 md:text-lg">{t.diffSubtitle}</p>
-
-            {/* Mobile: stacked cards */}
-            <div className="mt-10 grid gap-5 md:hidden">
-              <Reveal>
-                <article className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-900/10">
-                <div className="flex min-h-[5.25rem] items-center gap-3 border-b border-white/10 bg-gradient-to-br from-blue-800 via-slate-950 to-black px-5 py-4 text-white">
-                  <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-black/25 text-blue-400 ring-1 ring-blue-500/30">
-                    <Shield className="h-5 w-5" strokeWidth={2.25} />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-blue-200/85">{t.recommended}</p>
-                    <p className="text-2xl font-black leading-none sm:text-3xl">{t.colWith}</p>
-                  </div>
-                </div>
-                <ul className="divide-y divide-slate-100">
-                  {t.comparisonRows.map((row) => (
-                    <li key={`m-with-${row.label}`} className="grid min-h-[5.5rem] grid-cols-[1.75rem_minmax(0,1fr)] items-start gap-3 px-5 py-4">
-                      <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-50">
-                        <Check className="h-4 w-4 text-blue-700" strokeWidth={3} />
-                      </span>
-                      <div className="min-w-0">
-                        <p className="font-extrabold leading-snug text-slate-900">{row.label}</p>
-                        <p className="mt-1 text-sm leading-snug text-slate-600 sm:text-[15px]">{row.withVstah}</p>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </article>
-              </Reveal>
-
-              <Reveal delay={40}>
-                <article className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-900/10">
-                <div className="flex min-h-[5.25rem] items-center gap-3 border-b border-white/10 bg-gradient-to-br from-red-900 via-neutral-950 to-black px-5 py-4 text-white">
-                  <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-black/25 text-red-400 ring-1 ring-red-500/30">
-                    <AlertTriangle className="h-5 w-5" strokeWidth={2.25} />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-red-200/85">{t.diffWithoutEyebrow}</p>
-                    <p className="text-2xl font-black leading-none text-white sm:text-3xl">{t.colWithout}</p>
-                  </div>
-                </div>
-                <ul className="divide-y divide-slate-100">
-                  {t.comparisonRows.map((row) => (
-                    <li key={`m-without-${row.label}`} className="grid min-h-[5.5rem] grid-cols-[1.75rem_minmax(0,1fr)] items-start gap-3 px-5 py-4">
-                      <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-red-50">
-                        <X className="h-4 w-4 text-red-500" strokeWidth={3} />
-                      </span>
-                      <div className="min-w-0">
-                        <p className="font-extrabold leading-snug text-slate-900">{row.label}</p>
-                        <p className="mt-1 text-sm leading-snug text-slate-600 sm:text-[15px]">{row.withoutUs}</p>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </article>
-              </Reveal>
-            </div>
-
-            {/* Desktop: one grid so matching rows share height in every language */}
-            <Reveal className="mt-10 hidden md:block">
-              <div className="grid grid-cols-2 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-xl shadow-slate-900/10">
-                <div className="flex min-h-[5.5rem] items-center gap-3 border-b border-white/10 bg-gradient-to-br from-blue-800 via-slate-950 to-black px-5 py-4 text-white lg:px-6">
-                  <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-black/25 text-blue-400 ring-1 ring-blue-500/30">
-                    <Shield className="h-5 w-5" strokeWidth={2.25} />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-blue-200/85">{t.recommended}</p>
-                    <p className="text-3xl font-black leading-none md:text-[2.1rem]">{t.colWith}</p>
-                  </div>
-                </div>
-                <div className="flex min-h-[5.5rem] items-center gap-3 border-b border-l border-white/10 bg-gradient-to-br from-red-900 via-neutral-950 to-black px-5 py-4 text-white lg:px-6">
-                  <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-black/25 text-red-400 ring-1 ring-red-500/30">
-                    <AlertTriangle className="h-5 w-5" strokeWidth={2.25} />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-red-200/85">{t.diffWithoutEyebrow}</p>
-                    <p className="text-3xl font-black leading-none text-white md:text-[2.1rem]">{t.colWithout}</p>
-                  </div>
-                </div>
-
-                {t.comparisonRows.map((row, idx) => {
-                  const isLast = idx === t.comparisonRows.length - 1;
-                  return (
-                    <div key={row.label} className="contents">
-                      <div
-                        className={`grid grid-cols-[1.75rem_minmax(0,1fr)] items-start gap-3 px-5 py-4 transition-colors duration-200 hover:bg-blue-50 lg:px-6 ${
-                          isLast ? "" : "border-b border-slate-100"
-                        }`}
-                      >
-                        <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-blue-50">
-                          <Check className="h-4 w-4 text-blue-700" strokeWidth={3} />
-                        </span>
-                        <div className="min-w-0">
-                          <p className="font-extrabold leading-snug text-slate-900">{row.label}</p>
-                          <p className="mt-1 text-[15px] leading-snug text-slate-600">{row.withVstah}</p>
-                        </div>
-                      </div>
-                      <div
-                        className={`grid grid-cols-[1.75rem_minmax(0,1fr)] items-start gap-3 border-l border-slate-100 px-5 py-4 transition-colors duration-200 hover:bg-red-50 lg:px-6 ${
-                          isLast ? "" : "border-b border-slate-100"
-                        }`}
-                      >
-                        <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-red-50">
-                          <X className="h-4 w-4 text-red-500" strokeWidth={3} />
-                        </span>
-                        <div className="min-w-0">
-                          <p className="font-extrabold leading-snug text-slate-900">{row.label}</p>
-                          <p className="mt-1 text-[15px] leading-snug text-slate-600">{row.withoutUs}</p>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </Reveal>
-          </div>
-        </section>
-
-        <section
-          id="process"
-          className="scroll-mt-28 relative overflow-hidden py-14 text-white md:py-20"
-          style={{ background: SITE_BG_GRADIENT }}
-        >
-          <div
-            className="pointer-events-none absolute -left-20 top-10 h-72 w-72 rounded-full bg-white/[0.06] blur-3xl"
-            aria-hidden
+          <FloatingPillHeader
+            mobileOpen={mobileOpen}
+            onMobileOpenChange={setMobileOpen}
+            langMenuOpen={langMenuOpen}
+            onLangMenuOpenChange={setLangMenuOpen}
           />
-          <div
-            className="pointer-events-none absolute -right-16 bottom-0 h-80 w-80 rounded-full bg-[#F2A800]/10 blur-3xl"
-            aria-hidden
-          />
-
-          <div className="relative mx-auto max-w-7xl px-4 md:px-6 lg:px-8">
-            <div className="max-w-2xl">
-              <p className="text-[11px] font-black uppercase tracking-[0.22em] text-white/65">{t.processEyebrow}</p>
-              <h2 className="mt-2 text-2xl font-black tracking-tight sm:text-3xl">{t.processTitle}</h2>
-              <p className="mt-2 text-sm leading-relaxed text-white/75">{t.processSubtitle}</p>
-            </div>
-
-            <ol className="mt-8 grid gap-3 sm:grid-cols-2 sm:gap-4 lg:mt-10">
-              {t.processSteps.map((step, idx) => {
-                const Icon = processIcons[Math.min(idx, processIcons.length - 1)] ?? FileText;
-                return (
-                  <li key={step.step} className="h-full min-w-0">
-                    <Reveal delay={idx * 35} className="h-full">
-                      <div className="group flex h-full gap-3 rounded-2xl border border-white/15 bg-white/[0.06] p-4 transition duration-300 hover:-translate-y-1 hover:border-white/25 hover:bg-white/[0.1] sm:gap-4 sm:p-5">
-                        <div className="flex shrink-0 flex-col items-center gap-2">
-                          <span className="text-xs font-black tabular-nums tracking-wide text-[#F2A800]">{step.step}</span>
-                          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 text-[#F2A800] ring-1 ring-white/15 transition duration-300 group-hover:bg-[#F2A800] group-hover:text-slate-900">
-                            <Icon className="h-5 w-5" strokeWidth={2.2} />
-                          </div>
-                        </div>
-                        <div className="min-w-0 pt-0.5">
-                          <h3 className="text-base font-bold leading-snug">{step.title}</h3>
-                          <p className="mt-1.5 text-sm leading-relaxed text-white/70">{step.desc}</p>
-                        </div>
-                      </div>
-                    </Reveal>
-                  </li>
-                );
-              })}
-            </ol>
-          </div>
+          <MarketingHeroSection t={t} isHy={isHy} heroChipsHyRu={heroChipsHyRu} locale={locale} />
         </section>
 
-        <section className="relative overflow-hidden border-t border-[#d7e0ef] bg-[#E8EEF8] py-14 text-slate-900 md:py-20">
-          <div className="pointer-events-none absolute -right-24 top-1/2 h-80 w-80 -translate-y-1/2 rounded-full bg-[#0033A0]/[0.08] blur-3xl" aria-hidden />
-          <div className="pointer-events-none absolute -left-16 bottom-0 h-64 w-64 rounded-full bg-[#E30A17]/[0.06] blur-3xl" aria-hidden />
+        <MarketingPainPointsCarousel
+          title={t.painPointsTitle}
+          quotes={t.painPoints}
+          carouselAria={t.painCarouselAria}
+          prevAria={t.painPrevAria}
+          nextAria={t.painNextAria}
+          slideAria={t.painSlideAria}
+        />
 
-          <div className="relative mx-auto max-w-7xl px-4 md:px-6 lg:px-8">
-            <Reveal>
-              <div className="flex flex-col gap-5 rounded-2xl border border-[#0033A0]/12 bg-white/80 p-5 shadow-sm sm:p-6 md:flex-row md:items-end md:justify-between md:gap-10 md:p-7">
-                <div className="min-w-0 max-w-2xl">
-                  <p className="text-[11px] font-black uppercase tracking-[0.22em]" style={{ color: RED }}>
-                    {t.disputeEyebrow}
-                  </p>
-                  <h2 className="mt-2 text-2xl font-black leading-tight tracking-tight sm:text-3xl" style={{ color: NAVY }}>
-                    {t.disputeTitle}
-                  </h2>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-600 sm:text-[15px]">{t.disputeBody}</p>
-                </div>
-                <div className="shrink-0 md:pb-0.5">
-                  <OrangeButton
-                    href="/register?next=%2Fdashboard"
-                    className="w-full hover:!bg-[#E30A17] hover:!text-white hover:shadow-[0_14px_36px_-6px_rgba(227,10,23,0.45)] active:!bg-[#c40914] focus-visible:!outline-[#E30A17] md:w-auto"
-                  >
-                    {t.btnStartProtected}
-                  </OrangeButton>
-                </div>
-              </div>
-            </Reveal>
+        <MarketingFeaturesSection
+          locale={locale}
+          t={{
+            feature1: t.feature1,
+            feature2: t.feature2,
+            feature3: t.feature3,
+            feature4: t.feature4,
+            fundsLabel: t.fundsLabel,
+            lockedNote: t.lockedNote,
+            stage1State: t.stage1State,
+            projectStatus: t.projectStatus
+          }}
+        />
 
-            <ol className="mt-6 grid gap-3 sm:mt-8 sm:grid-cols-3 sm:gap-4">
-              {[
-                { main: t.badge24h, sub: t.badge24hSub, icon: Headphones, accent: NAVY },
-                { main: t.badgeLaw, sub: t.badgeLawSub, icon: Layers, accent: RED },
-                { main: t.badgeMed, sub: t.badgeMedSub, icon: ListOrdered, accent: ORANGE }
-              ].map(({ main, sub, icon: Icon, accent }, idx) => (
-                <li key={`dispute-step-${idx}`} className="h-full min-w-0">
-                  <Reveal delay={idx * 40} className="h-full">
-                    <div className="flex h-full flex-col rounded-2xl border border-[#0033A0]/10 bg-white/70 p-4 shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-md sm:p-5">
-                      <div className="flex items-center gap-3">
-                        <div
-                          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white"
-                          style={{ backgroundColor: accent }}
-                        >
-                          <Icon className="h-5 w-5" strokeWidth={2.25} />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-[10px] font-black uppercase tracking-[0.18em]" style={{ color: accent }}>
-                            0{idx + 1}
-                          </p>
-                          <h3
-                            className={`whitespace-pre-line font-bold leading-snug [overflow-wrap:anywhere] ${
-                              isHy ? "text-sm sm:text-[15px]" : "text-[15px] sm:text-base"
-                            }`}
-                            style={{ color: NAVY }}
-                          >
-                            {main}
-                          </h3>
-                        </div>
-                      </div>
-                      <p className="mt-3 text-sm leading-relaxed text-slate-600" title={sub}>
-                        {sub}
-                      </p>
-                    </div>
-                  </Reveal>
-                </li>
-              ))}
-            </ol>
-          </div>
-        </section>
+        <MarketingDifferenceSection
+          diffEyebrow={t.diffEyebrow}
+          diffTitle={t.diffTitle}
+          diffSubtitle={t.diffSubtitle}
+          recommended={t.recommended}
+          colWith={t.colWith}
+          colWithout={t.colWithout}
+          diffWithoutEyebrow={t.diffWithoutEyebrow}
+          comparisonRows={t.comparisonRows}
+        />
+
+        <MarketingProcessSection
+          processEyebrow={t.processEyebrow}
+          processTitle={t.processTitle}
+          processSubtitle={t.processSubtitle}
+          processSteps={t.processSteps}
+        />
+
+        <MarketingDisputeSection
+          disputeEyebrow={t.disputeEyebrow}
+          disputeTitle={t.disputeTitle}
+          disputeBody={t.disputeBody}
+          btnStartProtected={t.btnStartProtected}
+          badge24h={t.badge24h}
+          badge24hSub={t.badge24hSub}
+          badgeLaw={t.badgeLaw}
+          badgeLawSub={t.badgeLawSub}
+          badgeMed={t.badgeMed}
+          badgeMedSub={t.badgeMedSub}
+          isHy={isHy}
+        />
+
         <MarketingPricingFaqSection
           locale={locale}
           pricingLongLocale={pricingLongLocale}
@@ -1364,88 +914,23 @@ export default function Page() {
           faqSubtitle={t.faqSubtitle}
           faqs={t.faqs}
         />
-</main>
+      </main>
 
-      <footer className="border-t border-slate-200 bg-white text-slate-600">
-        <div className="mx-auto w-full max-w-6xl px-4 py-10 md:px-6 md:py-12">
-          <div className="flex w-full flex-col gap-10 sm:flex-row sm:flex-wrap sm:justify-between sm:gap-x-8 sm:gap-y-10 lg:flex-nowrap">
-            <div className="min-w-0 shrink-0 sm:max-w-[14rem]">
-              <div className="flex items-center gap-2">
-                <img src="/logo-vstah-clean.png" alt="VSTAH logo" className="h-8 w-8 shrink-0 object-contain" />
-                <span className="text-base font-semibold tracking-tight text-slate-900">{t.brand}</span>
-              </div>
-              <p className="mt-3 text-sm leading-relaxed text-slate-500">{t.footerTagline}</p>
-            </div>
-
-            <div className="min-w-0 shrink-0">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-900">{t.footerCompany}</p>
-              <ul className="mt-3 space-y-2 text-sm">
-                <li>
-                  <Link href="/" className="text-slate-600 transition hover:text-slate-900">
-                    {t.navHome}
-                  </Link>
-                </li>
-                <li>
-                  <a href="#difference" className="text-slate-600 transition hover:text-slate-900">
-                    {t.navHowItWorks}
-                  </a>
-                </li>
-                <li>
-                  <a href="#pricing" className="text-slate-600 transition hover:text-slate-900">
-                    {t.navPricing}
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            <div className="min-w-0 shrink-0">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-900">{t.footerLegal}</p>
-              <ul className="mt-3 space-y-2 text-sm">
-                <li>
-                  <Link href="/terms" className="text-slate-600 transition hover:text-slate-900">
-                    {t.footerTerms}
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/privacy" className="text-slate-600 transition hover:text-slate-900">
-                    {t.footerPrivacy}
-                  </Link>
-                </li>
-              </ul>
-            </div>
-
-            <div className="min-w-0 shrink-0 sm:text-right">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-900">{t.footerFollow}</p>
-              <div className="mt-3 flex items-center gap-3 sm:justify-end">
-                <a
-                  href="https://instagram.com/vstah.am"
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label="Instagram"
-                  className="text-slate-500 transition hover:text-slate-800"
-                >
-                  <Instagram className="h-5 w-5" />
-                </a>
-                <a
-                  href="https://facebook.com/vstah.am"
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label="Facebook"
-                  className="text-slate-500 transition hover:text-slate-800"
-                >
-                  <Facebook className="h-5 w-5" />
-                </a>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="border-t border-slate-200">
-          <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-4 md:px-6">
-            <p className="text-xs text-slate-500">{t.footerRights}</p>
-          </div>
-        </div>
-      </footer>
+      <MarketingFooter
+        t={{
+          brand: t.brand,
+          footerTagline: t.footerTagline,
+          footerCompany: t.footerCompany,
+          footerLegal: t.footerLegal,
+          footerFollow: t.footerFollow,
+          footerRights: t.footerRights,
+          footerTerms: t.footerTerms,
+          footerPrivacy: t.footerPrivacy,
+          navHome: t.navHome,
+          navHowItWorks: t.navHowItWorks,
+          navPricing: t.navPricing
+        }}
+      />
     </div>
   );
 }
