@@ -191,7 +191,8 @@ export default function AgreementClientPage() {
           notConfigured: "Supabase-ը կարգավորված չէ։",
           notFound: "Պայմանագիրը չի գտնվել։",
           localLinkNotFound:
-            "Այս հղումը հասանելի է միայն ստեղծողի սարքում։ Խնդրեք մատակարարին նոր հղում ուղարկել վահանակից։",
+            "Այս հղումը առցանց չի պահվել և աշխատում էր միայն մատակարարի browser-ում։ Խնդրեք նոր հղում վահանակից։",
+          localLinkTitle: "Հղումը հնարավոր չէ ուղարկել",
           offer: "Առաջարկ",
           title: "Անվտանգ պայմանագիր",
           subtitle: "Ստուգեք տվյալները ստորագրելուց առաջ։",
@@ -315,7 +316,8 @@ export default function AgreementClientPage() {
             notConfigured: "Supabase не настроен.",
             notFound: "Соглашение не найдено.",
             localLinkNotFound:
-              "Эта ссылка работает только на устройстве создателя. Попросите исполнителя отправить новую ссылку из панели.",
+              "Ссылка не была сохранена в облаке и работала только в браузере исполнителя. Попросите новую ссылку из панели.",
+            localLinkTitle: "Ссылка не для отправки",
             offer: "Предложение",
             title: "Сервисное соглашение с защитой",
             subtitle: "Проверьте детали ниже перед принятием.",
@@ -438,7 +440,8 @@ export default function AgreementClientPage() {
             notConfigured: "Supabase is not configured.",
             notFound: "Agreement not found.",
             localLinkNotFound:
-              "This link only works on the provider's device. Ask them to copy a new link from their dashboard.",
+              "This link was not saved online and only worked on the provider's browser. Ask them to open their dashboard and send you a new link.",
+            localLinkTitle: "Link not shareable",
             offer: "Offer",
             title: "Safe Service Agreement",
             subtitle: "Review all details below before accepting this offer.",
@@ -572,7 +575,11 @@ export default function AgreementClientPage() {
   const fetchSeqRef = useRef(0);
 
   const fetchAgreement = useCallback(async () => {
-    if (!id) return;
+    if (!id) {
+      setLoading(false);
+      setError(tx.notFound);
+      return;
+    }
     const seq = ++fetchSeqRef.current;
     const isStale = () => seq !== fetchSeqRef.current;
 
@@ -928,10 +935,18 @@ export default function AgreementClientPage() {
   }
 
   if (!agreement) {
+    const isLocalLink = typeof id === "string" && isLocalAgreementId(id);
     return (
       <main key={routeKey} className="flex min-h-dvh items-center justify-center bg-gradient-to-b from-slate-100 via-white to-slate-100 px-4">
         <div className="max-w-md rounded-2xl border border-red-200 bg-white px-6 py-8 text-center shadow-lg ring-1 ring-red-100">
-          <p className="text-sm font-semibold text-red-700">{error || tx.notFound}</p>
+          {isLocalLink ? (
+            <>
+              <p className="text-lg font-bold text-slate-900">{tx.localLinkTitle}</p>
+              <p className="mt-3 text-sm leading-relaxed text-red-700">{error || tx.localLinkNotFound}</p>
+            </>
+          ) : (
+            <p className="text-sm font-semibold text-red-700">{error || tx.notFound}</p>
+          )}
         </div>
       </main>
     );
