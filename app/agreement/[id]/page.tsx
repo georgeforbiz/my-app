@@ -760,6 +760,7 @@ export default function AgreementClientPage() {
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+    canvas.setPointerCapture(e.pointerId);
     drawing.current = true;
     const { x, y } = pointerPos(e);
     ctx.beginPath();
@@ -777,8 +778,12 @@ export default function AgreementClientPage() {
     ctx.stroke();
   };
 
-  const stopDraw = () => {
+  const stopDraw = (e?: React.PointerEvent<HTMLCanvasElement>) => {
     drawing.current = false;
+    const canvas = canvasRef.current;
+    if (canvas && e && canvas.hasPointerCapture(e.pointerId)) {
+      canvas.releasePointerCapture(e.pointerId);
+    }
   };
 
   const clearSignature = () => {
@@ -812,6 +817,9 @@ export default function AgreementClientPage() {
     let updateError: { message?: string } | null = null;
     try {
       ({ data: updatedRows, error: updateError } = await run(payload));
+      if ((updateError || !updatedRows?.length) && payload.client_signature) {
+        ({ data: updatedRows, error: updateError } = await run({ status: "signed" }));
+      }
     } catch {
       return updateLocally();
     }
@@ -863,6 +871,15 @@ export default function AgreementClientPage() {
       }
     }
 
+    setAgreement((prev) =>
+      prev
+        ? {
+            ...prev,
+            status: "signed",
+            ...(signature ? { client_signature: signature } : {})
+          }
+        : prev
+    );
     await fetchAgreement();
     setSigning(false);
   };
@@ -1106,20 +1123,7 @@ export default function AgreementClientPage() {
             <pre className="mt-4 max-h-[min(24rem,50vh)] overflow-y-auto whitespace-pre-wrap break-words rounded-xl border border-slate-100 bg-slate-50/70 p-4 font-sans text-sm leading-7 text-slate-700 sm:max-h-none sm:overflow-visible sm:p-5">
               {agreement.custom_terms?.trim() || defaultTerms}
             </pre>
-            {agreement.status === "pending" ? (
-              <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-4 transition hover:border-[#0033A0]/30 hover:bg-slate-50">
-                <input
-                  type="checkbox"
-                  checked={termsAccepted}
-                  onChange={(e) => {
-                    setTermsAccepted(e.target.checked);
-                    if (e.target.checked) setActionError("");
-                  }}
-                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-[#0033A0] focus:ring-2 focus:ring-[#0033A0]/30"
-                />
-                <span className="text-sm font-medium leading-relaxed text-slate-700">{tx.agreeTerms}</span>
-              </label>
-            ) : signed ? (
+            {signed ? (
               <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800">
                 <CheckCircle2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
                 {tx.agreeTermsAccepted}
@@ -1197,7 +1201,19 @@ export default function AgreementClientPage() {
                   <p className="mt-1 text-xs leading-6 text-slate-600 sm:text-sm">{tx.signatureHint}</p>
                 </div>
               </div>
-              <div ref={signatureWrapRef} className="mt-5 w-full">
+              <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border-2 border-[#0033A0]/25 bg-white p-4 shadow-sm">
+                <input
+                  type="checkbox"
+                  checked={termsAccepted}
+                  onChange={(e) => {
+                    setTermsAccepted(e.target.checked);
+                    if (e.target.checked) setActionError("");
+                  }}
+                  className="mt-0.5 h-5 w-5 shrink-0 rounded border-slate-300 text-[#0033A0] focus:ring-2 focus:ring-[#0033A0]/30"
+                />
+                <span className="text-sm font-semibold leading-relaxed text-slate-800">{tx.agreeTerms}</span>
+              </label>
+              <div ref={signatureWrapRef} className="mt-4 w-full">
                 <canvas
                   ref={canvasRef}
                   width={640}
@@ -1205,8 +1221,9 @@ export default function AgreementClientPage() {
                   aria-label={tx.optionalSignature}
                   onPointerDown={onPointerDown}
                   onPointerMove={onPointerMove}
-                  onPointerUp={stopDraw}
-                  onPointerLeave={stopDraw}
+                  onPointerUp={(e) => stopDraw(e)}
+                  onPointerLeave={(e) => stopDraw(e)}
+                  onPointerCancel={(e) => stopDraw(e)}
                   className="touch-none rounded-2xl border-2 border-dashed border-slate-300/90 bg-white shadow-inner"
                 />
               </div>
@@ -1221,7 +1238,7 @@ export default function AgreementClientPage() {
                 <button
                   type="button"
                   onClick={() => void signAgreement()}
-                  disabled={signing || !termsAccepted}
+                  disabled={signing}
                   className="w-full rounded-xl px-6 py-4 text-base font-black text-slate-900 shadow-lg transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:min-w-[16rem]"
                   style={{ backgroundColor: ORANGE, boxShadow: `0 12px 32px -10px ${ORANGE}cc` }}
                 >
