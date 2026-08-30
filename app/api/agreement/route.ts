@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { insertAgreementWithSchemaFallback, type PaymentType } from "@/lib/agreements/row";
-import { getAgreementServerClient } from "@/lib/supabase/agreement-server";
+import {
+  getAgreementMutationClient,
+  getAgreementServerClient,
+  readBearerToken
+} from "@/lib/supabase/agreement-server";
 
 function readString(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
@@ -19,7 +23,7 @@ export async function POST(request: NextRequest) {
   }
 
   const authHeader = request.headers.get("authorization");
-  const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7).trim() : "";
+  const token = readBearerToken(authHeader);
   if (!token) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
@@ -31,6 +35,11 @@ export async function POST(request: NextRequest) {
 
   if (authError || !user?.id) {
     return NextResponse.json({ error: "Invalid or expired session." }, { status: 401 });
+  }
+
+  const insertClient = getAgreementMutationClient(client, token);
+  if ("error" in insertClient) {
+    return NextResponse.json({ error: insertClient.error }, { status: 500 });
   }
 
   let body: Record<string, unknown>;
@@ -61,7 +70,7 @@ export async function POST(request: NextRequest) {
     };
   });
 
-  const result = await insertAgreementWithSchemaFallback(client.supabase, {
+  const result = await insertAgreementWithSchemaFallback(insertClient, {
     providerId: user.id,
     providerName: readString(body.providerName) || "Service Provider",
     full_name: readString(body.full_name) || null,

@@ -34,7 +34,7 @@ import { useRouter } from "next/navigation";
 import { authDisplayName, useAuth } from "@/lib/auth/auth-context";
 import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
 import { insertAgreementWithSchemaFallback, normalizeAgreementRow } from "@/lib/agreements/row";
-import { createAgreementViaApi, publishLocalAgreementViaApi } from "@/lib/agreements/create-via-api";
+import { createAgreementViaApi, fetchDashboardAgreementsViaApi, mergeAgreementsById, publishLocalAgreementViaApi } from "@/lib/agreements/create-via-api";
 import {
   getLocalAgreement,
   isLocalAgreementId,
@@ -101,6 +101,8 @@ type Tx = {
   download: string;
   searchClientPlaceholder: string;
   noSearchResults: string;
+  linkNotPublished: string;
+  cloudSaveFailed: string;
   copied: string;
   createSafeAgreement: string;
   totalPrice: string;
@@ -206,6 +208,8 @@ const t: Record<Lang, Tx> = {
     download: "Download",
     searchClientPlaceholder: "Search by client name...",
     noSearchResults: "No agreements match your search.",
+    linkNotPublished: "Could not save this agreement online. Shared links will not work until it is saved.",
+    cloudSaveFailed: "Could not save agreement to the cloud. Please try again.",
     copied: "Copied!",
     createSafeAgreement: "Create Safe Agreement",
     totalPrice: "Total Price (֏)",
@@ -309,6 +313,8 @@ const t: Record<Lang, Tx> = {
     download: "Ներբեռնել",
     searchClientPlaceholder: "Փնտրել ըստ հաճախորդի անվան…",
     noSearchResults: "Որոնմամբ պայմանագիր չի գտնվել։",
+    linkNotPublished: "Չհաջողվեց առցանց պահել։ Հղումը կաշխատի միայն պահպանվելուց հետո։",
+    cloudSaveFailed: "Չհաջողվեց պահպանել ամպում։ Փորձեք կրկին։",
     copied: "Պատճենված է!",
     createSafeAgreement: "Ստեղծել անվտանգ պայմանագիր",
     totalPrice: "Ընդհանուր գին (֏)",
@@ -413,6 +419,8 @@ const t: Record<Lang, Tx> = {
     download: "Скачать",
     searchClientPlaceholder: "Поиск по клиенту…",
     noSearchResults: "Ничего не найдено.",
+    linkNotPublished: "Не удалось сохранить в облаке. Ссылка не будет работать, пока соглашение не сохранено.",
+    cloudSaveFailed: "Не удалось сохранить соглашение. Попробуйте снова.",
     copied: "Скопировано",
     createSafeAgreement: "Создать защищённое соглашение",
     totalPrice: "Сумма по соглашению (֏)",
@@ -709,44 +717,59 @@ export default function DashboardPage() {
     const isStale = () => seq !== agreementsFetchSeqRef.current;
 
     const local = user?.id ? (listLocalAgreements(user.id) as Agreement[]) : [];
-    if (!supabase || !user?.id || user.source === "mock") {
+    if (!user?.id) {
+      if (isStale()) return;
+      setAgreements([]);
+      setLoadingAgreements(false);
+      return;
+    }
+
+    if (!supabase || user.source === "mock") {
       if (isStale()) return;
       setAgreements(local);
       setLoadingAgreements(false);
       return;
     }
+
     setLoadingAgreements(true);
+    let cloud: Agreement[] = [];
+
     try {
-      const result = await Promise.race([
-        supabase
-          .from("agreements")
-          .select("*")
-          .eq("provider_id", user.id)
-          .order("created_at", { ascending: false }),
-        new Promise<null>((resolve) => {
-          window.setTimeout(() => resolve(null), 8_000);
-        })
-      ]);
-      if (isStale()) return;
-      if (!result) {
-        setAgreements(local);
-        setLoadingAgreements(false);
-        return;
+      const token = (await supabase.auth.getSession()).data.session?.access_token;
+      if (token) {
+        const apiResult = await fetchDashboardAgreementsViaApi(token);
+        if (!isStale()) {
+          if (apiResult.agreements) {
+            cloud = apiResult.agreements as Agreement[];
+          } else if (apiResult.error) {
+            setError(apiResult.error);
+          }
+        }
       }
-      const { data, error: fetchError } = result;
-      if (fetchError) {
-        setError(fetchError.message);
-        setAgreements(local);
-        setLoadingAgreements(false);
-        return;
+
+      if (cloud.length === 0) {
+        const result = await Promise.race([
+          supabase
+            .from("agreements")
+            .select("*")
+            .eq("provider_id", user.id)
+            .order("created_at", { ascending: false }),
+          new Promise<null>((resolve) => {
+            window.setTimeout(() => resolve(null), 8_000);
+          })
+        ]);
+        if (!isStale() && result) {
+          const { data, error: fetchError } = result;
+          if (!fetchError && data) {
+            cloud = data.map((row) => normalizeAgreementRow(row as Record<string, unknown>)) as Agreement[];
+          } else if (fetchError) {
+            setError(fetchError.message);
+          }
+        }
       }
-      const cloud = (data ?? []).map((row) =>
-        normalizeAgreementRow(row as Record<string, unknown>)
-      ) as Agreement[];
+
       if (isStale()) return;
-      setAgreements(
-        [...local, ...cloud].sort((a, b) => (a.created_at < b.created_at ? 1 : -1))
-      );
+      setAgreements(mergeAgreementsById([local, cloud]));
     } catch {
       if (isStale()) return;
       setAgreements(local);
@@ -758,6 +781,26 @@ export default function DashboardPage() {
   useEffect(() => {
     void fetchAgreements();
   }, [fetchAgreements]);
+
+  useEffect(() => {
+    if (!supabase || !user?.id || user.source === "mock") return;
+    const locals = listLocalAgreements(user.id).filter((a) => isLocalAgreementId(a.id));
+    if (locals.length === 0) return;
+
+    void (async () => {
+      const token = (await supabase.auth.getSession()).data.session?.access_token;
+      if (!token) return;
+      let migrated = false;
+      for (const local of locals) {
+        const published = await publishLocalAgreementViaApi(token, local);
+        if (published.id) {
+          replaceLocalAgreementId(local.id, published.id);
+          migrated = true;
+        }
+      }
+      if (migrated) void fetchAgreements();
+    })();
+  }, [supabase, user?.id, user?.source, fetchAgreements]);
 
   useEffect(() => {
     if (!supabase || !user?.id || user.source === "mock") return;
@@ -796,25 +839,37 @@ export default function DashboardPage() {
   }, [supabase, user?.id, user?.source, fetchAgreements]);
 
   const resolvePublicAgreementId = useCallback(
-    async (id: string): Promise<string> => {
-      if (!isLocalAgreementId(id) || !supabase || user?.source === "mock") return id;
+    async (id: string): Promise<{ id: string; error?: string }> => {
+      if (!isLocalAgreementId(id)) return { id };
+      if (!supabase || user?.source === "mock") {
+        return { id, error: tx.linkNotPublished };
+      }
       const local = getLocalAgreement(id);
       const token = (await supabase.auth.getSession()).data.session?.access_token;
-      if (!local || !token) return id;
+      if (!local || !token) {
+        return { id, error: tx.linkNotPublished };
+      }
       const published = await publishLocalAgreementViaApi(token, local);
-      if (!published.id) return id;
+      if (!published.id) {
+        return { id, error: published.error ?? tx.linkNotPublished };
+      }
       replaceLocalAgreementId(id, published.id);
       setAgreements((prev) =>
         prev.map((a) => (a.id === id ? ({ ...a, id: published.id! } as Agreement) : a))
       );
       if (successAgreementId === id) setSuccessAgreementId(published.id);
-      return published.id;
+      return { id: published.id };
     },
-    [supabase, user?.source, successAgreementId]
+    [supabase, user?.source, successAgreementId, tx.linkNotPublished]
   );
 
   const copyAgreementLink = async (id: string) => {
-    const publicId = await resolvePublicAgreementId(id);
+    const resolved = await resolvePublicAgreementId(id);
+    if (isLocalAgreementId(resolved.id)) {
+      setToast(resolved.error ?? tx.linkNotPublished);
+      return;
+    }
+    const publicId = resolved.id;
     const base = typeof window !== "undefined" ? window.location.origin : "https://vstah.am";
     const link = `${base}/agreement/${publicId}`;
     try {
@@ -831,8 +886,12 @@ export default function DashboardPage() {
   };
 
   const openAgreementLink = async (id: string) => {
-    const publicId = await resolvePublicAgreementId(id);
-    window.open(getAgreementPublicUrl(publicId), "_blank", "noopener,noreferrer");
+    const resolved = await resolvePublicAgreementId(id);
+    if (isLocalAgreementId(resolved.id)) {
+      setToast(resolved.error ?? tx.linkNotPublished);
+      return;
+    }
+    window.open(getAgreementPublicUrl(resolved.id), "_blank", "noopener,noreferrer");
   };
 
   const downloadAgreementPdf = (agreement: Agreement) => {
@@ -1176,8 +1235,11 @@ export default function DashboardPage() {
         }
       }
 
-      // Browser-only fallback when cloud is unreachable or using mock auth.
-      if (!result.id && (!supabase || user.source === "mock" || isNetworkErrorMessage(result.error))) {
+      // Browser-only fallback for mock auth or when Supabase is completely offline.
+      if (
+        !result.id &&
+        (user.source === "mock" || !supabase || isNetworkErrorMessage(result.error))
+      ) {
         const saved = saveLocalAgreement({
           provider_id: user.id,
           provider_name: providerName,
@@ -1203,14 +1265,44 @@ export default function DashboardPage() {
       }
 
       if (result.error || !result.id) {
-        setError(result.error ?? "Failed to create agreement.");
+        setError(result.error ?? tx.cloudSaveFailed);
         return;
       }
 
       let agreementId = result.id;
       if (isLocalAgreementId(agreementId)) {
-        agreementId = await resolvePublicAgreementId(agreementId);
+        const published = await resolvePublicAgreementId(agreementId);
+        if (isLocalAgreementId(published.id)) {
+          setError(published.error ?? tx.linkNotPublished);
+          return;
+        }
+        agreementId = published.id;
       }
+
+      const createdRow: Agreement = {
+        id: agreementId,
+        provider_id: user.id,
+        provider_name: providerName,
+        full_name: full_name || undefined,
+        business_name: business_name || undefined,
+        client_name: draft.clientName,
+        project_title: draft.projectTitle,
+        service_area: draft.serviceArea,
+        custom_terms: customTermsText,
+        scope_of_work: scopeOfWork.trim(),
+        scope_exclusions: scopeExclusions.trim() || undefined,
+        estimated_completion_date: estimatedCompletionDate.trim(),
+        total_price: totalPrice,
+        payment_type: paymentType,
+        milestones:
+          paymentType === "milestones"
+            ? milestonesParsed.map((m) => ({ ...m, status: "pending" as const }))
+            : null,
+        status: "pending",
+        payment_status: "pending",
+        created_at: new Date().toISOString()
+      };
+      setAgreements((prev) => mergeAgreementsById([[createdRow], prev]));
 
       void fetch(`/api/agreement/${encodeURIComponent(agreementId)}/log`, {
         method: "POST",

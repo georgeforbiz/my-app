@@ -71,3 +71,34 @@ export async function publishLocalAgreementViaApi(
 ): Promise<{ id?: string; error?: string }> {
   return createAgreementViaApi(accessToken, localAgreementToApiPayload(local));
 }
+
+export async function fetchDashboardAgreementsViaApi(
+  accessToken: string
+): Promise<{ agreements?: NormalizedAgreement[]; error?: string }> {
+  try {
+    const res = await fetch("/api/dashboard/agreements", {
+      headers: { Authorization: `Bearer ${accessToken}` },
+      cache: "no-store"
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      agreements?: NormalizedAgreement[];
+      error?: string;
+    };
+    if (!res.ok) {
+      return { error: data.error ?? "Failed to load agreements." };
+    }
+    return { agreements: data.agreements ?? [] };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to fetch" };
+  }
+}
+
+export function mergeAgreementsById<T extends { id: string; created_at: string }>(lists: T[][]): T[] {
+  const byId = new Map<string, T>();
+  for (const list of lists) {
+    for (const item of list) {
+      byId.set(item.id, item);
+    }
+  }
+  return [...byId.values()].sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+}
