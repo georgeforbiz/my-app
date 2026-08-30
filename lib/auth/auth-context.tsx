@@ -13,7 +13,7 @@ import {
 import { humanizeAuthError, isAuthNetworkError } from "./humanize-auth-error";
 import { isLocalDeviceAuthAllowed, isMockAuthAllowed } from "./mock-auth-allowed";
 import { mockGetSession, mockLogin, mockLogout, mockRegister, mockVerifyCredentials } from "./mock-storage";
-import { getSupabaseBrowser, ensureSupabaseBrowser } from "@/lib/supabase/browser-client";
+import { getSupabaseBrowser, ensureSupabaseBrowser, getSupabaseReachable } from "@/lib/supabase/browser-client";
 
 export type AuthUser = {
   id: string;
@@ -222,8 +222,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      // Only discard device sessions when cloud auth is actually available.
-      if (!isLocalDeviceAuthAllowed()) {
+      // Only discard device sessions once cloud auth is confirmed online.
+      if (getSupabaseReachable() === true) {
         mockLogout();
       }
 

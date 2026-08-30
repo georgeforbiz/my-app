@@ -14,8 +14,9 @@ export function isMockAuthAllowed(): boolean {
   return process.env.NODE_ENV !== "production";
 }
 
-/** Device-only accounts when the cloud auth server is configured but unreachable. */
+/** Device-only accounts when the cloud auth server is not confirmed online. */
 export function isLocalDeviceAuthAllowed(): boolean {
   if (isMockAuthAllowed()) return true;
-  return getSupabaseReachable() === false;
+  // null = config still loading — prefer local auth until cloud is proven reachable.
+  return getSupabaseReachable() !== true;
 }

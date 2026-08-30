@@ -104,6 +104,7 @@ type Tx = {
   searchClientPlaceholder: string;
   noSearchResults: string;
   linkNotPublished: string;
+  linkLocalWarning: string;
   cloudSaveFailed: string;
   signInRequiredForSharing: string;
   copied: string;
@@ -212,6 +213,8 @@ const t: Record<Lang, Tx> = {
     searchClientPlaceholder: "Search by client name...",
     noSearchResults: "No agreements match your search.",
     linkNotPublished: "Could not save this agreement online. Shared links will not work until it is saved.",
+    linkLocalWarning:
+      "This link only works on this browser until your online database is connected. WhatsApp clients need a cloud-saved link.",
     cloudSaveFailed: "Could not save agreement to the cloud. Please try again.",
     signInRequiredForSharing:
       "Could not save online. Sign out, sign in again, then copy the link.",
@@ -319,6 +322,8 @@ const t: Record<Lang, Tx> = {
     searchClientPlaceholder: "Փնտրել ըստ հաճախորդի անվան…",
     noSearchResults: "Որոնմամբ պայմանագիր չի գտնվել։",
     linkNotPublished: "Չհաջողվեց առցանց պահել։ Հղումը կաշխատի միայն պահպանվելուց հետո։",
+    linkLocalWarning:
+      "Այս հղումը աշխատում է միայն այս browser-ում, մինչև օնլայն բազան միացված չլինի։ WhatsApp-ի հաճախորդներին պետք է ամպային հղում։",
     cloudSaveFailed: "Չհաջողվեց պահպանել ամպում։ Փորձեք կրկին։",
     signInRequiredForSharing:
       "Չհաջողվեց առցանց պահել։ Դուրս գալ, նորից մուտք գործել, ապա պատճենել հղումը։",
@@ -427,6 +432,8 @@ const t: Record<Lang, Tx> = {
     searchClientPlaceholder: "Поиск по клиенту…",
     noSearchResults: "Ничего не найдено.",
     linkNotPublished: "Не удалось сохранить в облаке. Ссылка не будет работать, пока соглашение не сохранено.",
+    linkLocalWarning:
+      "Эта ссылка работает только в этом браузере, пока база не подключена. Для WhatsApp нужна облачная ссылка.",
     cloudSaveFailed: "Не удалось сохранить соглашение. Попробуйте снова.",
     signInRequiredForSharing:
       "Не удалось сохранить в облаке. Выйдите, войдите снова и скопируйте ссылку.",
@@ -891,6 +898,16 @@ export default function DashboardPage() {
     }
   };
 
+  const copySuccessModalLink = async (id: string) => {
+    const link = getAgreementPublicUrl(id);
+    try {
+      await navigator.clipboard.writeText(link);
+      setCopiedAgreementId(id);
+    } catch {
+      setToast("Could not copy link.");
+    }
+  };
+
   const openAgreementLink = async (id: string) => {
     const resolved = await resolvePublicAgreementId(id);
     if (!isShareableAgreementId(resolved.id)) {
@@ -1229,6 +1246,38 @@ export default function DashboardPage() {
         if (cloudToken) {
           const result = await createShareableAgreement(activeSupabase, draft);
           if (result.id) agreementId = result.id;
+        }
+      }
+
+      if (!agreementId) {
+        try {
+          const deviceRes = await fetch("/api/agreement/device", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              providerId: user.id,
+              providerName,
+              full_name: full_name || undefined,
+              business_name: business_name || undefined,
+              clientName: draft.clientName,
+              projectTitle: draft.projectTitle,
+              serviceArea: draft.serviceArea,
+              customTerms: customTermsText,
+              scopeOfWork: scopeOfWork.trim(),
+              scopeExclusions: scopeExclusions.trim() || undefined,
+              estimatedCompletionDate: estimatedCompletionDate.trim(),
+              totalPrice,
+              paymentType,
+              milestones:
+                paymentType === "milestones"
+                  ? milestonesParsed.map((m) => ({ title: m.title, amount: m.amount }))
+                  : []
+            })
+          });
+          const deviceData = (await deviceRes.json().catch(() => ({}))) as { id?: string };
+          if (deviceRes.ok && deviceData.id) agreementId = deviceData.id;
+        } catch {
+          // Fall through to local save.
         }
       }
 
@@ -2061,6 +2110,11 @@ export default function DashboardPage() {
               <p className="text-xs font-semibold text-slate-500">{tx.publicLink}</p>
               <p className="mt-1 break-all text-sm font-bold text-slate-900">{getAgreementPublicUrl(successAgreementId)}</p>
             </div>
+            {!isShareableAgreementId(successAgreementId) ? (
+              <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                {tx.linkLocalWarning}
+              </p>
+            ) : null}
             <div className="mt-4 flex flex-wrap gap-2">
               <button
                 type="button"
@@ -2070,7 +2124,7 @@ export default function DashboardPage() {
                 <Eye className="h-4 w-4" />
                 {tx.previewAgreement}
               </button>
-              <button type="button" onClick={() => void copyAgreementLink(successAgreementId)} className="inline-flex items-center gap-2 rounded-xl bg-[#F2A800] px-4 py-2 text-sm font-bold text-slate-900"><Copy className="h-4 w-4" />{copiedAgreementId === successAgreementId ? tx.copied : tx.copyToClipboard}</button>
+              <button type="button" onClick={() => void copySuccessModalLink(successAgreementId)} className="inline-flex items-center gap-2 rounded-xl bg-[#F2A800] px-4 py-2 text-sm font-bold text-slate-900"><Copy className="h-4 w-4" />{copiedAgreementId === successAgreementId ? tx.copied : tx.copyToClipboard}</button>
               <button type="button" onClick={() => setSuccessAgreementId("")} className="ml-auto rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700">{tx.close}</button>
             </div>
           </div>
