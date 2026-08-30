@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useParams, useSearchParams } from "next/navigation";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import { CheckCircle2, Loader2, Calendar, Hash, FileText, User, Building2, MapPin, Briefcase, PenLine } from "lucide-react";
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
@@ -15,6 +15,8 @@ import {
 import { formatDateDMY } from "@/lib/format-date";
 import { useLanguage } from "@/lib/i18n/language-context";
 import { normalizeAgreementRow } from "@/lib/agreements/row";
+import { VstahLogo } from "@/components/vstah-logo";
+import { NAVY, ORANGE } from "@/lib/brand";
 
 async function postAgreementAction(
   agreementId: string,
@@ -141,6 +143,37 @@ function buildPaymentScheduleRows(
       condition: tx.conditionSingle
     }
   ];
+}
+
+function AgreementSectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-2.5 sm:gap-3">
+      <span className="h-7 w-1 shrink-0 rounded-full sm:h-8" style={{ backgroundColor: NAVY }} aria-hidden />
+      <h2 className="text-xs font-black uppercase tracking-[0.14em] text-slate-800 sm:text-sm sm:tracking-wider">{children}</h2>
+    </div>
+  );
+}
+
+function MetaCard({
+  icon: Icon,
+  label,
+  value
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: React.ReactNode;
+}) {
+  return (
+    <div className="flex min-w-0 gap-3 rounded-xl border border-slate-200/90 bg-gradient-to-br from-white to-slate-50/90 p-3.5 sm:p-4">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#0033A0]/10 text-[#0033A0] sm:h-10 sm:w-10">
+        <Icon className="h-4 w-4 sm:h-[18px] sm:w-[18px]" aria-hidden />
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500 sm:text-xs">{label}</p>
+        <p className="mt-0.5 break-words text-sm font-semibold leading-snug text-slate-900 [overflow-wrap:anywhere]">{value}</p>
+      </div>
+    </div>
+  );
 }
 
 export default function AgreementClientPage() {
@@ -511,6 +544,7 @@ export default function AgreementClientPage() {
   const [actionError, setActionError] = useState("");
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const signatureWrapRef = useRef<HTMLDivElement | null>(null);
   const drawing = useRef(false);
   const printableRef = useRef<HTMLDivElement | null>(null);
   const downloadTriggeredRef = useRef(false);
@@ -642,14 +676,43 @@ export default function AgreementClientPage() {
   }, [supabase, id, fetchAgreement]);
 
   useEffect(() => {
+    const wrap = signatureWrapRef.current;
+    const canvas = canvasRef.current;
+    if (!wrap || !canvas || agreement?.status !== "pending") return;
+
+    const resize = () => {
+      const w = Math.max(280, wrap.clientWidth);
+      const h = Math.max(132, Math.min(196, Math.round(w * 0.32)));
+      const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+      canvas.width = Math.floor(w * dpr);
+      canvas.height = Math.floor(h * dpr);
+      canvas.style.width = `${w}px`;
+      canvas.style.height = `${h}px`;
+      const ctx = canvas.getContext("2d");
+      if (ctx) {
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        ctx.lineWidth = 2.5;
+        ctx.lineCap = "round";
+        ctx.lineJoin = "round";
+        ctx.strokeStyle = "#0f172a";
+      }
+    };
+
+    resize();
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
+  }, [agreement?.status, agreement?.id]);
+
+  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    ctx.lineWidth = 2;
+    ctx.lineWidth = 2.5;
     ctx.lineCap = "round";
+    ctx.lineJoin = "round";
     ctx.strokeStyle = "#0f172a";
   }, []);
 
@@ -824,10 +887,10 @@ export default function AgreementClientPage() {
 
   if (loading) {
     return (
-      <main key={routeKey} className="min-h-screen bg-[#F9FAFB] p-6 text-slate-700">
-        <div className="inline-flex items-center gap-2">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          {tx.loading}
+      <main key={routeKey} className="flex min-h-dvh items-center justify-center bg-gradient-to-b from-slate-100 via-white to-slate-100 px-4">
+        <div className="flex flex-col items-center gap-4 rounded-2xl border border-slate-200/80 bg-white px-8 py-10 shadow-lg ring-1 ring-slate-900/5">
+          <Loader2 className="h-8 w-8 animate-spin text-[#0033A0]" aria-hidden />
+          <p className="text-sm font-semibold text-slate-600">{tx.loading}</p>
         </div>
       </main>
     );
@@ -835,8 +898,10 @@ export default function AgreementClientPage() {
 
   if (!agreement) {
     return (
-      <main key={routeKey} className="min-h-screen bg-[#F9FAFB] p-6 text-red-700">
-        {error || tx.notFound}
+      <main key={routeKey} className="flex min-h-dvh items-center justify-center bg-gradient-to-b from-slate-100 via-white to-slate-100 px-4">
+        <div className="max-w-md rounded-2xl border border-red-200 bg-white px-6 py-8 text-center shadow-lg ring-1 ring-red-100">
+          <p className="text-sm font-semibold text-red-700">{error || tx.notFound}</p>
+        </div>
       </main>
     );
   }
@@ -853,251 +918,293 @@ export default function AgreementClientPage() {
 
   const milestoneStatusBadge = (isSigned: boolean) =>
     isSigned ? (
-      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-800">
-        <CheckCircle2 className="h-3.5 w-3.5" />
+      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200/80 bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-800 sm:text-xs">
+        <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
         {tx.statusSigned}
       </span>
     ) : (
-      <span className="inline-flex rounded-full border border-slate-200 bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-700">
+      <span className="inline-flex rounded-full border border-amber-200/80 bg-amber-50 px-2.5 py-1 text-[11px] font-semibold text-amber-900 sm:text-xs">
         {tx.pendingSignature}
       </span>
     );
 
+  const phaseLabel =
+    agreement.status === "pending"
+      ? tx.phaseAwaitingSign
+      : agreement.status === "completed"
+        ? tx.phaseCompleted
+        : tx.phaseSigned;
+
   return (
-    <main key={routeKey} className="min-h-screen bg-slate-100 px-3 py-6 md:px-6 md:py-10">
-      <div ref={printableRef} className="relative mx-auto w-full min-w-0 max-w-[min(100%,55rem)] rounded-md border border-slate-200 bg-white px-4 py-5 shadow-[0_8px_30px_rgba(15,23,42,0.08)] md:px-10 md:py-9">
+    <main key={routeKey} className="min-h-dvh bg-gradient-to-b from-slate-100 via-[#f8fafc] to-slate-200/90 px-3 py-5 sm:px-4 sm:py-8 md:py-10">
+      <div className="mx-auto mb-4 flex max-w-3xl items-center gap-2.5 px-0.5 sm:mb-6">
+        <VstahLogo size={30} />
+        <span className="text-sm font-black tracking-wide text-[#0033A0]">VSTAH</span>
+      </div>
+
+      <div
+        ref={printableRef}
+        className="vstah-animate-in mx-auto w-full min-w-0 max-w-3xl overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_20px_50px_-20px_rgba(15,23,42,0.18)] ring-1 ring-slate-900/[0.04]"
+      >
         {actionError ? (
-          <div
-            role="alert"
-            className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm font-semibold text-red-800"
-          >
+          <div role="alert" className="mx-4 mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800 sm:mx-6 sm:mt-6">
             {actionError}
           </div>
         ) : null}
 
-        <div className="border-b border-slate-200 pb-4">
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">{tx.offer}</p>
-          <h1 className="mt-2 text-2xl font-black text-[#0033A0] md:text-3xl">{tx.title}</h1>
-          <p className="mt-1 text-sm text-slate-600">{tx.subtitle}</p>
-        </div>
-
-        <div className="mt-4 grid gap-3 text-sm text-slate-700 md:grid-cols-3">
-          <div className="rounded border border-slate-200 bg-slate-50 p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{tx.agreementId}</p>
-            <p className="mt-1 font-semibold">{readableAgreementId}</p>
-          </div>
-          <div className="rounded border border-slate-200 bg-slate-50 p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{tx.creationDate}</p>
-            <p className="mt-1 font-semibold">{formatDateDMY(agreement.created_at)}</p>
-          </div>
-          <div className="rounded border border-slate-200 bg-slate-50 p-3">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{tx.agreementPhase}</p>
-            <p className="mt-1 font-bold text-slate-900">
-              {agreement.status === "pending"
-                ? tx.phaseAwaitingSign
-                : agreement.status === "completed"
-                  ? tx.phaseCompleted
-                  : tx.phaseSigned}
-            </p>
-          </div>
-        </div>
-
-        <section className="mt-6 grid grid-cols-1 gap-3 text-sm md:grid-cols-2">
-          <div className="min-w-0 rounded border border-slate-200 bg-slate-50 p-3 sm:p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{tx.providerDetails}</p>
-            <div className="mt-2 space-y-2 text-sm text-slate-800">
-              <p className="break-words leading-snug [overflow-wrap:anywhere]">
-                <span className="font-bold text-slate-900">{tx.businessName}:</span>{" "}
-                {providerFields.business || "—"}
-              </p>
-              <p className="break-words leading-snug [overflow-wrap:anywhere]">
-                <span className="font-bold text-slate-900">{tx.providerNameLabel}:</span>{" "}
-                {providerFields.full || "—"}
-              </p>
-              <p className="break-words leading-snug [overflow-wrap:anywhere]">
-                <span className="font-bold text-slate-900">{tx.serviceAreaLabel}:</span>{" "}
-                {serviceAreaDisplay}
-              </p>
+        <header className="border-b border-slate-100 bg-gradient-to-br from-[#0033A0]/[0.08] via-white to-[#F2A800]/[0.06] px-4 py-6 sm:px-8 sm:py-8">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500 sm:text-xs">{tx.offer}</p>
+              <h1 className="mt-2 text-balance text-2xl font-black leading-tight text-[#0033A0] sm:text-3xl">{tx.title}</h1>
+              <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-600">{tx.subtitle}</p>
             </div>
+            <span
+              className={`inline-flex shrink-0 self-start rounded-full px-3 py-1.5 text-xs font-bold ${
+                signed
+                  ? "border border-emerald-200 bg-emerald-50 text-emerald-800"
+                  : "border border-amber-200 bg-amber-50 text-amber-900"
+              }`}
+            >
+              {phaseLabel}
+            </span>
           </div>
-          <div className="min-w-0 rounded border border-slate-200 bg-slate-50 p-3 sm:p-4">
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{tx.clientDetails}</p>
-            <div className="mt-2 space-y-2 text-sm text-slate-800">
-              <p className="break-words leading-snug [overflow-wrap:anywhere]">
-                <span className="font-bold text-slate-900">{tx.client}:</span> {agreement.client_name}
-              </p>
-              <p className="break-words leading-snug [overflow-wrap:anywhere]">
-                <span className="font-bold text-slate-900">{tx.project}:</span> {agreement.project_title}
-              </p>
-              <p className="break-words leading-snug [overflow-wrap:anywhere]">
-                <span className="font-bold text-slate-900">{tx.total}:</span> {money(Number(agreement.total_price))} ֏
-              </p>
-            </div>
-          </div>
-        </section>
+        </header>
 
-        {agreement.scope_of_work?.trim() ||
-        agreement.scope_exclusions?.trim() ||
-        agreement.estimated_completion_date?.trim() ? (
-          <section className="mt-6 space-y-4 rounded border border-slate-200 p-4">
-            {agreement.scope_of_work?.trim() ? (
-              <div>
-                <p className="text-sm font-bold uppercase tracking-wide text-slate-700">{tx.scopeOfWork}</p>
-                <pre className="mt-3 whitespace-pre-wrap break-words font-sans text-sm leading-6 text-slate-700">
-                  {agreement.scope_of_work.trim()}
-                </pre>
-              </div>
-            ) : null}
-            {agreement.scope_exclusions?.trim() ? (
-              <div>
-                <p className="text-sm font-bold uppercase tracking-wide text-slate-700">{tx.scopeExclusions}</p>
-                <pre className="mt-3 whitespace-pre-wrap break-words font-sans text-sm leading-6 text-slate-700">
-                  {agreement.scope_exclusions.trim()}
-                </pre>
-              </div>
-            ) : null}
-            {agreement.estimated_completion_date?.trim() ? (
-              <div>
-                <p className="text-sm font-bold uppercase tracking-wide text-slate-700">{tx.estimatedCompletionDate}</p>
-                <p className="mt-3 text-sm leading-6 text-slate-700">
-                  {formatDateDMY(agreement.estimated_completion_date)}
-                </p>
-              </div>
-            ) : null}
-          </section>
-        ) : null}
-
-        <section className="mt-6 rounded border border-slate-200 p-4">
-          <p className="text-sm font-bold uppercase tracking-wide text-slate-700">{tx.termsAndConditions}</p>
-          <pre className="mt-3 whitespace-pre-wrap break-words font-sans text-sm leading-6 text-slate-700">
-            {agreement.custom_terms?.trim() || defaultTerms}
-          </pre>
-        </section>
-
-        <section className="mt-6 rounded border border-slate-200 p-4">
-          <p className="text-sm font-bold uppercase tracking-wide text-slate-700">{tx.paymentSchedule}</p>
-          <p className="mt-1 text-xs leading-5 text-slate-500">{tx.paymentScheduleIntro}</p>
-
-          <div className="mt-4 hidden overflow-x-auto md:block">
-            <table className="w-full min-w-[32rem] text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
-                  <th className="pb-2 pr-3">#</th>
-                  <th className="pb-2 pr-4">{tx.scheduleStage}</th>
-                  <th className="pb-2 pr-4">{tx.scheduleAmount}</th>
-                  <th className="pb-2 pr-4">{tx.scheduleCondition}</th>
-                  <th className="pb-2">{tx.scheduleStatus}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {paymentScheduleRows.map((row) => (
-                  <tr key={`${row.index}-${row.stage}`} className="border-b border-slate-100 last:border-0">
-                    <td className="py-3 pr-3 font-semibold text-slate-700">{row.index}</td>
-                    <td className="py-3 pr-4 font-semibold text-slate-900">{row.stage}</td>
-                    <td className="py-3 pr-4 tabular-nums font-bold text-[#0033A0]">{money(row.amount)} ֏</td>
-                    <td className="py-3 pr-4 text-slate-700">{row.condition}</td>
-                    <td className="py-3">{milestoneStatusBadge(signed)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        <div className="space-y-6 px-4 py-6 sm:space-y-8 sm:px-8 sm:py-8">
+          <div className="grid gap-3 sm:grid-cols-3">
+            <MetaCard icon={Hash} label={tx.agreementId} value={readableAgreementId} />
+            <MetaCard icon={Calendar} label={tx.creationDate} value={formatDateDMY(agreement.created_at)} />
+            <MetaCard icon={FileText} label={tx.agreementPhase} value={phaseLabel} />
           </div>
 
-          <ul className="mt-4 space-y-3 md:hidden">
-            {paymentScheduleRows.map((row) => (
-              <li key={`${row.index}-${row.stage}-mobile`} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-                <div className="flex items-start justify-between gap-2">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-                    {tx.scheduleStage} {row.index}
-                  </p>
-                  {milestoneStatusBadge(signed)}
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <section className="min-w-0 rounded-2xl border border-slate-200/90 bg-slate-50/50 p-4 sm:p-5">
+              <AgreementSectionTitle>{tx.providerDetails}</AgreementSectionTitle>
+              <dl className="mt-4 space-y-3 text-sm text-slate-800">
+                <div className="flex gap-3">
+                  <Building2 className="mt-0.5 h-4 w-4 shrink-0 text-[#0033A0]/70" aria-hidden />
+                  <div className="min-w-0">
+                    <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{tx.businessName}</dt>
+                    <dd className="mt-0.5 break-words font-semibold leading-snug [overflow-wrap:anywhere]">{providerFields.business || "—"}</dd>
+                  </div>
                 </div>
-                <p className="mt-2 font-semibold text-slate-900">{row.stage}</p>
-                <p className="mt-1 text-sm font-bold tabular-nums text-[#0033A0]">
-                  {money(row.amount)} ֏
-                </p>
-                <p className="mt-2 text-xs text-slate-500">{tx.scheduleCondition}</p>
-                <p className="mt-0.5 text-sm text-slate-700">{row.condition}</p>
-              </li>
-            ))}
-          </ul>
+                <div className="flex gap-3">
+                  <User className="mt-0.5 h-4 w-4 shrink-0 text-[#0033A0]/70" aria-hidden />
+                  <div className="min-w-0">
+                    <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{tx.providerNameLabel}</dt>
+                    <dd className="mt-0.5 break-words font-semibold leading-snug [overflow-wrap:anywhere]">{providerFields.full || "—"}</dd>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#0033A0]/70" aria-hidden />
+                  <div className="min-w-0">
+                    <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{tx.serviceAreaLabel}</dt>
+                    <dd className="mt-0.5 break-words font-semibold leading-snug [overflow-wrap:anywhere]">{serviceAreaDisplay}</dd>
+                  </div>
+                </div>
+              </dl>
+            </section>
 
-          <div className="mt-4 border-t border-slate-200 pt-3">
-            <p className="text-sm font-semibold text-slate-800">
-              {tx.total}: {money(Number(agreement.total_price || 0))} ֏
-            </p>
+            <section className="min-w-0 rounded-2xl border border-slate-200/90 bg-slate-50/50 p-4 sm:p-5">
+              <AgreementSectionTitle>{tx.clientDetails}</AgreementSectionTitle>
+              <dl className="mt-4 space-y-3 text-sm text-slate-800">
+                <div className="flex gap-3">
+                  <User className="mt-0.5 h-4 w-4 shrink-0 text-[#0033A0]/70" aria-hidden />
+                  <div className="min-w-0">
+                    <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{tx.client}</dt>
+                    <dd className="mt-0.5 break-words font-semibold leading-snug [overflow-wrap:anywhere]">{agreement.client_name}</dd>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <Briefcase className="mt-0.5 h-4 w-4 shrink-0 text-[#0033A0]/70" aria-hidden />
+                  <div className="min-w-0">
+                    <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{tx.project}</dt>
+                    <dd className="mt-0.5 break-words font-semibold leading-snug [overflow-wrap:anywhere]">{agreement.project_title}</dd>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <FileText className="mt-0.5 h-4 w-4 shrink-0 text-[#0033A0]/70" aria-hidden />
+                  <div className="min-w-0">
+                    <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{tx.total}</dt>
+                    <dd className="mt-0.5 text-base font-black tabular-nums text-[#0033A0]">{money(Number(agreement.total_price))} ֏</dd>
+                  </div>
+                </div>
+              </dl>
+            </section>
           </div>
-        </section>
 
-        {agreement.status === "pending" ? (
-          <div className="mt-8 rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <p className="text-sm font-semibold text-slate-800">{tx.optionalSignature}</p>
-            <p className="mt-1 text-xs leading-5 text-slate-600">{tx.signatureHint}</p>
-            <canvas
-              ref={canvasRef}
-              width={640}
-              height={180}
-              aria-label={tx.optionalSignature}
-              onPointerDown={onPointerDown}
-              onPointerMove={onPointerMove}
-              onPointerUp={stopDraw}
-              onPointerLeave={stopDraw}
-              className="mt-3 h-40 w-full touch-none rounded-lg border border-slate-200 bg-white"
-            />
-            <button
-              type="button"
-              onClick={clearSignature}
-              className="mt-2 rounded-lg border border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-700"
-            >
-              {tx.clearSignature}
-            </button>
-            <button
-              type="button"
-              onClick={() => void signAgreement()}
-              disabled={signing}
-              className="mt-4 w-full rounded-xl bg-[#F2A800] px-5 py-3 text-base font-black text-slate-900 transition hover:opacity-95 disabled:opacity-60"
-            >
-              {signing ? tx.signing : tx.signAndAccept}
-            </button>
-          </div>
-        ) : null}
+          {agreement.scope_of_work?.trim() ||
+          agreement.scope_exclusions?.trim() ||
+          agreement.estimated_completion_date?.trim() ? (
+            <section className="space-y-5 rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-6">
+              {agreement.scope_of_work?.trim() ? (
+                <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{tx.scopeOfWork}</p>
+                  <pre className="mt-2 whitespace-pre-wrap break-words font-sans text-sm leading-6 text-slate-700">{agreement.scope_of_work.trim()}</pre>
+                </div>
+              ) : null}
+              {agreement.scope_exclusions?.trim() ? (
+                <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{tx.scopeExclusions}</p>
+                  <pre className="mt-2 whitespace-pre-wrap break-words font-sans text-sm leading-6 text-slate-700">{agreement.scope_exclusions.trim()}</pre>
+                </div>
+              ) : null}
+              {agreement.estimated_completion_date?.trim() ? (
+                <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-4">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{tx.estimatedCompletionDate}</p>
+                  <p className="mt-2 text-sm font-semibold text-slate-800">{formatDateDMY(agreement.estimated_completion_date)}</p>
+                </div>
+              ) : null}
+            </section>
+          ) : null}
 
-        {signatureImage && signed ? (
-          <section
-            className="mt-8 overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_4px_24px_-4px_rgba(15,23,42,0.12)] ring-1 ring-slate-900/[0.04]"
-            aria-label={tx.clientSignature}
-          >
-            <div className="flex flex-wrap items-end justify-between gap-3 border-b border-slate-100 bg-gradient-to-r from-[#0033A0]/[0.07] to-slate-50/80 px-4 py-4 sm:px-6">
-              <div>
-                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[#0033A0]">{tx.clientSignature}</p>
-                <p className="mt-1 text-base font-bold text-slate-900">{agreement.client_name}</p>
-              </div>
+          <section className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-6">
+            <AgreementSectionTitle>{tx.termsAndConditions}</AgreementSectionTitle>
+            <pre className="mt-4 max-h-[min(24rem,50vh)] overflow-y-auto whitespace-pre-wrap break-words rounded-xl border border-slate-100 bg-slate-50/80 p-4 font-sans text-sm leading-6 text-slate-700 sm:max-h-none sm:overflow-visible">
+              {agreement.custom_terms?.trim() || defaultTerms}
+            </pre>
+          </section>
+
+          <section className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-6">
+            <AgreementSectionTitle>{tx.paymentSchedule}</AgreementSectionTitle>
+            <p className="mt-3 text-xs leading-5 text-slate-500 sm:text-sm">{tx.paymentScheduleIntro}</p>
+
+            <div className="mt-5 hidden overflow-x-auto rounded-xl border border-slate-200 md:block">
+              <table className="w-full min-w-[36rem] text-sm">
+                <thead>
+                  <tr className="bg-slate-50 text-left text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                    <th className="px-4 py-3">#</th>
+                    <th className="px-4 py-3">{tx.scheduleStage}</th>
+                    <th className="px-4 py-3">{tx.scheduleAmount}</th>
+                    <th className="px-4 py-3">{tx.scheduleCondition}</th>
+                    <th className="px-4 py-3">{tx.scheduleStatus}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {paymentScheduleRows.map((row, i) => (
+                    <tr key={`${row.index}-${row.stage}`} className={i % 2 === 0 ? "bg-white" : "bg-slate-50/60"}>
+                      <td className="px-4 py-3.5 font-semibold text-slate-600">{row.index}</td>
+                      <td className="px-4 py-3.5 font-semibold text-slate-900">{row.stage}</td>
+                      <td className="px-4 py-3.5 tabular-nums font-black text-[#0033A0]">{money(row.amount)} ֏</td>
+                      <td className="px-4 py-3.5 text-slate-700">{row.condition}</td>
+                      <td className="px-4 py-3.5">{milestoneStatusBadge(signed)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-            <div className="bg-[linear-gradient(to_bottom,#f8fafc_0%,#ffffff_100%)] px-4 py-6 sm:px-8 sm:py-8">
-              <div className="relative mx-auto max-w-lg rounded-xl bg-white p-6 shadow-inner ring-1 ring-slate-200/90 sm:p-8">
-                <div className="pointer-events-none absolute inset-x-8 bottom-6 border-b border-slate-300/90 sm:inset-x-10 sm:bottom-8" aria-hidden />
-                <Image
-                  src={signatureImage}
-                  alt={`${agreement.client_name} — ${tx.clientSignature}`}
+
+            <ul className="mt-5 space-y-3 md:hidden">
+              {paymentScheduleRows.map((row) => (
+                <li
+                  key={`${row.index}-${row.stage}-mobile`}
+                  className="overflow-hidden rounded-xl border border-slate-200/90 bg-gradient-to-br from-white to-slate-50/80 shadow-sm"
+                >
+                  <div className="flex items-center justify-between gap-2 border-b border-slate-100 bg-slate-50/80 px-3.5 py-2.5">
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                      {tx.scheduleStage} {row.index}
+                    </span>
+                    {milestoneStatusBadge(signed)}
+                  </div>
+                  <div className="space-y-2 px-3.5 py-3.5">
+                    <p className="font-semibold leading-snug text-slate-900">{row.stage}</p>
+                    <p className="text-lg font-black tabular-nums text-[#0033A0]">{money(row.amount)} ֏</p>
+                    <div className="rounded-lg bg-slate-50 px-3 py-2">
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{tx.scheduleCondition}</p>
+                      <p className="mt-1 text-sm leading-snug text-slate-700">{row.condition}</p>
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#0033A0]/15 bg-[#0033A0]/[0.04] px-4 py-3.5">
+              <span className="text-sm font-semibold text-slate-700">{tx.total}</span>
+              <span className="text-lg font-black tabular-nums text-[#0033A0] sm:text-xl">{money(Number(agreement.total_price || 0))} ֏</span>
+            </div>
+          </section>
+
+          {agreement.status === "pending" ? (
+            <section className="rounded-2xl border-2 border-dashed border-[#0033A0]/25 bg-gradient-to-br from-slate-50 to-white p-4 sm:p-6">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#0033A0]/10 text-[#0033A0]">
+                  <PenLine className="h-5 w-5" aria-hidden />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-base font-bold text-slate-900">{tx.optionalSignature}</p>
+                  <p className="mt-1 text-xs leading-5 text-slate-600 sm:text-sm">{tx.signatureHint}</p>
+                </div>
+              </div>
+              <div ref={signatureWrapRef} className="mt-4 w-full">
+                <canvas
+                  ref={canvasRef}
                   width={640}
                   height={180}
-                  unoptimized
-                  className="relative z-[1] mx-auto block h-auto max-h-36 w-auto max-w-full object-contain sm:max-h-40"
+                  aria-label={tx.optionalSignature}
+                  onPointerDown={onPointerDown}
+                  onPointerMove={onPointerMove}
+                  onPointerUp={stopDraw}
+                  onPointerLeave={stopDraw}
+                  className="touch-none rounded-xl border border-slate-200 bg-white shadow-inner ring-1 ring-slate-900/[0.03]"
                 />
               </div>
-            </div>
-          </section>
-        ) : null}
+              <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <button
+                  type="button"
+                  onClick={clearSignature}
+                  className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 sm:text-sm"
+                >
+                  {tx.clearSignature}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void signAgreement()}
+                  disabled={signing}
+                  className="w-full rounded-xl px-5 py-3.5 text-base font-black text-slate-900 shadow-lg transition hover:opacity-95 disabled:opacity-60 sm:w-auto sm:min-w-[14rem]"
+                  style={{ backgroundColor: ORANGE, boxShadow: `0 10px 28px -8px ${ORANGE}99` }}
+                >
+                  {signing ? tx.signing : tx.signAndAccept}
+                </button>
+              </div>
+            </section>
+          ) : null}
 
-        {signed ? (
-          <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800">
-            <p className="inline-flex items-center gap-2 font-bold">
-              <CheckCircle2 className="h-5 w-5" />
-              {tx.signedSuccess}
-            </p>
-            <p className="mt-1 text-sm text-emerald-900/90">{tx.signedSuccessNote}</p>
-          </div>
-        ) : null}
+          {signatureImage && signed ? (
+            <section className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-md ring-1 ring-slate-900/[0.04]" aria-label={tx.clientSignature}>
+              <div className="flex flex-wrap items-end justify-between gap-3 border-b border-slate-100 bg-gradient-to-r from-[#0033A0]/[0.07] to-slate-50/80 px-4 py-4 sm:px-6">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#0033A0] sm:text-[11px]">{tx.clientSignature}</p>
+                  <p className="mt-1 text-base font-bold text-slate-900">{agreement.client_name}</p>
+                </div>
+                <CheckCircle2 className="h-6 w-6 text-emerald-600" aria-hidden />
+              </div>
+              <div className="bg-gradient-to-b from-slate-50/80 to-white px-4 py-6 sm:px-8 sm:py-8">
+                <div className="relative mx-auto max-w-lg rounded-xl bg-white p-5 shadow-inner ring-1 ring-slate-200/90 sm:p-8">
+                  <div className="pointer-events-none absolute inset-x-6 bottom-5 border-b border-slate-300/90 sm:inset-x-10 sm:bottom-8" aria-hidden />
+                  <Image
+                    src={signatureImage}
+                    alt={`${agreement.client_name} — ${tx.clientSignature}`}
+                    width={640}
+                    height={180}
+                    unoptimized
+                    className="relative z-[1] mx-auto block h-auto max-h-32 w-auto max-w-full object-contain sm:max-h-40"
+                  />
+                </div>
+              </div>
+            </section>
+          ) : null}
+
+          {signed ? (
+            <div className="rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50 to-emerald-50/40 p-4 sm:p-5">
+              <p className="inline-flex items-center gap-2 text-base font-bold text-emerald-800">
+                <CheckCircle2 className="h-5 w-5 shrink-0" />
+                {tx.signedSuccess}
+              </p>
+              <p className="mt-2 text-sm leading-relaxed text-emerald-900/90">{tx.signedSuccessNote}</p>
+            </div>
+          ) : null}
+        </div>
       </div>
     </main>
   );
