@@ -88,6 +88,7 @@ type Tx = {
   totalAgreementValue: string;
   awaitingSignature: string;
   signedAgreements: string;
+  latestDeals: string;
   loading: string;
   emptyTitle: string;
   emptySubtitle: string;
@@ -192,6 +193,7 @@ const t: Record<Lang, Tx> = {
     totalAgreementValue: "Total Contract Value",
     awaitingSignature: "Awaiting Signature",
     signedAgreements: "Signed Agreements",
+    latestDeals: "Latest deals",
     loading: "Loading agreements...",
     emptyTitle: "Create your first deal to get started",
     emptySubtitle: "You can create a safe agreement and instantly share it with your client.",
@@ -294,6 +296,7 @@ const t: Record<Lang, Tx> = {
     totalAgreementValue: "Ընդհանուր պայմանագրային արժեք",
     awaitingSignature: "Սպասում է ստորագրության",
     signedAgreements: "Ստորագրված պայմանագրեր",
+    latestDeals: "Վերջին գործարքներ",
     loading: "Բեռնում…",
     emptyTitle: "Սկսեք առաջին գործարքով",
     emptySubtitle: "Ապահով պայմանագիր՝ ուղարկեք հղումը հաճախորդին։",
@@ -397,6 +400,7 @@ const t: Record<Lang, Tx> = {
     totalAgreementValue: "Общая сумма соглашений",
     awaitingSignature: "Ожидает подписи",
     signedAgreements: "Подписанные соглашения",
+    latestDeals: "Последние сделки",
     loading: "Загрузка…",
     emptyTitle: "Создайте первое соглашение",
     emptySubtitle: "Создайте защищённое соглашение и сразу отправьте клиенту ссылку.",
@@ -1252,7 +1256,7 @@ export default function DashboardPage() {
   );
 
   const archived = agreements.filter(isHistoryAgreement);
-  const listed = agreements.filter((a) => !isHistoryAgreement(a));
+  const listed = agreements;
   const showClientSearch = listed.length > 15;
   const filteredListed = useMemo(() => {
     const query = clientSearch.trim().toLowerCase();
@@ -1413,15 +1417,16 @@ export default function DashboardPage() {
                 </section>
 
                 <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <h3 className="text-lg font-extrabold text-slate-900">{tx.latestDeals}</h3>
                   {loadingAgreements ? (
-                    <div className="inline-flex items-center gap-2 text-sm text-slate-600"><Loader2 className="h-4 w-4 animate-spin" />{tx.loading}</div>
+                    <div className="mt-4 inline-flex items-center gap-2 text-sm text-slate-600"><Loader2 className="h-4 w-4 animate-spin" />{tx.loading}</div>
                   ) : listed.length === 0 ? (
-                    <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
+                    <div className="mt-4 rounded-xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center">
                       <p className="font-semibold text-slate-800">{tx.emptyTitle}</p>
                       <p className="mt-1 text-sm text-slate-600">{tx.emptySubtitle}</p>
                     </div>
                   ) : (
-                    <div>
+                    <div className="mt-4">
                       {showClientSearch ? (
                         <div className="mb-3">
                           <input
