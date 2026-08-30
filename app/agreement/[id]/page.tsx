@@ -532,15 +532,41 @@ export default function AgreementClientPage() {
       return true;
     };
 
-    if (isLocalAgreementId(id) || !supabase) {
+    const loadFromApi = async () => {
+      try {
+        const res = await fetch(`/api/agreement/${encodeURIComponent(id)}`, { cache: "no-store" });
+        if (!res.ok) return false;
+        const payload = (await res.json()) as { agreement?: Agreement };
+        if (!payload.agreement) return false;
+        if (isStale()) return true;
+        setAgreement(payload.agreement);
+        setError("");
+        setActionError("");
+        setLoading(false);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+
+    if (isLocalAgreementId(id)) {
       if (loadLocal()) return;
-      setError(supabase ? tx.notFound : tx.notConfigured);
+      setError(tx.notFound);
+      setLoading(false);
+      return;
+    }
+
+    if (await loadFromApi()) return;
+
+    if (!supabase) {
+      if (loadLocal()) return;
+      if (isStale()) return;
+      setError(tx.notFound);
       setLoading(false);
       return;
     }
 
     try {
-      // Includes `client_signature` when the column exists; mapped in normalizeAgreementRow.
       const { data, error: fetchError } = await supabase
         .from("agreements")
         .select("*")
@@ -548,6 +574,7 @@ export default function AgreementClientPage() {
         .single();
 
       if (fetchError || !data) {
+        if (await loadFromApi()) return;
         if (loadLocal()) return;
         if (isStale()) return;
         setError(tx.notFound);
@@ -561,13 +588,13 @@ export default function AgreementClientPage() {
       setActionError("");
       setLoading(false);
     } catch {
-      // Supabase unreachable — fall back to an agreement saved in this browser.
+      if (await loadFromApi()) return;
       if (loadLocal()) return;
       if (isStale()) return;
       setError(tx.notFound);
       setLoading(false);
     }
-  }, [id, supabase, tx.notConfigured, tx.notFound]);
+  }, [id, supabase, tx.notFound]);
 
   useEffect(() => {
     setLoading(true);
