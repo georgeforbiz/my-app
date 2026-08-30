@@ -2,14 +2,17 @@
 
 import { Reveal } from "@/components/reveal";
 import { MarketingSectionHeader } from "@/components/marketing-section-header";
+import { NAVY, ORANGE, RED } from "@/lib/brand";
 
 type ProcessStep = { step: string; title: string; desc: string };
 
-const STEP_ACCENTS = [
-  { bar: "#E30A17", hover: "hover:bg-red-50/80" },
-  { bar: "#0033A0", hover: "hover:bg-blue-50/80" },
-  { bar: "#F2A800", hover: "hover:bg-amber-50/80" },
-  { bar: "#0B1F3A", hover: "hover:bg-slate-50" }
+const STEP_COLORS = [RED, NAVY, ORANGE, "#0B1F3A"] as const;
+
+const STEP_HOVER = [
+  "hover:bg-red-50/70",
+  "hover:bg-blue-50/70",
+  "hover:bg-amber-50/70",
+  "hover:bg-slate-50"
 ] as const;
 
 export function MarketingProcessSection({
@@ -24,7 +27,7 @@ export function MarketingProcessSection({
   processSteps: ProcessStep[];
 }) {
   return (
-    <section id="process" className="scroll-mt-28 border-t border-slate-100 bg-[#FAFBFC] py-16 md:py-24">
+    <section id="process" className="scroll-mt-28 bg-[#FAFBFC] py-16 md:py-24">
       <div className="mx-auto max-w-6xl px-4 md:px-6">
         <Reveal>
           <MarketingSectionHeader
@@ -35,36 +38,44 @@ export function MarketingProcessSection({
           />
         </Reveal>
 
-        <ol className="relative mt-10 md:mt-14 lg:mt-16">
-          <div
-            className="pointer-events-none absolute left-[12.5%] right-[12.5%] top-[2.75rem] hidden h-px bg-slate-200 lg:block"
-            aria-hidden
-          />
-
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 lg:gap-5">
+        <Reveal className="mt-10 md:mt-12">
+          <ol className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white vstah-soft-shadow-lg">
             {processSteps.map((step, idx) => {
-              const accent = STEP_ACCENTS[idx] ?? STEP_ACCENTS[0];
+              const color = STEP_COLORS[idx] ?? STEP_COLORS[0];
+              const hoverBg = STEP_HOVER[idx] ?? STEP_HOVER[0];
+              const isLast = idx === processSteps.length - 1;
+
               return (
-                <li key={step.title} className="relative min-w-0">
-                  <Reveal delay={idx * 45}>
-                    <div
-                      className={`relative flex h-full min-h-[10.5rem] flex-col items-center justify-center border border-slate-200/80 bg-white px-5 py-6 text-center transition-colors duration-200 sm:min-h-[11rem] sm:px-6 ${accent.hover}`}
-                      style={{ borderTopWidth: 3, borderTopColor: accent.bar }}
+                <li
+                  key={step.title}
+                  className={`group flex cursor-default gap-5 px-5 py-6 transition-colors duration-200 sm:gap-6 sm:px-8 sm:py-7 ${hoverBg} ${
+                    !isLast ? "border-b border-slate-100" : ""
+                  }`}
+                >
+                  <div className="flex shrink-0 flex-col items-center">
+                    <span
+                      className="flex h-11 w-11 items-center justify-center rounded-full text-sm font-black tabular-nums text-white transition-transform duration-200 group-hover:scale-110 sm:h-12 sm:w-12 sm:text-[15px]"
+                      style={{ backgroundColor: color }}
+                      aria-hidden
                     >
-                      <span
-                        className="mb-4 inline-flex h-2.5 w-2.5 shrink-0 rounded-full lg:absolute lg:-top-[0.4rem] lg:mb-0"
-                        style={{ backgroundColor: accent.bar }}
-                        aria-hidden
-                      />
-                      <h3 className="text-base font-bold leading-snug text-slate-900 sm:text-lg">{step.title}</h3>
-                      <p className="mt-2 max-w-[16rem] text-sm leading-relaxed text-slate-600">{step.desc}</p>
-                    </div>
-                  </Reveal>
+                      {step.step}
+                    </span>
+                    {!isLast ? (
+                      <div className="mt-2 hidden w-px flex-1 bg-slate-200 sm:block" aria-hidden />
+                    ) : null}
+                  </div>
+
+                  <div className="min-w-0 flex-1 pt-0.5 transition-transform duration-200 group-hover:translate-x-0.5 sm:pt-1">
+                    <h3 className="text-base font-bold leading-snug text-slate-900 transition-colors duration-200 group-hover:text-slate-950 sm:text-lg">
+                      {step.title}
+                    </h3>
+                    <p className="mt-2 text-sm leading-relaxed text-slate-600 [overflow-wrap:anywhere]">{step.desc}</p>
+                  </div>
                 </li>
               );
             })}
-          </div>
-        </ol>
+          </ol>
+        </Reveal>
       </div>
     </section>
   );

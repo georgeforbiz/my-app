@@ -1,24 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
-
-const MAIN_DOMAINS = new Set(["vstah.am", "www.vstah.am"]);
 
 type ComingSoonOverlayProps = {
   children: ReactNode;
 };
 
-function isMainProductionDomain(): boolean {
-  if (typeof window === "undefined") return false;
-  return MAIN_DOMAINS.has(window.location.hostname.toLowerCase());
-}
-
 export function ComingSoonOverlay({ children }: ComingSoonOverlayProps) {
   const searchParams = useSearchParams();
   const enabledByEnv = process.env.NEXT_PUBLIC_COMING_SOON === "1";
-  const [onMainDomain] = useState(() => isMainProductionDomain());
 
   const bypassOverlay = useMemo(() => {
     const adminParam = searchParams.get("admin");
@@ -40,7 +32,7 @@ export function ComingSoonOverlay({ children }: ComingSoonOverlayProps) {
     return paramBypass || localAdminMode;
   }, [searchParams]);
 
-  const showOverlay = (enabledByEnv || onMainDomain) && !bypassOverlay;
+  const showOverlay = enabledByEnv && !bypassOverlay;
 
   return (
     <div className="relative">

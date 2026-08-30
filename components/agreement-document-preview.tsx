@@ -15,6 +15,9 @@ type PreviewAgreement = {
   project_title: string;
   service_area: string;
   custom_terms?: string;
+  scope_of_work?: string;
+  scope_exclusions?: string;
+  estimated_completion_date?: string;
   total_price: number;
   payment_type: "single" | "milestones";
   milestones: { title: string; amount: number }[] | null;
@@ -54,9 +57,7 @@ const labels: Record<
     agreementId: string;
     creationDate: string;
     agreementPhase: string;
-    paymentPhase: string;
     phaseAwaitingSign: string;
-    phasePayPending: string;
     providerDetails: string;
     clientDetails: string;
     businessName: string;
@@ -66,7 +67,20 @@ const labels: Record<
     project: string;
     total: string;
     termsAndConditions: string;
-    milestones: string;
+    scopeOfWork: string;
+    scopeExclusions: string;
+    estimatedCompletionDate: string;
+    paymentSchedule: string;
+    paymentScheduleIntro: string;
+    scheduleStage: string;
+    scheduleAmount: string;
+    scheduleCondition: string;
+    scheduleStatus: string;
+    statusSigned: string;
+    pendingSignature: string;
+    conditionStage: string;
+    conditionSingle: string;
+    singlePaymentLabel: string;
     previewId: string;
   }
 > = {
@@ -78,9 +92,7 @@ const labels: Record<
     agreementId: "Agreement ID",
     creationDate: "Creation Date",
     agreementPhase: "Agreement",
-    paymentPhase: "Payment",
     phaseAwaitingSign: "Awaiting signature",
-    phasePayPending: "Awaiting deposit",
     providerDetails: "Provider Details",
     clientDetails: "Client Details",
     businessName: "Business name",
@@ -90,7 +102,21 @@ const labels: Record<
     project: "Project / Service",
     total: "Total price",
     termsAndConditions: "Terms & Conditions",
-    milestones: "Milestones",
+    scopeOfWork: "Scope of Work (Included)",
+    scopeExclusions: "What is NOT Included",
+    estimatedCompletionDate: "Estimated Completion Date",
+    paymentSchedule: "Payment Schedule",
+    paymentScheduleIntro:
+      "The payment schedule below is accepted in full with your single signature at the bottom.",
+    scheduleStage: "Stage",
+    scheduleAmount: "Amount",
+    scheduleCondition: "Condition / Trigger",
+    scheduleStatus: "Status",
+    statusSigned: "Signed",
+    pendingSignature: "Pending signature",
+    conditionStage: "Upon completion of: {stage}",
+    conditionSingle: "Upon completion of all work under this agreement",
+    singlePaymentLabel: "Full payment",
     previewId: "Draft preview"
   },
   hy: {
@@ -101,9 +127,7 @@ const labels: Record<
     agreementId: "ID",
     creationDate: "Ստեղծման ամսաթիվ",
     agreementPhase: "Պայմանագիր",
-    paymentPhase: "Վճարում",
     phaseAwaitingSign: "Սպասում է ստորագրման",
-    phasePayPending: "Սպասում է դեպոզիտի",
     providerDetails: "Մատակարարի տվյալներ",
     clientDetails: "Հաճախորդի տվյալներ",
     businessName: "Բիզնեսի անվանում",
@@ -113,7 +137,21 @@ const labels: Record<
     project: "Նախագիծ / Ծառայություն",
     total: "Ընդհանուր գին",
     termsAndConditions: "Պայմաններ",
-    milestones: "Փուլեր",
+    scopeOfWork: "Աշխատանքի շրջանակ (ներառված)",
+    scopeExclusions: "Ինչը չի ներառվում",
+    estimatedCompletionDate: "Ավարտի մոտավոր ամսաթիվ",
+    paymentSchedule: "Վճարման ժամանակացույց",
+    paymentScheduleIntro:
+      "Ստորև նշված է վճարման ժամանակացույցը, որը դուք ընդունում եք մեկ ստորագրությամբ։",
+    scheduleStage: "Փուլ",
+    scheduleAmount: "Գումար",
+    scheduleCondition: "Պայման / Շարժիչ",
+    scheduleStatus: "Կարգավիճակ",
+    statusSigned: "Ստորագրված",
+    pendingSignature: "Սպասում է ստորագրության",
+    conditionStage: "Այս փուլի ավարտից հետո՝ {stage}",
+    conditionSingle: "Պայմանագրով ամբողջ աշխատանքի ավարտից հետո",
+    singlePaymentLabel: "Լրիվ վճարում",
     previewId: "Նախադիտում"
   },
   ru: {
@@ -124,9 +162,7 @@ const labels: Record<
     agreementId: "ID соглашения",
     creationDate: "Дата создания",
     agreementPhase: "Соглашение",
-    paymentPhase: "Оплата",
     phaseAwaitingSign: "Ожидает подписи",
-    phasePayPending: "Ожидает депозита",
     providerDetails: "Исполнитель",
     clientDetails: "Клиент",
     businessName: "Название бизнеса",
@@ -136,10 +172,50 @@ const labels: Record<
     project: "Проект / услуга",
     total: "Общая стоимость",
     termsAndConditions: "Условия",
-    milestones: "Этапы",
+    scopeOfWork: "Объём работ (включено)",
+    scopeExclusions: "Что НЕ включено",
+    estimatedCompletionDate: "Ориентировочная дата завершения",
+    paymentSchedule: "График платежей",
+    paymentScheduleIntro: "Ниже указан график платежей, который вы принимаете одной подписью.",
+    scheduleStage: "Этап",
+    scheduleAmount: "Сумма",
+    scheduleCondition: "Условие / триггер",
+    scheduleStatus: "Статус",
+    statusSigned: "Подписано",
+    pendingSignature: "Ожидает подписи",
+    conditionStage: "После завершения этапа: {stage}",
+    conditionSingle: "После выполнения всех работ по соглашению",
+    singlePaymentLabel: "Полная оплата",
     previewId: "Черновик"
   }
 };
+
+function buildPreviewScheduleRows(
+  agreement: PreviewAgreement,
+  tx: {
+    conditionStage: string;
+    conditionSingle: string;
+    singlePaymentLabel: string;
+  }
+) {
+  if (agreement.payment_type === "milestones" && (agreement.milestones?.length ?? 0) > 0) {
+    return (agreement.milestones ?? []).map((m, i) => ({
+      index: i + 1,
+      stage: m.title,
+      amount: Number(m.amount || 0),
+      condition: tx.conditionStage.replace("{stage}", m.title)
+    }));
+  }
+
+  return [
+    {
+      index: 1,
+      stage: tx.singlePaymentLabel,
+      amount: Number(agreement.total_price || 0),
+      condition: tx.conditionSingle
+    }
+  ];
+}
 
 export function AgreementDocumentPreview({
   agreement,
@@ -158,6 +234,8 @@ export function AgreementDocumentPreview({
     ? tx.previewId
     : `VSTAH-${new Date(agreement.created_at).getFullYear()}-${agreement.id.split("-")[0].toUpperCase()}`;
   const terms = agreement.custom_terms?.trim() || "";
+  const paymentScheduleRows = buildPreviewScheduleRows(agreement, tx);
+  const isSigned = agreement.status === "signed" || agreement.status === "completed";
 
   return (
     <article className="relative w-full rounded-md border border-slate-200 bg-white px-4 py-5 shadow-[0_8px_30px_rgba(15,23,42,0.08)] md:px-10 md:py-9">
@@ -185,8 +263,6 @@ export function AgreementDocumentPreview({
         <div className="rounded border border-slate-200 bg-slate-50 p-3">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{tx.agreementPhase}</p>
           <p className="mt-1 font-bold text-slate-900">{tx.phaseAwaitingSign}</p>
-          <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{tx.paymentPhase}</p>
-          <p className="mt-0.5 font-bold text-slate-900">{tx.phasePayPending}</p>
         </div>
       </div>
 
@@ -221,6 +297,37 @@ export function AgreementDocumentPreview({
         </div>
       </section>
 
+      {agreement.scope_of_work?.trim() ||
+      agreement.scope_exclusions?.trim() ||
+      agreement.estimated_completion_date?.trim() ? (
+        <section className="mt-6 space-y-4 rounded border border-slate-200 p-4">
+          {agreement.scope_of_work?.trim() ? (
+            <div>
+              <p className="text-sm font-bold uppercase tracking-wide text-slate-700">{tx.scopeOfWork}</p>
+              <pre className="mt-2 whitespace-pre-wrap break-words font-sans text-sm leading-6 text-slate-700">
+                {agreement.scope_of_work.trim()}
+              </pre>
+            </div>
+          ) : null}
+          {agreement.scope_exclusions?.trim() ? (
+            <div>
+              <p className="text-sm font-bold uppercase tracking-wide text-slate-700">{tx.scopeExclusions}</p>
+              <pre className="mt-2 whitespace-pre-wrap break-words font-sans text-sm leading-6 text-slate-700">
+                {agreement.scope_exclusions.trim()}
+              </pre>
+            </div>
+          ) : null}
+          {agreement.estimated_completion_date?.trim() ? (
+            <div>
+              <p className="text-sm font-bold uppercase tracking-wide text-slate-700">{tx.estimatedCompletionDate}</p>
+              <p className="mt-2 text-sm leading-6 text-slate-700">
+                {formatDateDMY(agreement.estimated_completion_date)}
+              </p>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
+
       <section className="mt-6 rounded border border-slate-200 p-4">
         <p className="text-sm font-bold uppercase tracking-wide text-slate-700">{tx.termsAndConditions}</p>
         <pre className="mt-3 whitespace-pre-wrap break-words font-sans text-sm leading-6 text-slate-700">
@@ -228,24 +335,64 @@ export function AgreementDocumentPreview({
         </pre>
       </section>
 
-      <div className="mt-3 border-t border-slate-200 pt-3 text-left">
-        <p className="text-sm font-semibold text-slate-800">
-          {tx.total}: {money(Number(agreement.total_price || 0))} ֏
-        </p>
-      </div>
+      <section className="mt-6 rounded border border-slate-200 p-4">
+        <p className="text-sm font-bold uppercase tracking-wide text-slate-700">{tx.paymentSchedule}</p>
+        <p className="mt-1 text-xs leading-5 text-slate-500">{tx.paymentScheduleIntro}</p>
 
-      {agreement.payment_type === "milestones" && (agreement.milestones?.length ?? 0) > 0 ? (
-        <section className="mt-6 rounded border border-slate-200 p-4">
-          <p className="text-sm font-bold uppercase tracking-wide text-slate-700">{tx.milestones}</p>
-          <ul className="mt-2 space-y-2 text-sm">
-            {(agreement.milestones ?? []).map((m, i) => (
-              <li key={`${m.title}-${i}`} className="rounded border border-slate-200 bg-slate-50 p-2.5">
-                {i + 1}. {m.title} — {money(Number(m.amount || 0))} ֏
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
+        <div className="mt-4 hidden overflow-x-auto md:block">
+          <table className="w-full min-w-[32rem] text-sm">
+            <thead>
+              <tr className="border-b border-slate-200 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <th className="pb-2 pr-3">#</th>
+                <th className="pb-2 pr-4">{tx.scheduleStage}</th>
+                <th className="pb-2 pr-4">{tx.scheduleAmount}</th>
+                <th className="pb-2 pr-4">{tx.scheduleCondition}</th>
+                <th className="pb-2">{tx.scheduleStatus}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {paymentScheduleRows.map((row) => (
+                <tr key={`${row.index}-${row.stage}`} className="border-b border-slate-100 last:border-0">
+                  <td className="py-3 pr-3 font-semibold text-slate-700">{row.index}</td>
+                  <td className="py-3 pr-4 font-semibold text-slate-900">{row.stage}</td>
+                  <td className="py-3 pr-4 tabular-nums font-bold text-[#0033A0]">{money(row.amount)} ֏</td>
+                  <td className="py-3 pr-4 text-slate-700">{row.condition}</td>
+                  <td className="py-3">
+                    <span className="inline-flex rounded-full border border-slate-200 bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-700">
+                      {isSigned ? tx.statusSigned : tx.pendingSignature}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        <ul className="mt-4 space-y-3 md:hidden">
+          {paymentScheduleRows.map((row) => (
+            <li key={`${row.index}-${row.stage}-mobile`} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  {tx.scheduleStage} {row.index}
+                </p>
+                <span className="inline-flex rounded-full border border-slate-200 bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-700">
+                  {isSigned ? tx.statusSigned : tx.pendingSignature}
+                </span>
+              </div>
+              <p className="mt-2 font-semibold text-slate-900">{row.stage}</p>
+              <p className="mt-1 text-sm font-bold tabular-nums text-[#0033A0]">{money(row.amount)} ֏</p>
+              <p className="mt-2 text-xs text-slate-500">{tx.scheduleCondition}</p>
+              <p className="mt-0.5 text-sm text-slate-700">{row.condition}</p>
+            </li>
+          ))}
+        </ul>
+
+        <div className="mt-4 border-t border-slate-200 pt-3">
+          <p className="text-sm font-semibold text-slate-800">
+            {tx.total}: {money(Number(agreement.total_price || 0))} ֏
+          </p>
+        </div>
+      </section>
     </article>
   );
 }

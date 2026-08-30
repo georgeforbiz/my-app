@@ -1,119 +1,185 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronDown } from "lucide-react";
+import { ArrowRight, Check, ChevronDown, Sparkles } from "lucide-react";
 import { MarketingSectionHeader } from "@/components/marketing-section-header";
-import { ORANGE } from "@/lib/brand";
-import { formatProMonthly } from "@/lib/currency";
-import type { Language } from "@/lib/i18n/locales";
+import { NAVY } from "@/lib/brand";
 
 type FaqItem = { q: string; a: string };
 
+type PricingPlan = {
+  name: string;
+  tagline: string;
+  subtitle: string;
+  price: string;
+  features: string[];
+  cta: string;
+  href: string;
+  popular?: boolean;
+  popularBadge?: string;
+};
+
 type Props = {
-  locale: Language;
-  pricingLongLocale: boolean;
   openFaqIndex: number | null;
   onToggleFaq: (index: number) => void;
-  pricingPlanName: string;
-  pricingTitle: string;
-  pricingSubtitle: string;
-  pricingPerMonth: string;
-  pricingValueFree: string;
-  pricingValuePro: string;
-  pricingCta: string;
-  faqEyebrow: string;
+  pricingTitle?: string;
+  pricingPlan: PricingPlan;
   faqTitle: string;
-  faqSubtitle: string;
   faqs: FaqItem[];
 };
 
+function splitPrice(price: string): { amount: string; period: string } {
+  const slashIdx = price.indexOf("/");
+  if (slashIdx === -1) return { amount: price, period: "" };
+  return {
+    amount: price.slice(0, slashIdx).trim(),
+    period: price.slice(slashIdx).trim()
+  };
+}
+
 export function MarketingPricingFaqSection({
-  locale,
-  pricingLongLocale,
   openFaqIndex,
   onToggleFaq,
-  pricingPlanName,
   pricingTitle,
-  pricingSubtitle,
-  pricingPerMonth,
-  pricingValueFree,
-  pricingValuePro,
-  pricingCta,
-  faqEyebrow,
+  pricingPlan,
   faqTitle,
-  faqSubtitle,
   faqs
 }: Props) {
-  const priceTextClass = pricingLongLocale
-    ? "text-xl sm:text-2xl lg:text-[1.65rem]"
-    : "text-2xl sm:text-3xl lg:text-[2.35rem]";
+  const { amount, period } = splitPrice(pricingPlan.price);
 
   return (
-    <section id="pricing" className="relative scroll-mt-28 border-t border-slate-100 bg-[#FAFBFC] py-16 md:py-24" aria-label={`${pricingTitle} & ${faqTitle}`}>
+    <section
+      id="pricing"
+      className="relative scroll-mt-28 border-t border-slate-100 bg-[#FAFBFC] py-16 md:py-24"
+      aria-label={pricingTitle ? `${pricingTitle} & ${faqTitle}` : faqTitle}
+    >
       <div className="mx-auto w-full max-w-6xl px-4 md:px-6">
-        <div className="grid gap-10 md:grid-cols-12 md:gap-6 lg:gap-8">
-          <article className="relative md:col-span-5 md:row-span-2 lg:col-span-5">
-            <div className="vstah-soft-shadow-lg relative border border-slate-200/80 bg-white p-6 sm:p-8 md:-rotate-[0.5deg] lg:p-10">
-              <MarketingSectionHeader eyebrow={pricingPlanName} title={pricingTitle} subtitle={pricingSubtitle} />
+        <div className="grid gap-8 lg:grid-cols-12 lg:items-start lg:gap-10">
+          <div className="flex flex-col lg:col-span-5 lg:self-start">
+            {pricingTitle ? (
+              <div className="mb-8">
+                <MarketingSectionHeader title={pricingTitle} align="left" />
+              </div>
+            ) : null}
 
-              <div className="mt-8 px-1 py-6 text-center sm:py-8" style={{ backgroundColor: ORANGE }}>
-                <p
-                  suppressHydrationWarning
-                  className={`max-w-full font-black tabular-nums leading-tight tracking-tight text-slate-900 [overflow-wrap:anywhere] ${priceTextClass}`}
-                >
-                  {formatProMonthly(pricingPerMonth, locale)}
-                </p>
+            <article
+              className={`flex flex-col overflow-hidden rounded-2xl border border-[#0033A0]/15 bg-white shadow-[0_10px_40px_-12px_rgba(0,51,160,0.28)] ring-1 ring-[#0033A0]/10${
+                pricingTitle ? "" : ""
+              }`}
+            >
+              <div className="relative overflow-hidden bg-gradient-to-br from-[#0033A0] via-[#0033A0] to-[#004ecb] px-6 py-6 sm:px-7 sm:py-7">
+                <div
+                  className="pointer-events-none absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.14)_0%,transparent_45%,transparent_100%)]"
+                  aria-hidden
+                />
+
+                <div className="relative flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <span className="inline-flex items-center rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.12em] text-white">
+                      {pricingPlan.name}
+                    </span>
+                    <h3 className="mt-4 text-2xl font-black leading-tight tracking-tight text-white sm:text-[1.75rem]">
+                      {pricingPlan.tagline}
+                    </h3>
+                    <p className="mt-2 text-sm leading-relaxed text-white/70">{pricingPlan.subtitle}</p>
+                  </div>
+                  <span
+                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15 text-white ring-1 ring-white/20"
+                    aria-hidden
+                  >
+                    <Sparkles className="h-4 w-4" strokeWidth={2.25} />
+                  </span>
+                </div>
+
+                <div className="relative mt-6 flex items-end gap-2 border-t border-white/15 pt-5">
+                  <p className="text-[1.85rem] font-black tabular-nums leading-none tracking-tight text-white sm:text-[2rem]">
+                    {amount}
+                  </p>
+                  {period ? (
+                    <p className="pb-0.5 text-sm font-medium text-white/60">{period}</p>
+                  ) : null}
+                </div>
+
+                {pricingPlan.popular && pricingPlan.popularBadge ? (
+                  <span className="absolute right-5 top-5 rounded-full bg-emerald-500 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white">
+                    {pricingPlan.popularBadge}
+                  </span>
+                ) : null}
               </div>
 
-              <ul className="mt-8 space-y-3">
-                {[pricingValueFree, pricingValuePro].map((text) => (
-                  <li key={text} className="bg-[#F4F7FB] px-4 py-3.5">
-                    <span className="min-w-0 text-sm font-semibold leading-snug text-slate-800 [overflow-wrap:anywhere]">
-                      {text}
+              <ul className="divide-y divide-slate-100 px-6 py-2 sm:px-7">
+                {pricingPlan.features.map((feature) => (
+                  <li
+                    key={feature}
+                    className="flex items-center gap-3.5 py-4 text-sm font-medium leading-snug text-slate-800 sm:text-[15px]"
+                  >
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100">
+                      <Check className="h-4 w-4" strokeWidth={2.5} />
                     </span>
+                    <span className="min-w-0 [overflow-wrap:anywhere]">{feature}</span>
                   </li>
                 ))}
               </ul>
 
-              <Link
-                href="/register?next=%2Fdashboard"
-                className="mt-8 inline-flex w-full items-center justify-center bg-[#0033A0] px-5 py-3.5 text-sm font-bold text-white transition hover:bg-[#002a7a]"
-              >
-                {pricingCta}
-              </Link>
-            </div>
-          </article>
+              <div className="border-t border-slate-100 px-6 pb-6 pt-2 sm:px-7 sm:pb-7">
+                <Link
+                  href={pricingPlan.href}
+                  className="group inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#E30A17] px-5 py-3.5 text-sm font-bold text-white shadow-[0_10px_28px_-12px_rgba(227,10,23,0.55)] transition hover:bg-[#c40914] sm:min-h-[3.25rem] sm:text-[15px]"
+                >
+                  {pricingPlan.cta}
+                  <ArrowRight
+                    className="h-4 w-4 shrink-0 transition-transform duration-200 group-hover:translate-x-0.5"
+                    strokeWidth={2.5}
+                  />
+                </Link>
+              </div>
+            </article>
+          </div>
 
-          <article id="faq" className="scroll-mt-28 md:col-span-7 md:col-start-6 lg:col-span-7 lg:col-start-6 lg:-mt-8">
-            <div className="vstah-soft-shadow-feature bg-white p-6 sm:p-8 lg:p-10">
-              <MarketingSectionHeader eyebrow={faqEyebrow} title={faqTitle} subtitle={faqSubtitle} />
+          <article id="faq" className="flex flex-col scroll-mt-28 lg:col-span-7">
+            <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_4px_20px_-8px_rgba(15,23,42,0.12)]">
+              <div className="border-b border-slate-100 px-6 py-6 sm:px-8 sm:py-7">
+                <h2 className="text-2xl font-black tracking-tight sm:text-[1.65rem]" style={{ color: NAVY }}>
+                  {faqTitle}
+                </h2>
+              </div>
 
-              <div className="mt-8 space-y-2">
+              <div className="divide-y divide-slate-100">
                 {faqs.map((item, index) => {
                   const isOpen = openFaqIndex === index;
                   const panelId = `faq-panel-${index}`;
+
                   return (
-                    <div
-                      key={item.q}
-                      className={`overflow-hidden transition-colors ${isOpen ? "bg-slate-50" : "bg-[#FAFBFC]"}`}
-                    >
+                    <div key={item.q}>
                       <button
                         type="button"
                         id={`faq-trigger-${index}`}
                         onClick={() => onToggleFaq(index)}
                         aria-expanded={isOpen}
                         aria-controls={panelId}
-                        className="flex w-full items-start justify-between gap-3 px-4 py-4 text-left sm:px-5"
+                        className={`flex w-full items-start justify-between gap-4 px-6 py-4 text-left transition-colors sm:px-8 sm:py-5 ${
+                          isOpen ? "bg-blue-50/50" : "hover:bg-slate-50/80"
+                        }`}
                       >
-                        <span className="min-w-0 text-[13px] font-semibold leading-snug text-slate-900 [overflow-wrap:anywhere] sm:text-sm">
+                        <span
+                          className={`min-w-0 pt-0.5 text-sm font-semibold leading-snug sm:text-[15px] [overflow-wrap:anywhere] ${
+                            isOpen ? "text-[#0033A0]" : "text-slate-900"
+                          }`}
+                        >
                           {item.q}
                         </span>
-                        <ChevronDown
-                          className={`mt-0.5 h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200 ${
-                            isOpen ? "rotate-180" : ""
+                        <span
+                          className={`mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full ring-1 transition-colors ${
+                            isOpen
+                              ? "bg-[#0033A0]/10 text-[#0033A0] ring-[#0033A0]/15"
+                              : "bg-slate-100 text-slate-500 ring-slate-200/80"
                           }`}
-                          strokeWidth={2.5}
-                        />
+                        >
+                          <ChevronDown
+                            className={`h-4 w-4 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+                            strokeWidth={2.5}
+                          />
+                        </span>
                       </button>
                       <div
                         id={panelId}
@@ -124,7 +190,7 @@ export function MarketingPricingFaqSection({
                         }`}
                       >
                         <div className="overflow-hidden">
-                          <p className="px-4 pb-4 text-sm leading-relaxed text-slate-600 [overflow-wrap:anywhere] sm:px-5 sm:pb-5">
+                          <p className="px-6 pb-5 text-sm leading-relaxed text-slate-600 sm:px-8 sm:pb-6 [overflow-wrap:anywhere]">
                             {item.a}
                           </p>
                         </div>

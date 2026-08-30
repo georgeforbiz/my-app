@@ -2,11 +2,11 @@
 
 import { FloatingPillHeader } from "@/components/floating-pill-header";
 import { MarketingHeroSection } from "@/components/marketing-hero-section";
-import { MarketingPainPointsCarousel } from "@/components/marketing-pain-points-carousel";
+import { MarketingPainPointsGrid } from "@/components/marketing-pain-points-grid";
 import { MarketingFeaturesSection } from "@/components/marketing-features-section";
 import { MarketingDifferenceSection } from "@/components/marketing-difference-section";
 import { MarketingProcessSection } from "@/components/marketing-process-section";
-import { MarketingDisputeSection } from "@/components/marketing-dispute-section";
+import { MarketingDisputePreventionSection } from "@/components/marketing-dispute-prevention-section";
 import { MarketingPricingFaqSection } from "@/components/marketing-pricing-faq-section";
 import { MarketingFooter } from "@/components/marketing-footer";
 import { SITE_BG_GRADIENT } from "@/lib/brand";
@@ -18,6 +18,18 @@ type Locale = Language;
 
 type ComparisonRow = { label: string; withVstah: string; withoutUs: string };
 type ProcessStep = { step: string; title: string; desc: string };
+type PainPointItem = { title: string; body: string };
+type PreventionItem = { title: string; body: string };
+type PricingPlanCopy = {
+  name: string;
+  tagline: string;
+  subtitle: string;
+  price: string;
+  features: string[];
+  cta: string;
+  popular?: boolean;
+  popularBadge?: string;
+};
 
 type TranslationBundle = {
   brand: string;
@@ -26,12 +38,12 @@ type TranslationBundle = {
   navPricing: string;
   btnProtectProject: string;
   btnSeeHow: string;
-  btnStartProtected: string;
   heroEyebrow: string;
   /** Split headline so the renovation word can be styled (blue + underline). */
   heroTitleBefore: string;
   heroTitleHighlight: string;
   heroTitleAfter: string;
+  heroSubtitle: string;
   heroPainPoints: string[];
   heroDashboardTitle: string;
   heroPreviewLabel: string;
@@ -58,7 +70,18 @@ type TranslationBundle = {
   stage3Name: string;
   stage3Amount: string;
   stage3State: string;
-  cardMediation: string;
+  heroProposalStatus: string;
+  heroMilestonesLabel: string;
+  heroStage1Status: string;
+  heroStage2Status: string;
+  heroStage3Status: string;
+  heroSignatureName: string;
+  heroDigitallyVerified: string;
+  heroTapToSignHint: string;
+  heroSignatureLabel: string;
+  heroSignCta: string;
+  heroAuditTrail: string;
+  heroProposalMockupAria: string;
   cardTagline1: string;
   cardTagline2: string;
   feature1: string;
@@ -66,11 +89,7 @@ type TranslationBundle = {
   feature3: string;
   feature4: string;
   painPointsTitle: string;
-  painPoints: string[];
-  painCarouselAria: string;
-  painPrevAria: string;
-  painNextAria: string;
-  painSlideAria: string;
+  painPoints: PainPointItem[];
   diffEyebrow: string;
   diffTitle: string;
   diffSubtitle: string;
@@ -84,15 +103,10 @@ type TranslationBundle = {
   processTitle: string;
   processSubtitle: string;
   processSteps: ProcessStep[];
-  disputeEyebrow: string;
-  disputeTitle: string;
-  disputeBody: string;
-  badge24h: string;
-  badge24hSub: string;
-  badgeLaw: string;
-  badgeLawSub: string;
-  badgeMed: string;
-  badgeMedSub: string;
+  preventionEyebrow: string;
+  preventionTitle: string;
+  preventionBody: string;
+  preventionItems: PreventionItem[];
   footerTagline: string;
   footerRights: string;
   footerTerms: string;
@@ -134,16 +148,8 @@ type TranslationBundle = {
   statusSecured: string;
   completed: string;
   releaseProgress: string;
-  pricingTitle: string;
-  pricingSubtitle: string;
-  pricingPlanName: string;
-  pricingPerMonth: string;
-  pricingValueFree: string;
-  pricingValuePro: string;
-  pricingCta: string;
-  faqEyebrow: string;
+  pricingPlan: PricingPlanCopy;
   faqTitle: string;
-  faqSubtitle: string;
   faqs: { q: string; a: string }[];
 };
 
@@ -153,13 +159,13 @@ const translations: Record<Locale, TranslationBundle> = {
     navHome: "Home",
     navHowItWorks: "How it works",
     navPricing: "Pricing",
-    btnProtectProject: "Try For Free",
-    btnSeeHow: "See how it works",
-    btnStartProtected: "Start a protected project",
-    heroEyebrow: "Build Professional Trust. Get Paid on Time.",
-    heroTitleBefore: "Work with confidence.",
+    btnProtectProject: "Try for Free",
+    btnSeeHow: "See How It Works",
+    heroEyebrow: "",
+    heroTitleBefore: "Stop Working on Handshakes.",
     heroTitleHighlight: "",
-    heroTitleAfter: " Get paid with certainty.",
+    heroTitleAfter: "Protect Every Deal Before You Start.",
+    heroSubtitle: "Send a link. Lock the terms. Avoid the argument.",
     heroPainPoints: [
       "When the client is terrified to pay you upfront, but you can't work for free...",
       "When you feel awkward chasing your own money, but bills are due...",
@@ -171,7 +177,7 @@ const translations: Record<Locale, TranslationBundle> = {
     heroDashboardTitle: "VSTAH Secured Dashboard",
     heroPreviewLabel: "Live deal protection",
     heroRow1Label: "Digital Work Agreement",
-    heroRow1Badge: "Signed & Locked",
+    heroRow1Badge: "Signed & Approved",
     heroRow2Label: "Secured Project Deposit",
     heroRow2Badge: "Verified",
     heroRow3Label: "Scope & Milestone Guard",
@@ -180,119 +186,134 @@ const translations: Record<Locale, TranslationBundle> = {
     cardChip2: "Digital Work Agreement",
     projectLabel: "Project",
     projectId: "#AM-2841",
-    projectTitle: "Apartment renovation",
+    projectTitle: "Apartment Renovation",
     projectStatus: "Active",
     fundsLabel: "Funds in safe",
     lockedNote: "Locked across 3 stages",
-    stage1Name: "Demolition & prep",
+    stage1Name: "Demolition & Prep",
     stage1Amount: "150,000 ֏",
     stage1State: "Released",
-    stage2Name: "Plumbing & electrical",
+    stage2Name: "Plumbing & Electrical",
     stage2Amount: "200,000 ֏",
     stage2State: "Locked",
-    stage3Name: "Final finishing",
+    stage3Name: "Final Finishing",
     stage3Amount: "100,000 ֏",
     stage3State: "Pending",
-    cardMediation: "Funds Secured & Locally Protected",
+    heroProposalStatus: "[Active: Signed]",
+    heroMilestonesLabel: "Project Milestones",
+    heroStage1Status: "Approved",
+    heroStage2Status: "In Progress",
+    heroStage3Status: "Pending",
+    heroSignatureName: "Aram Petrosyan",
+    heroDigitallyVerified: "Digitally Verified",
+    heroTapToSignHint: "Tap to sign",
+    heroSignatureLabel: "Signature",
+    heroSignCta: "Sign & Approve Proposal",
+    heroAuditTrail: "Audit Trail: IP Verified • TimeStamped • Legal Record",
+    heroProposalMockupAria:
+      "Interactive phone mockup of proposal AM-2841 with milestones and digital signature",
     cardTagline1: "Stop the disputes.",
     cardTagline2: "Start the renovation.",
-    feature1: "Verified Funds.",
-    feature2: "Guaranteed Payouts.",
-    feature3: "Built for Armenia.",
-    feature4: "Secure Deals.",
-    painPointsTitle: "Sound familiar?",
+    feature1: "Clear Milestones.",
+    feature2: "Instant Signatures.",
+    feature3: "Zero Scope Creep.",
+    feature4: "Built for Armenia.",
+    painPointsTitle: 'No more "That\'s not what we talked about"',
     painPoints: [
-      "Working as a freelancer, acting as a debt collector.",
-      "Chasing your own hard-earned money feels embarrassing.",
-      "'We don't need a contract, we trust you.'",
-      "Afraid to ask for a deposit upfront.",
-      "Spending hours re-writing a polite payment reminder.",
-      "Doing endless free revisions just to get paid.",
-      "Starting the project based on a vague verbal promise."
-    ],
-    painCarouselAria: "Freelancer pain points",
-    painPrevAria: "Previous",
-    painNextAria: "Next",
-    painSlideAria: "Slide",
-    diffEyebrow: "The difference",
-    diffTitle: "Can you see the difference?",
-    diffSubtitle:
-      "Stop the arguments before they start. See how VSTAH protects your project.",
-    recommended: "(Recommended)",
-    colWith: "With VSTAH",
-    colWithout: "Without Us",
-    diffWithoutEyebrow: "(Old way)",
-    comparisonRows: [
       {
-        label: "Payment Security",
-        withVstah: "Funds locked before you start",
-        withoutUs: "Hoping the client pays after work"
+        title: "False Sense of Security",
+        body: 'A text saying "sounds good" is not a commitment. When unexpected costs come up, silence replaces agreement and you pay out of pocket.'
       },
       {
-        label: "Digital Agreement",
-        withVstah: "Professional contract signed by both parties",
-        withoutUs: "Verbal promises and WhatsApp messages"
+        title: "Boundary Creep",
+        body: "You start with one job, but the client keeps asking for small extra favors. Without clear limits upfront, saying no feels like a conflict."
       },
       {
-        label: "Project Milestones",
-        withVstah: "Get paid per completed stage",
-        withoutUs: "Waiting for full payment at the end"
+        title: "Contract Friction",
+        body: "Long legal contracts intimidate clients. They feel anxious, stop responding, and a simple project dies before it starts."
       },
       {
-        label: "Disputes",
-        withVstah: "Funds secured until local mediation ends",
-        withoutUs: "Personal arguments and wasted time"
-      },
-      {
-        label: "Transparency",
-        withVstah: "Full proof of work with timestamps",
-        withoutUs: "Miscommunication and misunderstandings"
-      },
-      {
-        label: "Professionalism",
-        withVstah: "Guaranteed by system, not just promises",
-        withoutUs: "Depends on who you know"
+        title: "Unpaid Good Intentions",
+        body: "You do free work to keep the client happy. Without explicit boundaries, good customer service turns into unpaid labor."
       }
     ],
-    processEyebrow: "The process",
-    processTitle: "How it works",
-    processSubtitle:
-      "Four simple steps. Zero guesswork. Professional deals, fully secured.",
+    diffEyebrow: "",
+    diffTitle: "Amateurs argue over WhatsApp.",
+    diffSubtitle: "",
+    recommended: "",
+    colWith: "The New Way",
+    colWithout: "The Old Way",
+    diffWithoutEyebrow: "",
+    comparisonRows: [
+      {
+        label: "",
+        withoutUs: "Messy text messages buried in chat history",
+        withVstah: "One clear mobile link with exact project details"
+      },
+      {
+        label: "",
+        withoutUs: '"Please print, sign, scan, and email this back"',
+        withVstah: "Quick finger signature on the phone in 10 seconds"
+      },
+      {
+        label: "",
+        withoutUs: "Endless arguments over what was actually agreed upon",
+        withVstah: "Scope, price, and terms locked before work starts"
+      },
+      {
+        label: "",
+        withoutUs: "Awkward chats when asking for approval",
+        withVstah: "Simple one tap milestone approvals"
+      },
+      {
+        label: "",
+        withoutUs: "Zero proof when memories fade and stories change",
+        withVstah: "Permanent digital proof of who signed and when"
+      }
+    ],
+    processEyebrow: "",
+    processTitle: "Four steps to bulletproof your business.",
+    processSubtitle: "",
     processSteps: [
       {
         step: "01",
-        title: "Create Project Deal",
-        desc: "Set the scope, milestones, and costs in minutes using our structured forms."
+        title: "Set the Scope",
+        desc: "Pick a template or list your project milestones, costs in AMD, and basic terms."
       },
       {
         step: "02",
-        title: "Verify Secured Funds",
-        desc: "Funds are safely locked in a secure trust account. Money is verified before work begins."
+        title: "Drop the Link",
+        desc: "Send an interactive link directly via WhatsApp, Telegram, or Viber."
       },
       {
         step: "03",
-        title: "Work with Confidence",
-        desc: "Start the project knowing the payment is fully guaranteed and waiting."
+        title: "Online Signature",
+        desc: "Your client opens the link on their phone, reviews the breakdown, and signs with a finger."
       },
       {
         step: "04",
-        title: "Secured Payouts",
-        desc: "Get paid safely as each stage is completed and approved by the client."
+        title: "Lock the Agreement",
+        desc: "Both parties receive a legal digital copy with zero friction."
       }
     ],
-    disputeEyebrow: "Support",
-    disputeTitle: "Dispute Assistance",
-    disputeBody:
-      "We help facilitate clear and structured communication when issues arise. VSTAH provides a transparent digital framework for both parties to review the original agreement, exchange evidence, and settle conflicts independently.",
-    badge24h: "Guided Resolution",
-    badge24hSub:
-      "A structured step by step workflow that guides both parties to review facts and reach a mutual agreement without unnecessary delays.",
-    badgeLaw: "Smart Frameworks",
-    badgeLawSub:
-      "Contracts designed to protect service deals through clear milestones aligned with Armenian business practices, minimizing room for misunderstandings.",
-    badgeMed: "Expert Intervention",
-    badgeMedSub:
-      "If a mutual agreement cannot be reached independently, you can unlock our official human arbitration service to evaluate the facts and deliver a definitive verdict.",
+    preventionEyebrow: "Prevention",
+    preventionTitle: "Stop Disputes\nBefore They Start.",
+    preventionBody:
+      "Build clear expectation alignment and mutual commitment before work starts.",
+    preventionItems: [
+      {
+        title: "Locked Scope Before Day One",
+        body: "Every stage, cost, and deliverable is signed before work starts. Zero confusion about what is included."
+      },
+      {
+        title: "Instant Addendums for Scope Changes",
+        body: "Client wants extra work? Send a new link. If they sign, the scope expands. If not, you stick to the original deal."
+      },
+      {
+        title: "Immutable Audit Trail",
+        body: "IP address, device metadata, and exact timestamp on every signature create permanent proof of agreement."
+      }
+    ],
     footerTagline: "Building Trust in Every Project",
     footerRights: "© 2026 VSTAH. All rights reserved.",
     footerTerms: "Terms of Service",
@@ -334,36 +355,39 @@ const translations: Record<Locale, TranslationBundle> = {
     statusSecured: "Secured",
     completed: "Completed",
     releaseProgress: "Release progress",
-    pricingTitle: "Simple pricing",
-    pricingSubtitle: "Start free, upgrade when ready",
-    pricingPlanName: "Pro",
-    pricingPerMonth: "/ month",
-    pricingValueFree: "3 free agreements included",
-    pricingValuePro: "Unlimited after upgrade",
-    pricingCta: "Start Free Trial",
-    faqEyebrow: "Questions",
+    pricingPlan: {
+      name: "Pro",
+      tagline: "Simple pricing",
+      subtitle: "Start free, upgrade when ready",
+      price: "25,000 ֏ / month",
+      features: ["3 free agreements included", "Unlimited after upgrade"],
+      cta: "Start Free Trial"
+    },
     faqTitle: "Frequently asked Questions",
-    faqSubtitle: "Quick answers before you start your first protected deal.",
     faqs: [
       {
-        q: "What is VSTAH and how does it work?",
-        a: "VSTAH is a digital platform designed to secure payments and build absolute trust between businesses and clients in Armenia. The provider creates a deal and a secure payment link, and the client deposits the funds into our system. The money is locked safely and is only released to the provider once the client confirms that the work has been completed or the product delivered."
+        q: "Will my clients actually use this, or will it scare them off?",
+        a: "It builds instant trust. Clients hate hidden surprises just as much as you do. Seeing a clear breakdown on a modern mobile screen makes you look like an elite professional."
       },
       {
-        q: "Is my money safe while it’s on hold?",
-        a: "Absolutely. The funds are completely inaccessible to the provider and are never used for VSTAH's operations. Your money is held in a dedicated, secure institutional Trust Account at a top-tier Armenian bank, under strict monitoring, until the deal is successfully finalized."
+        q: "Is a finger signature on a phone legally binding in Armenia?",
+        a: "Yes. Under Armenian law, digital consent backed by an audit trail (IP address, device metadata, timestamp, and explicit term acceptance) serves as valid legal proof of contract formation."
       },
       {
-        q: "How much does it cost to get started?",
-        a: "Signing up and creating a deal is completely free. Our pricing model is straightforward: a flat fee of 7% per successful transaction arranged in advance, or a fixed subscription of 25,000 AMD per month for high-volume businesses. You decide who covers the fee: the provider, the client, or a 50/50 split."
+        q: "What happens if a client demands extra work halfway through?",
+        a: 'You simply send an "Addendum Link" for the new task. If they sign, the new scope and cost are added. If they don\'t, you stick strictly to the original agreement. No arguing.'
       },
       {
-        q: "What happens if there is a disagreement?",
-        a: "Our deal-creation form enforces such clear expectations and milestones that 95% of disputes are prevented before they even start. If a conflict does arise, the money remains safely locked in the bank. If you cannot settle it independently, you can initiate our official human arbitration service for a small fee, and we will make a fair decision based on the evidence."
+        q: "Do my clients need to sign up or download an app?",
+        a: "No. Zero friction. They tap the link in WhatsApp, review the proposal, sign on their phone screen, and they're done."
       },
       {
-        q: "Do my clients need to create an account to sign and pay?",
-        a: "No. Your client receives a direct link via text, WhatsApp, or email. They can review the terms, digitally sign with a single checkbox, and complete the secure payment via card or bank transfer in under a minute without going through any tedious registration process."
+        q: "Can I lock a proposal so it can't be changed after signing?",
+        a: "The exact second the client signs, VSTAH generates a tamper-proof, time-stamped PDF record that is permanently locked for both parties."
+      },
+      {
+        q: "What if I need to prove what was agreed upon in court?",
+        a: "Every signed agreement generates a locked digital record with timestamps, IP addresses, and device metadata, giving you clear, indisputable legal proof."
       }
     ]
   },
@@ -374,11 +398,11 @@ const translations: Record<Locale, TranslationBundle> = {
     navPricing: "Գին",
     btnProtectProject: "Փորձել անվճար",
     btnSeeHow: "Տեսնել ինչպես է աշխատում",
-    btnStartProtected: "Սկսել պաշտպանված նախագիծ",
-    heroEyebrow: "Կառուցեք վստահելի գործարքներ։ Ստացեք վճարումները ժամանակին։",
-    heroTitleBefore: "Աշխատեք վստահությամբ։",
+    heroEyebrow: "",
+    heroTitleBefore: "Դադարեցրեք աշխատանքը ձեռքի թափով։",
     heroTitleHighlight: "",
-    heroTitleAfter: " Ստացեք վճարումը վստահությամբ։",
+    heroTitleAfter: "Պաշտպանեք յուրաքանչյուր գորցարք մինչեվ սկսելը։",
+    heroSubtitle: "Ուղարկեք հղում։ Կողպեք պայմանները։ Խուսափեք վեճից։",
     heroPainPoints: [
       "Երբ հաճախորդը վախենում է կանխավճարից, բայց դուք չեք կարող անվճար աշխատել...",
       "Երբ ամաչում եք հետապնդել ձեր գումարը, բայց հաշիվները ժամանակին են...",
@@ -390,7 +414,7 @@ const translations: Record<Locale, TranslationBundle> = {
     heroDashboardTitle: "Պաշտպանված վահանակ",
     heroPreviewLabel: "Կենդանի գործարքի պաշտպանություն",
     heroRow1Label: "Թվային աշխատանքային պայմանագիր",
-    heroRow1Badge: "Ստորագրված և կողպված",
+    heroRow1Badge: "Ստորագրված և հաստատված",
     heroRow2Label: "Ապահովված նախագծի դեպոզիտ",
     heroRow2Badge: "Հաստատված",
     heroRow3Label: "Ծավալի և փուլերի պաշտպանություն",
@@ -412,106 +436,122 @@ const translations: Record<Locale, TranslationBundle> = {
     stage3Name: "Վերջնահարդարում",
     stage3Amount: "100,000 ֏",
     stage3State: "Սպասում",
-    cardMediation: "Գումարը ապահովված է և տեղայնորեն պաշտպանված",
+    heroProposalStatus: "[Ակտիվ՝ ստորագրված]",
+    heroMilestonesLabel: "Նախագծի փուլեր",
+    heroStage1Status: "Հաստատված",
+    heroStage2Status: "Ընթացքում",
+    heroStage3Status: "Սպասում",
+    heroSignatureName: "Aram Petrosyan",
+    heroDigitallyVerified: "Թվային հաստատված",
+    heroTapToSignHint: "Սեղմեք՝ ստորագրելու համար",
+    heroSignatureLabel: "Ստորագրություն",
+    heroSignCta: "Ստորագրել և հաստատել առաջարկը",
+    heroAuditTrail: "Հետագծում՝ IP հաստատված • Ժամանակային կնիք • Իրավական գրառում",
+    heroProposalMockupAria:
+      "Ինտերակտիվ հեռախոսի մակետ՝ AM-2841 առաջարկով, փուլերով և թվային ստորագրությամբ",
+
     cardTagline1: "Վեճերին վերջ։",
     cardTagline2: "Նախագիծը առաջ։",
-    feature1: "Հաստատված միջոցներ",
-    feature2: "Երաշխավորված վճարումներ",
-    feature3: "Հայաստանի համար",
-    feature4: "Ապահով գործարքներ",
-    painPointsTitle: "Ծանո՞թ է",
+    feature1: "Հստակ փուլեր",
+    feature2: "Ակնթարթային ստորագրություններ",
+    feature3: "Zero Scope Creep",
+    feature4: "Հայաստանի համար",
+    painPointsTitle: "Այլևս ոչ «Դա մենք այդպես չենք խոսել»",
     painPoints: [
-      "Ֆրիլանսեր աշխատելիս՝ դուք եք պարտքի հավաքագրողը։",
-      "Ամաչում եք հետապնդել սեփական վաստակած գումարը։",
-      "«Պայմանագիր պետք չէ, մենք քեզ վստահում ենք»։",
-      "Վախենում եք նախապես ավանս խնդրել։",
-      "Շատ ժամանակ եք ծախսում հաճակական վճարային հիշեցումը գրելու համար։",
-      "Անվերջ անվճար փոփոխություններ անելու՝ միայն վճարվելու համար։",
-      "Նախագիծը սկսում եք անորոշ խոսքային պայմանավորվածության վրա։",
-    ],
-    painCarouselAria: "Ֆրիլանսերի խնդիրներ",
-    painPrevAria: "Նախորդ",
-    painNextAria: "Հաջորդ",
-    painSlideAria: "Կադր",
-    diffEyebrow: "Տարբերությունը",
-    diffTitle: "Տեսնո՞ւմ եք տարբերությունը։",
-    diffSubtitle:
-      "Կանխեք վեճերը նախապես։ Տե՛ս՝ VSTAH-ը ինչպես է պաշտպանում նախագիծը։",
-    recommended: "(Առաջարկված)",
-    colWith: "VSTAH-ով",
-    colWithout: "Առանց VSTAH-ի",
-    diffWithoutEyebrow: "(Հին եղանակ)",
-    comparisonRows: [
       {
-        label: "Վճարման անվտանգություն",
-        withVstah: "Մինչև մեկնարկ՝ գումարը պահված է",
-        withoutUs: "Հույս ունենալ, որ հաճախորդը կվճարի աշխատանքի ավարտից հետո"
+        title: "WhatsApp-ի կածակ",
+        body: "Գին եք ուղարկում, նրանք պատասխանում են «Լավ է 👍»։ Երեք շաբաթ անց ողնագորդում են, որ երբեք չեն համաձայնվել լրացուցիչ նյութերի վճարին։"
       },
       {
-        label: "Թվային աշխատանքային պայմանագիր",
-        withVstah: "Պայմանագիր՝ երկու ստորագրությամբ",
-        withoutUs: "Բանավոր պայմանավորվածություններ և WhatsApp հաղորդագրություններ"
+        title: "Միջին փուլի սառեցում",
+        body: "80%-ը ավարտում եք, բայց վերջնական վճարումը պահող հաճախորդը հանկարծ «նախ» ուզում է ևս 10 բան։"
       },
       {
-        label: "Նախագծի փուլեր",
-        withVstah: "Վճարում ըստ փուլերի",
-        withoutUs: "Ամբողջ վճարմանը սպասել նախագծի վերջում"
+        title: "PDF-ի անբնակչել",
+        body: "Երկու ժամ եք ծախսում պաշտոնական պայմանագիր գրելու համար։ Հաճախորդը բացում է, վախենում է 10 էջի իրավական տեքստից և անհետանում է։"
       },
       {
-        label: "Վեճեր",
-        withVstah: "Գումարը պաշտպանված է մինչև խնդրի լուծումը",
-        withoutUs: "Անձնական վեճեր և կորցրած ժամանակ"
-      },
-      {
-        label: "Թափանցիկություն",
-        withVstah: "Աշխատանքի ապացույց · ժամանակագրություն",
-        withoutUs: "Թյուրըմբռնումներ և հաղորդակցության խնդիրներ"
-      },
-      {
-        label: "Պրոֆեսիոնալիզմ",
-        withVstah: "Երաշխիք՝ պլատֆորմից",
-        withoutUs: "Կախված է անձնական վստահությունից"
+        title: "Անվճար լրացուցիչ ժամեր",
+        body: "Նախագծի ընթացքում «փոքր խնդրանքներ» եք անում՝ հաճախորդին գոհ պահելու համար։ Վերջում 20 լրացուցիչ ժամ աշխատել եք անվճար։"
       }
     ],
-    processEyebrow: "Գործընթացը",
-    processTitle: "Ինչպես է աշխատում",
-    processSubtitle:
-      "Չորս պարզ քայլ։ Առանց անորոշության։ Պրոֆեսիոնալ գործարքներ՝ լիովին ապահովված։",
+    diffEyebrow: "",
+    diffTitle: "Սիրահարվածները վեճում են WhatsApp-ում։",
+    diffSubtitle: "",
+    recommended: "",
+    colWith: "Նոր եղանակը",
+    colWithout: "Հին եղանակը (խնդիրներ)",
+    diffWithoutEyebrow: "",
+    comparisonRows: [
+      {
+        label: "",
+        withoutUs: "Անհստակ հաղորդագրություններ, որոնք կորում են չատի պատմության մեջ",
+        withVstah: "Մեկ գեղեցիկ ինտերակտիվ հղում՝ հստակ փուլերով"
+      },
+      {
+        label: "",
+        withoutUs: "«Կարո՞ղ եք տպել, ստորագրել, սcan և ուղարկել»",
+        withVstah: "Հաճախորդը բացում է հղումը հեռախոսում և 10 վայրկյանում ստորագրում է"
+      },
+      {
+        label: "",
+        withoutUs: "Վեճեր՝ ինչ ճշգրիտ համաձայնվել էին",
+        withVstah: "Յուրաքանչյուր փուլ, արժեք և ծավալ կողպված է աշխատանքը սկսելուց առաջ"
+      },
+      {
+        label: "",
+        withoutUs: "Անհարմար խոսակցություններ փուլի հաստատման համար",
+        withVstah: "Ավտոմատ, մեկ հպումով հաստատումներ՝ փուլը ավարտելիս"
+      },
+      {
+        label: "",
+        withoutUs: "Չկա ընդհանուր գրառում, երբ հիշողությունները մթաղվում են",
+        withVstah: "Անփոփոխ թվային audit trail՝ IP հասցեով և ճշգրիտ timestamp-ով"
+      }
+    ],
+    processEyebrow: "",
+    processTitle: "Չորս քայլ՝ ձեր բիզնեսը ամրապնդելու համար։",
+    processSubtitle: "",
     processSteps: [
       {
         step: "01",
-        title: "Ստեղծեք գործարքը",
-        desc: "Սահմանեք ծավալը, փուլերը և արժեքը րոպեներում՝ մեր կառուցվածքային ձևերով։"
+        title: "Սահմանեք ծավալը",
+        desc: "Ընտրեք կաղապար կամ ցանկացեք նախագծի փուլերը, արժեքները AMD-ով և հիմնական պայմանները։"
       },
       {
         step: "02",
-        title: "Ստուգեք ապահով գումարը",
-        desc: "Գումարը ապահով կողպված է վստահության հաշվին։ Միջոցները ստուգվում են մինչև աշխատանքի մեկնարկը։"
+        title: "Ուղարկեք հղումը",
+        desc: "Ուղարկեք ինտերակտիվ հղում ուղղակի WhatsApp, Telegram կամ Viber-ով։"
       },
       {
         step: "03",
-        title: "Աշխատեք վստահ",
-        desc: "Սկսեք նախագիծը՝ իմանալով, որ վճարումը լիովին երաշխավորված է և սպասում է։"
+        title: "Մեկ հպումով բջջային ստորագրություն",
+        desc: "Հաճախորդը բացում է հղումը հեռախոսում, դիտում է բաժանումը և ստորագրում է մատով։"
       },
       {
         step: "04",
-        title: "Ապահով վճարումներ",
-        desc: "Ստացեք վճարումը ապահով՝ յուրաքանչյուր փուլը հաճախորդի կողմից հաստատվելուց հետո։"
+        title: "Կողպեք պայմանագիրը",
+        desc: "Երկու կոխմերը ստանում է իրավական թվային պատճեն՝ անել իրադարթյան գրիտակըք"
       }
     ],
-    disputeEyebrow: "Աջակցություն",
-    disputeTitle: "Վեճերի աջակցություն",
-    disputeBody:
-      "Մենք օգնում ենք ապահովել հստակ և կառուցվածքային հաղորդակցություն, երբ խնդիրներ են առաջանում։ VSTAH-ը թափանցիկ թվային շրջանակ է տալիս՝ երկու կողմերն էլ վերանայում են սկզբնական պայմանագիրը, փոխանակում ապացույցներ և ինքնուրույն լուծում վեճերը։",
-    badge24h: "Ուղղորդված\nլուծում",
-    badge24hSub:
-      "Կառուցվածքային քայլ առ քայլ գործընթաց, որը օգնում է երկու կողմերին վերանայել փաստերը և հասնել փոխադարձ համաձայնության՝ առանց ավելորդ ձգձգումների։",
-    badgeLaw: "Խելացի\nշրջանակներ",
-    badgeLawSub:
-      "Պայմանագրեր՝ ծառայությունների գործարքները պաշտպանելու համար՝ հստակ փուլերով, համահունչ հայկական բիզնես պրակտիկային, նվազեցնելով թյուրըմբռնումների հնարավորությունը։",
-    badgeMed: "Փորձագիտական միջամտություն",
-    badgeMedSub:
-      "Եթե ինքնուրույն փոխադարձ համաձայնության չեք հասնում, կարող եք միացնել մեր պաշտոնական մարդկային արբիտրաժային ծառայությունը՝ փաստերը գնահատելու և վերջնական որոշում կայացնելու համար։",
+    preventionEyebrow: "Կանխարգելում",
+    preventionTitle: "Կանխեք վեճերը մինչև դրանք սկսվեն։",
+    preventionBody:
+      "VSTAH-ը չի սպասում, որ ամենը սխալ ընթանա։ Յուրաքանչյուր գործարք կողպված է հստակ ծավալով, փուլերով և բջջային ստորագրություններով՝ մինչև աշխատանքի առաջին ժամը։",
+    preventionItems: [
+      {
+        title: "Կողպված ծավալ՝ առաջին օրից",
+        body: "Յուրաքանչյուր փուլ, արժեք և արդյունք գրված և ստորագրված է աշխատանքը սկսելուց առաջ՝ առանց «կարծում էի՝ ներառված էր»։"
+      },
+      {
+        title: "Addendum Link փոփոխությունների համար",
+        body: "Հաճախորդը լրացուցիչ աշխատանք է ուզում՞ Ուղարկեք նոր հղում։ Ստորագրում է՝ ծավալը ավելանում է, չի ստորագրում՝ մնում եք սկզբնական պայմանագրին։"
+      },
+      {
+        title: "Անփոփոխ audit trail",
+        body: "IP հասցե, սարքի metadata և ճշգրիտ timestamp յուրաքանչյուր ստորագրության վրա՝ մշտական ապացույց, որ երկու կողմն էլ համաձայնել են նույն պայմաններին։"
+      }
+    ],
     footerTagline: "Վստահություն յուրաքանչյուր նախագծում",
     footerRights: "© 2026 VSTAH · Բոլոր իրավունքները պաշտպանված են",
     footerTerms: "Օգտագործման պայմաններ",
@@ -553,36 +593,35 @@ const translations: Record<Locale, TranslationBundle> = {
     statusSecured: "Ապահովված",
     completed: "Ավարտված",
     releaseProgress: "Արձակման ընթացք",
-    pricingTitle: "Պարզ գին",
-    pricingSubtitle: "Սկսեք անվճար, թարմացրեք երբ պատրաստ եք",
-    pricingPlanName: "Պրո",
-    pricingPerMonth: "/ ամիս",
-    pricingValueFree: "3 անվճար պայմանագիր ներառված է",
-    pricingValuePro: "Թարմացումից հետո՝ անսահմանափակ պայմանագրեր",
-    pricingCta: "Սկսել անվճար փորձարկում",
-    faqEyebrow: "Հարցեր",
+    pricingPlan: {
+      name: "Pro",
+      tagline: "Պարզ գին",
+      subtitle: "Սկսեք անվճար, թարմացրեք երբ պատրաստ եք",
+      price: "25,000 ֏ / ամիս",
+      features: ["3 անվճար պայմանագիր ներառված է", "Թարմացումից հետո՝ անսահմանափակ"],
+      cta: "Սկսել անվճար փորձարկում"
+    },
     faqTitle: "Հաճախ տրվող հարցեր",
-    faqSubtitle: "Կարճ պատասխաններ՝ առաջին պաշտպանված գործարքը սկսելուց առաջ։",
     faqs: [
       {
-        q: "Ի՞նչ է VSTAH-ը և ինչպե՞ս է աշխատում։",
-        a: "VSTAH-ը թվային հարթակ է՝ վճարումները ապահովելու և Հայաստանում բիզնեսների ու հաճախորդների միջև վստահություն կառուցելու համար։ Մատակարարը ստեղծում է գործարք և անվտանգ վճարման հղում, իսկ հաճախորդը գումարը մուտքագրում է մեր համակարգ։ Գումարը ապահով կողպվում է և արձակվում է մատակարարին միայն այն ժամանակ, երբ հաճախորդը հաստատում է, որ աշխատանքն ավարտված է կամ ապրանքը մատակարարված։"
+        q: "Հաճախորդներս կօգտագործե՞ն սա, թե կվախենան։",
+        a: "Այն ակնթarus վստահություն է ստեղծում։ Հաճախորդներն էլ են нenavидят anaknкay kazmakerputyunnerը։ Հստակ բջջային էկրանը դարձնում է ձեզ էլիտ պրոֆեսիոնալ։"
       },
       {
-        q: "Ապահո՞վ է գումարս, քանի դեռ այն պահված է։",
-        a: "Անշուշտ։ Գումարը լիովին անհասանելի է մատակարարին և երբեք չի օգտագործվում VSTAH-ի գործունեության համար։ Ձեր գումարը պահվում է Հայաստանի առաջատար բանկում՝ նվիրված, անվտանգ ինստիտուցիոնալ Trust Account-ում՝ խիստ վերահսկողությամբ, մինչև գործարքի հաջող ավարտը։"
+        q: "Բջջային ստորագրությունը իրավական ուժ ունի՞ Հայաստանում։",
+        a: "Այո։ IP, timestamp, սարքի metadata և պայմանների ընդունումը՝ վավեր իրավական ապացույց են։"
       },
       {
-        q: "Որքա՞ն արժե սկսելը։",
-        a: "Գրանցումը և գործարքի ստեղծումը լիովին անվճար են։ Մեր գնագոյացումը պարզ է՝ կամ 7% ֆիքսված վճար յուրաքանչյուր հաջող գործարքի համար (նախապես համաձայնեցված), կամ ամսական 25,000 AMD բաժանորդագրություն՝ մեծ ծավալով աշխատող բիզնեսների համար։ Դուք որոշում եք՝ վճարը կրում է մատակարարը, հաճախորդը, թե 50/50 բաժանում։"
+        q: "Ի՞նչ անել, եթե հաճախորդը նոր աշխատանք է պահանջում։",
+        a: "Ուղարկում եք Addendum Link։ Ստորագրում է՝ ավելանում է, չի ստորագրում՝ մնում եք սկզբնական պայմանագրին։"
       },
       {
-        q: "Ի՞նչ է լինում տարաձայնության դեպքում։",
-        a: "Մեր գործարքի ստեղծման ձևը այնքան հստակ սպասումներ և փուլեր է սահմանում, որ վեճերի 95%-ը կանխվում է դեռ սկզբից։ Եթե հակամարտություն առաջանա, գումարը մնում է ապահով՝ բանկում կողպված։ Եթե ինքնուրույն չեք կարողանում լուծել, կարող եք սկսել մեր պաշտոնական մարդկային արբիտրաժային ծառայությունը՝ փոքր վճարով, և մենք արդար որոշում կկայացնենք՝ հիմնվելով ապացույցների վրա։"
+        q: "Պետք է՞ հաշիվ ստեղծել կամ հավելված ներբեռնել։",
+        a: "Ոչ։ Հղումը WhatsApp-ում, ստորագրություն էկran-ում, և պատրաստ։"
       },
       {
-        q: "Հաճախորդներս պե՞տք է հաշիվ ստեղծեն՝ ստորագրելու և վճարելու համար։",
-        a: "Ոչ։ Հաճախորդը ստանում է ուղիղ հղում տեքստով, WhatsApp-ով կամ էլ․ փոստով։ Նա կարող է վերանայել պայմանները, թվայնորեն ստորագրել մեկ նշման վանդակով և անվտանգ վճարել քարտով կամ բանկային փոխանցմամբ՝ մեկ րոպեից պակասում, առանց երկար գրանցման գործընթացի։"
+        q: "Կարո՞ղ եմ կողպել առաջարկը ստորագրությունից հետո։",
+        a: "Ստորագրության վայրկյանից VSTAH-ը ստեղծում է անփոփոխ, timestamp-ով PDF, որը կողպված է երկու կողմերի համար։"
       }
     ]
   },
@@ -592,12 +631,12 @@ const translations: Record<Locale, TranslationBundle> = {
     navHowItWorks: "Как это работает",
     navPricing: "Тарифы",
     btnProtectProject: "Попробовать бесплатно",
-    btnSeeHow: "Как это устроено",
-    btnStartProtected: "Начать защищённый проект",
-    heroEyebrow: "Стройте профессиональное доверие. Получайте оплату вовремя.",
-    heroTitleBefore: "Работайте уверенно.",
+    btnSeeHow: "Как это работает",
+    heroEyebrow: "",
+    heroTitleBefore: "Хватит работать на словах.",
     heroTitleHighlight: "",
-    heroTitleAfter: " Получайте оплату наверняка.",
+    heroTitleAfter: "Защитите каждую сделку до начала работы.",
+    heroSubtitle: "Отправьте ссылку. Зафиксируйте условия. Избегите спора.",
     heroPainPoints: [
       "Когда клиент боится платить вперёд, а вы не можете работать бесплатно...",
       "Когда неловко требовать свои деньги, а счета уже пора оплачивать...",
@@ -609,7 +648,7 @@ const translations: Record<Locale, TranslationBundle> = {
     heroDashboardTitle: "Защищённая панель",
     heroPreviewLabel: "Защита сделки в реальном времени",
     heroRow1Label: "Цифровое рабочее соглашение",
-    heroRow1Badge: "Подписано и зафиксировано",
+    heroRow1Badge: "Подписано и утверждено",
     heroRow2Label: "Защищённый депозит проекта",
     heroRow2Badge: "Проверено",
     heroRow3Label: "Контроль объёма и этапов",
@@ -623,114 +662,129 @@ const translations: Record<Locale, TranslationBundle> = {
     fundsLabel: "Средства удерживаются",
     lockedNote: "Удержание по 3 этапам",
     stage1Name: "Демонтаж и подготовка",
-    stage1Amount: "150 000 ֏",
+    stage1Amount: "150,000 ֏",
     stage1State: "Выплачено",
     stage2Name: "Сантехника и электрика",
-    stage2Amount: "200 000 ֏",
+    stage2Amount: "200,000 ֏",
     stage2State: "Удерживается",
     stage3Name: "Финишная отделка",
-    stage3Amount: "100 000 ֏",
+    stage3Amount: "100,000 ֏",
     stage3State: "Ожидание",
-    cardMediation: "Средства защищены и локально охраняются",
+    heroProposalStatus: "[Активно: подписано]",
+    heroMilestonesLabel: "Этапы проекта",
+    heroStage1Status: "Утверждено",
+    heroStage2Status: "В работе",
+    heroStage3Status: "Ожидание",
+    heroSignatureName: "Aram Petrosyan",
+    heroDigitallyVerified: "Цифровая проверка",
+    heroTapToSignHint: "Нажмите, чтобы подписать",
+    heroSignatureLabel: "Подпись",
+    heroSignCta: "Подписать и утвердить предложение",
+    heroAuditTrail: "Аудит: IP проверен • Отметка времени • Юридическая запись",
+    heroProposalMockupAria:
+      "Интерактивный макет телефона с предложением AM-2841, этапами и цифровой подписью",
     cardTagline1: "Меньше споров.",
     cardTagline2: "Быстрее проект.",
-    feature1: "Проверенные средства.",
-    feature2: "Выплаты гарантированы.",
-    feature3: "Сделано для Армении.",
-    feature4: "Сделки под защитой.",
-    painPointsTitle: "Знакомо?",
+    feature1: "Чёткие этапы",
+    feature2: "Мгновенные подписи",
+    feature3: "Zero Scope Creep",
+    feature4: "Сделано для Армении",
+    painPointsTitle: "Больше никаких «Мы так не договаривались»",
     painPoints: [
-      "Работая фрилансером, вы сами становитесь коллектором долгов.",
-      "Требовать свои честно заработанные деньги — неловко.",
-      "«Нам не нужен договор, мы вам доверяем».",
-      "Страшно просить предоплату заранее.",
-      "Тратите часы на вежливое напоминание об оплате.",
-      "Делаете бесконечные правки бесплатно, лишь бы получить оплату.",
-      "Начинаете проект на основе расплывчатого устного обещания."
-    ],
-    painCarouselAria: "Боли фрилансеров",
-    painPrevAria: "Назад",
-    painNextAria: "Далее",
-    painSlideAria: "Слайд",
-    diffEyebrow: "Разница",
-    diffTitle: "Видите разницу?",
-    diffSubtitle:
-      "Снимите риски до старта. Посмотрите, как VSTAH защищает проект.",
-    recommended: "(Рекомендуем)",
-    colWith: "С VSTAH",
-    colWithout: "Без VSTAH",
-    diffWithoutEyebrow: "(Старый способ)",
-    comparisonRows: [
       {
-        label: "Безопасность оплаты",
-        withVstah: "Деньги удерживаются до начала работ",
-        withoutUs: "Надежда, что заплатят после работ"
+        title: "Ловушка WhatsApp",
+        body: "Вы отправляете смету, клиент отвечает «Ок 👍». Через три недели он утверждает, что никогда не соглашался платить за допматериалы."
       },
       {
-        label: "Цифровое соглашение",
-        withVstah: "Договор с подписью обеих сторон",
-        withoutUs: "На словах и в переписке"
+        title: "Заморозка на финише",
+        body: "Вы сделали 80% работы, но клиент, держащий финальный платёж, внезапно находит 10 новых «сначала сделайте это»."
       },
       {
-        label: "Этапы",
-        withVstah: "Оплата за каждый принятый этап",
-        withoutUs: "Вся сумма в конце"
+        title: "Кладбище PDF",
+        body: "Вы тратите два часа на договор. Клиент открывает, пугается 10 страниц юридического текста — и исчезает."
       },
       {
-        label: "Споры",
-        withVstah: "Средства под защитой до конца медиации",
-        withoutUs: "Ссоры и потерянное время"
-      },
-      {
-        label: "Прозрачность",
-        withVstah: "Факт работы с отметками времени",
-        withoutUs: "Сбои в коммуникации"
-      },
-      {
-        label: "Профессионализм",
-        withVstah: "Гарантия системы, не слов",
-        withoutUs: "Всё через «своих»"
+        title: "Неоплаченные часы",
+        body: "Вы делаете «мелкие одолжения», чтобы клиент был доволен. В итоге 20 лишних часов бесплатно."
       }
     ],
-    processEyebrow: "Процесс",
-    processTitle: "Как это работает",
-    processSubtitle:
-      "Четыре простых шага. Без догадок. Профессиональные сделки под полной защитой.",
+    diffEyebrow: "",
+    diffTitle: "Любители спорят в WhatsApp.",
+    diffSubtitle: "",
+    recommended: "",
+    colWith: "Новый способ",
+    colWithout: "Старый способ (проблемы)",
+    diffWithoutEyebrow: "",
+    comparisonRows: [
+      {
+        label: "",
+        withoutUs: "Нечёткие сообщения, которые теряются в истории чата",
+        withVstah: "Одна красивая интерактивная ссылка с явными этапами"
+      },
+      {
+        label: "",
+        withoutUs: "«Можете распечатать, подписать, отсканировать и отправить?»",
+        withVstah: "Клиент открывает ссылку на телефоне и подписывает пальцем за 10 секунд"
+      },
+      {
+        label: "",
+        withoutUs: "Споры о том, что именно было согласовано",
+        withVstah: "Каждый этап, стоимость и объём зафиксированы до начала работ"
+      },
+      {
+        label: "",
+        withoutUs: "Неловкие разговоры при запросе подтверждения этапа",
+        withVstah: "Автоматические одно-касанийные подтверждения по завершении этапа"
+      },
+      {
+        label: "",
+        withoutUs: "Нет общей записи, когда воспоминания расходятся",
+        withVstah: "Неизменяемый цифровой audit trail с IP-адресом и точным timestamp"
+      }
+    ],
+    processEyebrow: "",
+    processTitle: "Четыре шага к защите вашего бизнеса.",
+    processSubtitle: "",
     processSteps: [
       {
         step: "01",
-        title: "Создайте соглашение",
-        desc: "Определите объём, этапы и стоимость за минуты с помощью наших структурированных форм."
+        title: "Задайте объём",
+        desc: "Выберите шаблон или укажите этапы проекта, стоимость в AMD и базовые условия."
       },
       {
         step: "02",
-        title: "Проверьте защищённые средства",
-        desc: "Деньги надёжно заблокированы на трастовом счёте. Средства проверяются до начала работ."
+        title: "Отправьте ссылку",
+        desc: "Отправьте интерактивную ссылку напрямую через WhatsApp, Telegram или Viber."
       },
       {
         step: "03",
-        title: "Работайте спокойно",
-        desc: "Начинайте проект, зная, что оплата полностью гарантирована и ждёт."
+        title: "Подпись одним касанием",
+        desc: "Клиент открывает ссылку на телефоне, просматривает разбивку и подписывает пальцем."
       },
       {
         step: "04",
-        title: "Защищённые выплаты",
-        desc: "Получайте оплату безопасно по мере завершения каждого этапа и подтверждения клиентом."
+        title: "Закрепите соглашение",
+        desc: "Обе стороны получают юридическую цифровую копию без лишних препятствий."
       }
     ],
-    disputeEyebrow: "Поддержка",
-    disputeTitle: "Помощь при спорах",
-    disputeBody:
-      "Мы помогаем выстроить ясное и структурированное общение, когда возникают проблемы. VSTAH даёт прозрачную цифровую рамку: обе стороны пересматривают исходное соглашение, обмениваются доказательствами и урегулируют конфликт самостоятельно.",
-    badge24h: "Управляемое разрешение",
-    badge24hSub:
-      "Пошаговый процесс, который ведёт обе стороны к разбору фактов и взаимному соглашению без лишних задержек.",
-    badgeLaw: "Умные рамки",
-    badgeLawSub:
-      "Договоры, которые защищают сервисные сделки через чёткие этапы в духе армянской бизнес-практики и снижают риск недопонимания.",
-    badgeMed: "Экспертное вмешательство",
-    badgeMedSub:
-      "Если самостоятельно договориться не получается, вы можете подключить наш официальный сервис человеческого арбитража — мы оценим факты и вынесем окончательное решение.",
+    preventionEyebrow: "Профилактика",
+    preventionTitle: "Остановите споры до того, как они начнутся.",
+    preventionBody:
+      "VSTAH не ждёт, пока всё пойдёт не так. Каждая сделка фиксируется с явным объёмом, этапами и мобильными подписями — до первого часа работы.",
+    preventionItems: [
+      {
+        title: "Зафиксированный объём с первого дня",
+        body: "Каждый этап, стоимость и результат записаны и подписаны до начала работ — больше никаких «я думал, это включено»."
+      },
+      {
+        title: "Addendum Link для изменений",
+        body: "Клиент хочет допработу? Отправьте новую ссылку. Подписал — объём расширен. Не подписал — работаете строго по исходному договору."
+      },
+      {
+        title: "Неизменяемый audit trail",
+        body: "IP-адрес, метаданные устройства и точный timestamp на каждой подписи — постоянное доказательство, что обе стороны согласились с одними условиями."
+      }
+    ],
     footerTagline: "Доверие в каждом проекте",
     footerRights: "© 2026 VSTAH. Все права защищены.",
     footerTerms: "Условия использования",
@@ -772,36 +826,35 @@ const translations: Record<Locale, TranslationBundle> = {
     statusSecured: "Под защитой",
     completed: "Завершено",
     releaseProgress: "Выплаты по этапам",
-    pricingTitle: "Простые тарифы",
-    pricingSubtitle: "Начните бесплатно, перейдите на Pro когда будете готовы",
-    pricingPlanName: "Про",
-    pricingPerMonth: "/ месяц",
-    pricingValueFree: "3 соглашения бесплатно включено",
-    pricingValuePro: "Безлимит после перехода на тариф Про",
-    pricingCta: "Начать бесплатный период",
-    faqEyebrow: "Вопросы",
+    pricingPlan: {
+      name: "Pro",
+      tagline: "Простые тарифы",
+      subtitle: "Начните бесплатно, перейдите на Pro когда будете готовы",
+      price: "25,000 ֏ / месяц",
+      features: ["3 соглашения бесплатно включено", "Безлимит после перехода на тариф"],
+      cta: "Начать бесплатный период"
+    },
     faqTitle: "Частые вопросы",
-    faqSubtitle: "Короткие ответы перед первой защищённой сделкой.",
     faqs: [
       {
-        q: "Что такое VSTAH и как это работает?",
-        a: "VSTAH — цифровая платформа для безопасных платежей и абсолютного доверия между бизнесом и клиентами в Армении. Исполнитель создаёт сделку и защищённую ссылку на оплату, а клиент вносит средства в нашу систему. Деньги надёжно блокируются и переводятся исполнителю только после того, как клиент подтвердит, что работа выполнена или товар доставлен."
+        q: "Клиенты правда будут этим пользоваться или испугаются?",
+        a: "Это сразу вызывает доверие. Клиенты тоже ненавидят сюрпризы. Чёткий мобильный экран делает вас профессионалом высокого класса."
       },
       {
-        q: "Безопасны ли мои деньги, пока они на удержании?",
-        a: "Абсолютно. Средства полностью недоступны исполнителю и никогда не используются в операционной деятельности VSTAH. Ваши деньги хранятся на выделенном институциональном Trust Account в ведущем армянском банке под строгим контролем — до успешного завершения сделки."
+        q: "Юридически ли значима подпись пальцем на телефоне в Армении?",
+        a: "Да. Цифровое согласие с audit trail (IP, метаданные устройства, timestamp, принятие условий) — valid legal proof."
       },
       {
-        q: "Сколько стоит начать?",
-        a: "Регистрация и создание сделки полностью бесплатны. Модель простая: фиксированная комиссия 7% с каждой успешной сделки (согласовывается заранее) или подписка 25 000 AMD в месяц для бизнеса с большим объёмом. Вы решаете, кто оплачивает комиссию: исполнитель, клиент или 50/50."
+        q: "Что если клиент требует допработы посередине проекта?",
+        a: "Отправляете Addendum Link. Подписал — scope и цена добавлены. Не подписал — работаете строго по исходному договору."
       },
       {
-        q: "Что если возникнет разногласие?",
-        a: "Форма создания сделки задаёт настолько чёткие ожидания и этапы, что 95% споров предотвращаются ещё до начала. Если конфликт всё же возникает, деньги остаются надёжно заблокированными в банке. Если не удаётся договориться самостоятельно, вы можете запустить наш официальный сервис человеческого арбитража за небольшую плату — мы примем справедливое решение на основе доказательств."
+        q: "Нужна ли клиентам регистрация или приложение?",
+        a: "Нет. Ссылка в WhatsApp, подпись на экране — готово."
       },
       {
-        q: "Нужно ли клиентам создавать аккаунт, чтобы подписать и оплатить?",
-        a: "Нет. Клиент получает прямую ссылку в SMS, WhatsApp или по email. Он может ознакомиться с условиями, подписать цифровой галочкой в одном чекбоксе и безопасно оплатить картой или банковским переводом менее чем за минуту — без долгой регистрации."
+        q: "Можно ли заблокировать предложение после подписи?",
+        a: "В секунду подписи VSTAH создаёт tamper-proof PDF с timestamp, навсегда locked для обеих сторон."
       }
     ]
   }
@@ -814,9 +867,7 @@ export default function Page() {
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(null);
 
   const t: TranslationBundle = translations[locale] ?? translations.en;
-  const heroChipsHyRu = locale === "hy" || locale === "ru";
   const isHy = locale === "hy";
-  const pricingLongLocale = locale === "hy" || locale === "ru";
 
   return (
     <div className="flex min-h-screen w-full min-w-0 max-w-full flex-col overflow-x-clip bg-white text-slate-900">
@@ -839,17 +890,10 @@ export default function Page() {
             langMenuOpen={langMenuOpen}
             onLangMenuOpenChange={setLangMenuOpen}
           />
-          <MarketingHeroSection t={t} isHy={isHy} heroChipsHyRu={heroChipsHyRu} locale={locale} />
+          <MarketingHeroSection t={t} isHy={isHy} locale={locale} />
         </section>
 
-        <MarketingPainPointsCarousel
-          title={t.painPointsTitle}
-          quotes={t.painPoints}
-          carouselAria={t.painCarouselAria}
-          prevAria={t.painPrevAria}
-          nextAria={t.painNextAria}
-          slideAria={t.painSlideAria}
-        />
+        <MarketingPainPointsGrid title={t.painPointsTitle} items={t.painPoints} />
 
         <MarketingFeaturesSection
           locale={locale}
@@ -883,35 +927,22 @@ export default function Page() {
           processSteps={t.processSteps}
         />
 
-        <MarketingDisputeSection
-          disputeEyebrow={t.disputeEyebrow}
-          disputeTitle={t.disputeTitle}
-          disputeBody={t.disputeBody}
-          btnStartProtected={t.btnStartProtected}
-          badge24h={t.badge24h}
-          badge24hSub={t.badge24hSub}
-          badgeLaw={t.badgeLaw}
-          badgeLawSub={t.badgeLawSub}
-          badgeMed={t.badgeMed}
-          badgeMedSub={t.badgeMedSub}
-          isHy={isHy}
+        <MarketingDisputePreventionSection
+          preventionEyebrow={t.preventionEyebrow}
+          preventionTitle={t.preventionTitle}
+          preventionBody={t.preventionBody}
+          preventionItems={t.preventionItems}
+          btnProtectProject={t.btnProtectProject}
         />
 
         <MarketingPricingFaqSection
-          locale={locale}
-          pricingLongLocale={pricingLongLocale}
           openFaqIndex={openFaqIndex}
           onToggleFaq={(index) => setOpenFaqIndex(openFaqIndex === index ? null : index)}
-          pricingPlanName={t.pricingPlanName}
-          pricingTitle={t.pricingTitle}
-          pricingSubtitle={t.pricingSubtitle}
-          pricingPerMonth={t.pricingPerMonth}
-          pricingValueFree={t.pricingValueFree}
-          pricingValuePro={t.pricingValuePro}
-          pricingCta={t.pricingCta}
-          faqEyebrow={t.faqEyebrow}
+          pricingPlan={{
+            ...t.pricingPlan,
+            href: "/register?next=%2Fdashboard"
+          }}
           faqTitle={t.faqTitle}
-          faqSubtitle={t.faqSubtitle}
           faqs={t.faqs}
         />
       </main>

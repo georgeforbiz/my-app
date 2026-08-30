@@ -10,7 +10,7 @@ import {
   useState,
   type ReactNode
 } from "react";
-import { humanizeAuthError } from "./humanize-auth-error";
+import { humanizeAuthError, isAuthNetworkError } from "./humanize-auth-error";
 import { mockGetSession, mockLogin, mockLogout, mockRegister } from "./mock-storage";
 import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
 
@@ -91,6 +91,15 @@ function mapSupabaseUser(u: SupabaseUser): AuthUser {
   };
 }
 
+function tryMockLogin(email: string, password: string, setUser: (u: AuthUser) => void) {
+  const local = mockLogin(email, password);
+  if (local.user) {
+    setUser({ ...local.user, source: "mock" });
+    return { ok: true as const };
+  }
+  return { ok: false as const, error: local.error };
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
@@ -120,7 +129,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(mapSupabaseUser(session.user));
           return;
         }
-        setUser(null);
+        const mockSession = mockGetSession();
+        setUser(mockSession ? { ...mockSession, source: "mock" } : null);
       })
       .catch(() => {
         const m = mockGetSession();
@@ -138,7 +148,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(mapSupabaseUser(session.user));
         return;
       }
-      setUser(null);
+      const mockSession = mockGetSession();
+      setUser(mockSession ? { ...mockSession, source: "mock" } : null);
     });
 
     return () => {
@@ -156,28 +167,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             window.setTimeout(() => resolve(null), 3_000);
           })
         ]);
-        if (result === null) {
-          return { error: "Connection timed out. Check your network and try again." };
-        }
-        if (!result.error) {
+        if (result !== null && !result.error) {
           mockLogout();
           return {};
         }
-        const msg = result.error.message.toLowerCase();
-        if (!msg.includes("failed to fetch") && !msg.includes("network")) {
+        if (result !== null && result.error && !isAuthNetworkError(result.error.message)) {
+          const mockAttempt = tryMockLogin(email, password, setUser);
+          if (mockAttempt.ok) return {};
           return { error: humanizeAuthError(result.error.message) };
         }
       } catch {
-        // unreachable — fall through to mock
+        // Cloud unreachable — use local mock auth.
       }
     }
 
-    const local = mockLogin(email, password);
-    if (local.user) {
-      setUser({ ...local.user, source: "mock" });
-      return {};
-    }
-    return { error: local.error ?? "Invalid email or password." };
+    const mockAttempt = tryMockLogin(email, password, setUser);
+    if (mockAttempt.ok) return {};
+    return {
+      error:
+        mockAttempt.error ??
+        "Invalid email or password. Register first if you have not created an account on this device."
+    };
   }, []);
 
   const resendConfirmation = useCallback(async (email: string) => {
@@ -252,10 +262,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (res.status === 409) {
+        const mockResult = finishMock();
+        if (!mockResult.error) return mockResult;
         return { error: payload.error ?? "An account with this email already exists. Please log in." };
       }
-      if (res.status === 400) {
-        return { error: payload.error ? humanizeAuthError(payload.error) : "Could not create account." };
+
+      const serverMsg = String(payload.error ?? "");
+      const isValidationError =
+        res.status === 400 &&
+        !isAuthNetworkError(serverMsg) &&
+        (serverMsg.includes("Password must be") ||
+          serverMsg.includes("Email and password are required") ||
+          serverMsg.includes("Invalid request body"));
+
+      if (isValidationError) {
+        return { error: humanizeAuthError(serverMsg) };
       }
     } catch {
       // Timeout / network — mock auth.

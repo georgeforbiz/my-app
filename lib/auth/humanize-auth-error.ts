@@ -1,6 +1,27 @@
 /** Maps Supabase GoTrue messages to short, actionable copy for the UI. */
+export function isAuthNetworkError(message: string): boolean {
+  const m = message.toLowerCase();
+  return (
+    m.includes("fetch failed") ||
+    m.includes("failed to fetch") ||
+    m.includes("network") ||
+    m.includes("networkerror") ||
+    m.includes("econnrefused") ||
+    m.includes("enotfound") ||
+    m.includes("timed out") ||
+    m.includes("timeout") ||
+    m.includes("aborted") ||
+    m.includes("could not reach") ||
+    m.includes("not configured") ||
+    m.includes("supabase unreachable")
+  );
+}
+
 export function humanizeAuthError(message: string): string {
   const m = message.toLowerCase();
+  if (isAuthNetworkError(message)) {
+    return "Could not reach the auth server. Check your connection and try again.";
+  }
   if (m.includes("email not confirmed") || m.includes("not confirmed")) {
     return "Your account exists, but email confirmation is still required. Open your email inbox, click the confirmation link, then log in again.";
   }

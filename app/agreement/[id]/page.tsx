@@ -1,10 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import Image from "next/image";
 import { useParams, useSearchParams } from "next/navigation";
-import { Building2, CheckCircle2, Landmark, Loader2, ShieldCheck, X } from "lucide-react";
+import { CheckCircle2, Loader2 } from "lucide-react";
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
@@ -13,20 +12,12 @@ import {
   isLocalAgreementId,
   updateLocalAgreement
 } from "@/lib/agreements/local-store";
-import {
-  addVerificationPendingIndex,
-  clearVerificationPending,
-  getVerificationPendingIndexes,
-  hasVerificationPending,
-  removeVerificationPendingIndex
-} from "@/lib/agreements/verification-pending";
 import { formatDateDMY } from "@/lib/format-date";
 import { useLanguage } from "@/lib/i18n/language-context";
 import { normalizeAgreementRow } from "@/lib/agreements/row";
 
 async function postAgreementAction(
   agreementId: string,
-  subpath: "/sign" | "/deposit" | "/release",
   body: Record<string, unknown> = {}
 ): Promise<{
   ok: boolean;
@@ -44,7 +35,7 @@ async function postAgreementAction(
   }
   let res: Response;
   try {
-    res = await fetch(`/api/agreement/${encodeURIComponent(agreementId)}${subpath}`, {
+    res = await fetch(`/api/agreement/${encodeURIComponent(agreementId)}/sign`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body)
@@ -76,6 +67,9 @@ type Agreement = {
   project_title: string;
   service_area: string;
   custom_terms: string;
+  scope_of_work?: string;
+  scope_exclusions?: string;
+  estimated_completion_date?: string;
   total_price: number;
   payment_type: "single" | "milestones";
   milestones: { title: string; amount: number; status?: "pending" | "escrow_held" | "released" }[] | null;
@@ -86,12 +80,6 @@ type Agreement = {
 };
 
 const money = (v: number) => v.toLocaleString("en-US", { maximumFractionDigits: 2 });
-
-/** Window after a deposit during which release clicks are ignored. */
-const RELEASE_LOCK_MS = 1_500;
-const DEMO_BANK_NAME = "Ameriabank (Demo)";
-const DEMO_BANK_ACCOUNT = "AM00 0000 0000 0000 0000 (DEMO)";
-const DEMO_BENEFICIARY = "VSTAH LLC (Demo)";
 
 function looksLikeUuid(s: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s.trim());
@@ -121,6 +109,40 @@ function resolveProviderNameFields(a: Agreement): { business: string; full: stri
   return { business, full };
 }
 
+type PaymentScheduleRow = {
+  index: number;
+  stage: string;
+  amount: number;
+  condition: string;
+};
+
+function buildPaymentScheduleRows(
+  agreement: Agreement,
+  tx: {
+    conditionStage: string;
+    conditionSingle: string;
+    singlePaymentLabel: string;
+  }
+): PaymentScheduleRow[] {
+  if (agreement.payment_type === "milestones" && (agreement.milestones?.length ?? 0) > 0) {
+    return (agreement.milestones ?? []).map((m, i) => ({
+      index: i + 1,
+      stage: m.title,
+      amount: Number(m.amount || 0),
+      condition: tx.conditionStage.replace("{stage}", m.title)
+    }));
+  }
+
+  return [
+    {
+      index: 1,
+      stage: tx.singlePaymentLabel,
+      amount: Number(agreement.total_price || 0),
+      condition: tx.conditionSingle
+    }
+  ];
+}
+
 export default function AgreementClientPage() {
   const params = useParams<{ id: string }>();
   const searchParams = useSearchParams();
@@ -147,14 +169,26 @@ export default function AgreementClientPage() {
           milestones: "Փուլեր",
           milestonesValue: "Փուլային",
           singleValue: "Մեկանգամյա",
-          optionalSignature: "Ընտրովի ստորագրություն",
-          signatureHint: "Ստորագրեք ներքևում և սեղմեք «Ստորագրել և ընդունել պայմանագիրը»։",
+          paymentSchedule: "Վճարման ժամանակացույց",
+          paymentScheduleIntro:
+            "Ստորև նշված է վճարման ժամանակացույցը, որը դուք ընդունում եք մեկ ստորագրությամբ։",
+          scheduleStage: "Փուլ",
+          scheduleAmount: "Գումար",
+          scheduleCondition: "Պայման / Շարժիչ",
+          scheduleStatus: "Կարգավիճակ",
+          pendingSignature: "Սպասում է ստորագրության",
+          conditionStage: "Այս փուլի ավարտից հետո՝ {stage}",
+          conditionSingle: "Պայմանագրով ամբողջ աշխատանքի ավարտից հետո",
+          singlePaymentLabel: "Լրիվ վճարում",
+          optionalSignature: "Ձեր ստորագրությունը",
+          signatureHint:
+            "Ստորագրելով ներքևում, դուք ընդունում եք ամբողջ շրջանակը, պայմանները և վճարման ժամանակացույցը։",
           clearSignature: "Մաքրել ստորագրությունը",
           signing: "Ստորագրում…",
           signAndAccept: "Ստորագրել և ընդունել պայմանագիրը",
-          signedSuccess: "Պայմանագիրը ստորագրված է։ Մատակարարը ծանուցված է։",
-          signedByClient: "Ստորագրել է հաճախորդը",
-          clientSignature: "Հաճախորդի ստորագրություն",
+            signedSuccess: "Պայմանագիրը ստորագրված է։ Մատակարարը ծանուցված է։",
+            signedSuccessNote: "Հաճախորդը ստորագրել է հղումով — հաշիվ պարտադիր չէ։",
+            clientSignature: "Հաճախորդի ստորագրություն",
           signFailed: "Չհաջողվեց ստորագրել պայմանագիրը։ Փորձեք կրկին։",
           signBlocked:
             "Պահեստը թույլ չի տալիս պահել ստորագրությունը։ Սերվերում ավելացրեք SUPABASE_SERVICE_ROLE_KEY կամ թարմացրեք Supabase RLS քաղաքականությունները։",
@@ -190,6 +224,9 @@ export default function AgreementClientPage() {
           providerDetails: "Մատակարարի տվյալներ",
           clientDetails: "Հաճախորդի տվյալներ",
           termsAndConditions: "Պայմաններ",
+          scopeOfWork: "Աշխատանքի շրջանակ (ներառված)",
+          scopeExclusions: "Ինչը չի ներառվում",
+          estimatedCompletionDate: "Ավարտի մոտավոր ամսաթիվ",
           name: "Անուն",
           fullName: "Ամբողջ անուն",
           businessName: "Բիզնեսի անվանում",
@@ -249,13 +286,25 @@ export default function AgreementClientPage() {
             milestones: "Этапы",
             milestonesValue: "По этапам",
             singleValue: "Единовременно",
-            optionalSignature: "Подпись (необязательно)",
-            signatureHint: "Поставьте подпись ниже и нажмите «Подписать и принять».",
+            paymentSchedule: "График платежей",
+            paymentScheduleIntro:
+              "Ниже указан график платежей, который вы принимаете одной подписью.",
+            scheduleStage: "Этап",
+            scheduleAmount: "Сумма",
+            scheduleCondition: "Условие / триггер",
+            scheduleStatus: "Статус",
+            pendingSignature: "Ожидает подписи",
+            conditionStage: "После завершения этапа: {stage}",
+            conditionSingle: "После выполнения всех работ по соглашению",
+            singlePaymentLabel: "Полная оплата",
+            optionalSignature: "Ваша подпись",
+            signatureHint:
+              "Подписывая ниже, вы принимаете полный объём работ, условия и график платежей.",
             clearSignature: "Очистить",
             signing: "Подписание…",
             signAndAccept: "Подписать и принять",
             signedSuccess: "Соглашение подписано. Исполнитель уведомлён.",
-            signedByClient: "Подписано клиентом",
+            signedSuccessNote: "Клиент подписал по ссылке — регистрация не требуется.",
             clientSignature: "Подпись клиента",
             signFailed: "Не удалось подписать. Попробуйте снова.",
             signBlocked:
@@ -292,6 +341,9 @@ export default function AgreementClientPage() {
             providerDetails: "Исполнитель",
             clientDetails: "Клиент",
             termsAndConditions: "Условия",
+            scopeOfWork: "Объём работ (включено)",
+            scopeExclusions: "Что НЕ включено",
+            estimatedCompletionDate: "Ориентировочная дата завершения",
             name: "Имя",
             fullName: "ФИО",
             businessName: "Компания",
@@ -350,13 +402,25 @@ export default function AgreementClientPage() {
             milestones: "Milestones",
             milestonesValue: "Milestones",
             singleValue: "Single",
-            optionalSignature: "Optional Signature",
-            signatureHint: "Draw your signature below and then click Sign & Accept Agreement.",
+            paymentSchedule: "Payment Schedule",
+            paymentScheduleIntro:
+              "The payment schedule below is accepted in full with your single signature at the bottom.",
+            scheduleStage: "Stage",
+            scheduleAmount: "Amount",
+            scheduleCondition: "Condition / Trigger",
+            scheduleStatus: "Status",
+            pendingSignature: "Pending signature",
+            conditionStage: "Upon completion of: {stage}",
+            conditionSingle: "Upon completion of all work under this agreement",
+            singlePaymentLabel: "Full payment",
+            optionalSignature: "Your signature",
+            signatureHint:
+              "By signing below, you accept the full scope, terms, and payment schedule above.",
             clearSignature: "Clear Signature",
             signing: "Signing...",
             signAndAccept: "Sign & Accept Agreement",
-            signedSuccess: "Agreement Signed Successfully! The provider has been notified.",
-            signedByClient: "Signed by client",
+            signedSuccess: "Agreement signed successfully. The provider has been notified.",
+            signedSuccessNote: "The client signed via this link — no account required.",
             clientSignature: "Client signature",
             signFailed: "Failed to sign agreement. Please try again.",
             signBlocked:
@@ -392,6 +456,9 @@ export default function AgreementClientPage() {
             providerDetails: "Provider Details",
             clientDetails: "Client Details",
             termsAndConditions: "Terms and Conditions",
+            scopeOfWork: "Scope of Work (Included)",
+            scopeExclusions: "What is NOT Included",
+            estimatedCompletionDate: "Estimated Completion Date",
             name: "Name",
             fullName: "Full Name",
             businessName: "Business Name",
@@ -438,42 +505,16 @@ export default function AgreementClientPage() {
   const [agreement, setAgreement] = useState<Agreement | null>(null);
   const [loading, setLoading] = useState(true);
   const [signing, setSigning] = useState(false);
-  const [releasingMilestoneIndex, setReleasingMilestoneIndex] = useState<number | null>(null);
-  /** `null` closed; `>= 0` milestone; `-1` single/total payment. */
-  const [transferModalIndex, setTransferModalIndex] = useState<number | null>(null);
-  /** `null` closed; `>= 0` milestone; `-1` single/total payment. */
-  const [releaseConfirmIndex, setReleaseConfirmIndex] = useState<number | null>(null);
-  const [verificationPendingIndexes, setVerificationPendingIndexes] = useState<number[]>([]);
-  const [depositConfirmation, setDepositConfirmation] = useState("");
-  const [verifyingIndex, setVerifyingIndex] = useState<number | null>(null);
   /** Fatal: not configured / not found (no agreement to show). */
   const [error, setError] = useState("");
-  /** Non-fatal: sign / payment actions while agreement is visible. */
+  /** Non-fatal: sign actions while agreement is visible. */
   const [actionError, setActionError] = useState("");
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const lastDepositAtRef = useRef(0);
   const drawing = useRef(false);
   const printableRef = useRef<HTMLDivElement | null>(null);
   const downloadTriggeredRef = useRef(false);
   const fetchSeqRef = useRef(0);
-
-  useEffect(() => {
-    if (!id) return;
-    setVerificationPendingIndexes(getVerificationPendingIndexes(id));
-  }, [id]);
-
-  useEffect(() => {
-    if (transferModalIndex === null && releaseConfirmIndex === null) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setTransferModalIndex(null);
-        setReleaseConfirmIndex(null);
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [transferModalIndex, releaseConfirmIndex]);
 
   const fetchAgreement = useCallback(async () => {
     if (!id) return;
@@ -485,7 +526,6 @@ export default function AgreementClientPage() {
       const local = getLocalAgreement(id) as Agreement | null;
       if (!local) return false;
       setAgreement(local);
-      setVerificationPendingIndexes(getVerificationPendingIndexes(id));
       setError("");
       setActionError("");
       setLoading(false);
@@ -517,17 +557,6 @@ export default function AgreementClientPage() {
 
       if (isStale()) return;
       setAgreement(normalizeAgreementRow(data as Record<string, unknown>) as Agreement);
-      const remote = await fetch(`/api/agreement/${encodeURIComponent(id)}/verification`)
-        .then((r) => r.json())
-        .catch(() => ({ indexes: [] as number[] }));
-      if (isStale()) return;
-      if (isLocalAgreementId(id)) {
-        const local = getVerificationPendingIndexes(id);
-        setVerificationPendingIndexes([...new Set([...(remote.indexes ?? []), ...local])]);
-      } else {
-        clearVerificationPending(id);
-        setVerificationPendingIndexes(remote.indexes ?? []);
-      }
       setError("");
       setActionError("");
       setLoading(false);
@@ -549,16 +578,10 @@ export default function AgreementClientPage() {
     const refresh = () => {
       if (!id) return;
       void fetchAgreement();
-      if (isLocalAgreementId(id)) {
-        setVerificationPendingIndexes(getVerificationPendingIndexes(id));
-      }
     };
     const onStorage = (event: StorageEvent) => {
       if (!id) return;
-      if (
-        event.key === "vstah_local_agreements" ||
-        event.key === "vstah_verification_pending"
-      ) {
+      if (event.key === "vstah_local_agreements") {
         refresh();
       }
     };
@@ -642,13 +665,6 @@ export default function AgreementClientPage() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
   };
 
-  /**
-   * A deposit swaps the blue deposit button for the green release button in the
-   * same spot, so a second click of a double-click could release the funds
-   * immediately. Ignore release clicks that arrive right after a deposit.
-   */
-  const isReleaseLocked = () => Date.now() - lastDepositAtRef.current < RELEASE_LOCK_MS;
-
   const tryClientUpdate = async (
     payload: Record<string, unknown>
   ): Promise<{ ok: boolean; error?: string }> => {
@@ -706,7 +722,7 @@ export default function AgreementClientPage() {
     const signature =
       typeof drawnSignature === "string" && drawnSignature.startsWith("data:image/") ? drawnSignature : null;
 
-    const res = await postAgreementAction(agreement.id, "/sign", { signature: signature ?? undefined });
+    const res = await postAgreementAction(agreement.id, { signature: signature ?? undefined });
     if (!res.ok && !res.alreadySigned) {
       const fallback = await tryClientUpdate({
         status: "signed",
@@ -721,167 +737,6 @@ export default function AgreementClientPage() {
 
     await fetchAgreement();
     setSigning(false);
-  };
-
-  const requestReleaseMilestone = (index: number) => {
-    if (!agreement || agreement.status !== "signed" || agreement.payment_type !== "milestones") return;
-    const current = agreement.milestones ?? [];
-    const target = current[index];
-    if (!target || target.status !== "escrow_held") return;
-    if (isReleaseLocked()) return;
-    setReleaseConfirmIndex(index);
-  };
-
-  const confirmReleaseMilestone = async () => {
-    if (releaseConfirmIndex === null) return;
-    const index = releaseConfirmIndex;
-    setReleaseConfirmIndex(null);
-    if (!agreement || agreement.status !== "signed" || agreement.payment_type !== "milestones") return;
-    const current = agreement.milestones ?? [];
-    const target = current[index];
-    if (!target || target.status !== "escrow_held") return;
-    if (isReleaseLocked()) return;
-
-    setReleasingMilestoneIndex(index);
-    setActionError("");
-    const res = await postAgreementAction(agreement.id, "/release", { milestoneIndex: index });
-    if (!res.ok) {
-      const nextMilestones = current.map((m, i) => (i === index ? { ...m, status: "released" as const } : m));
-      const allReleased = nextMilestones.every((m) => m.status === "released");
-      const fallback = await tryClientUpdate({
-        milestones: nextMilestones,
-        payment_status: allReleased ? "released" : "escrow_held",
-        status: allReleased ? "completed" : "signed"
-      });
-      if (!fallback.ok) {
-        setActionError(res.error || fallback.error || tx.releaseMilestoneFailed);
-        setReleasingMilestoneIndex(null);
-        return;
-      }
-    }
-
-    await fetchAgreement();
-    setReleasingMilestoneIndex(null);
-  };
-
-  const openMilestoneTransfer = (index: number) => {
-    if (!agreement || agreement.status !== "signed" || agreement.payment_type !== "milestones") return;
-    const current = agreement.milestones ?? [];
-    const target = current[index];
-    if (!target || (target.status ?? "pending") !== "pending") return;
-    if (verificationPendingIndexes.includes(index) || hasVerificationPending(agreement.id, index)) return;
-    setDepositConfirmation("");
-    setTransferModalIndex(index);
-  };
-
-  const openTotalTransfer = () => {
-    if (!agreement || agreement.status !== "signed" || agreement.payment_status !== "pending") return;
-    if ((agreement.milestones ?? []).length > 0) return;
-    if (verificationPendingIndexes.includes(-1) || hasVerificationPending(agreement.id, -1)) return;
-    setDepositConfirmation("");
-    setTransferModalIndex(-1);
-  };
-
-  /** Demo-only: after the customer confirms the transfer, queue admin verification (do not secure funds yet). */
-  const submitDemoTransfer = async () => {
-    if (!agreement || transferModalIndex === null) return;
-    const index = transferModalIndex;
-    setVerifyingIndex(index);
-    setTransferModalIndex(null);
-    setActionError("");
-
-    if (index === -1) {
-      if (agreement.payment_status !== "pending" || (agreement.milestones ?? []).length > 0) {
-        setVerifyingIndex(null);
-        return;
-      }
-    } else {
-      const target = agreement.milestones?.[index];
-      if (!target || (target.status ?? "pending") !== "pending") {
-        setVerifyingIndex(null);
-        return;
-      }
-    }
-
-    let submitted = false;
-
-    if (isLocalAgreementId(agreement.id)) {
-      addVerificationPendingIndex(agreement.id, index);
-      setVerificationPendingIndexes(getVerificationPendingIndexes(agreement.id));
-      void fetch(`/api/agreement/${encodeURIComponent(agreement.id)}/log`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "deposit.submitted", meta: { milestoneIndex: index } })
-      }).catch(() => {});
-      submitted = true;
-    } else {
-      try {
-        const res = await fetch(`/api/agreement/${encodeURIComponent(agreement.id)}/submit-transfer`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ milestoneIndex: index })
-        });
-        const payload = (await res.json().catch(() => ({}))) as { error?: string };
-        if (res.ok) {
-          removeVerificationPendingIndex(agreement.id, index);
-          submitted = true;
-        } else {
-          const err = payload.error ?? "";
-          const missingMigration = err.toLowerCase().includes("missing");
-          if (missingMigration) {
-            addVerificationPendingIndex(agreement.id, index);
-            submitted = true;
-          } else {
-            setActionError(err || "Could not submit transfer.");
-          }
-        }
-      } catch {
-        setActionError("Network error. Please try again.");
-      }
-
-      if (submitted) {
-        const remote = await fetch(`/api/agreement/${encodeURIComponent(agreement.id)}/verification`)
-          .then((r) => r.json())
-          .catch(() => ({ indexes: [] as number[] }));
-        clearVerificationPending(agreement.id);
-        setVerificationPendingIndexes(remote.indexes ?? []);
-      }
-    }
-
-    if (submitted) {
-      setDepositConfirmation(tx.depositSubmitted);
-    }
-    setVerifyingIndex(null);
-  };
-
-  const requestReleaseTotal = () => {
-    if (!agreement || agreement.status !== "signed" || agreement.payment_status !== "escrow_held") return;
-    if ((agreement.milestones ?? []).length > 0) return;
-    if (isReleaseLocked()) return;
-    setReleaseConfirmIndex(-1);
-  };
-
-  const confirmReleaseTotal = async () => {
-    setReleaseConfirmIndex(null);
-    if (!agreement || agreement.status !== "signed" || agreement.payment_status !== "escrow_held") return;
-    if (isReleaseLocked()) return;
-    setReleasingMilestoneIndex(-1);
-    setActionError("");
-    const res = await postAgreementAction(agreement.id, "/release", {});
-    if (!res.ok) {
-      const fallback = await tryClientUpdate({
-        payment_status: "released",
-        status: "completed"
-      });
-      if (!fallback.ok) {
-        setActionError(res.error || fallback.error || tx.releasePaymentFailed);
-        setReleasingMilestoneIndex(null);
-        return;
-      }
-    }
-
-    await fetchAgreement();
-    setReleasingMilestoneIndex(null);
   };
 
   const defaultTerms = [
@@ -960,7 +815,6 @@ export default function AgreementClientPage() {
   }
 
   const signed = agreement.status === "signed" || agreement.status === "completed";
-  const paymentReleased = agreement.payment_status === "released";
   const signatureImage =
     typeof agreement.client_signature === "string" && agreement.client_signature.startsWith("data:image/")
       ? agreement.client_signature
@@ -968,38 +822,23 @@ export default function AgreementClientPage() {
   const providerFields = resolveProviderNameFields(agreement);
   const serviceAreaDisplay = agreement.service_area?.trim() || "Armenia";
   const readableAgreementId = `VSTAH-${new Date(agreement.created_at).getFullYear()}-${agreement.id.split("-")[0].toUpperCase()}`;
-  const transferMilestone =
-    transferModalIndex === null || transferModalIndex < 0
-      ? null
-      : agreement.milestones?.[transferModalIndex] ?? null;
-  const transferIsTotal = transferModalIndex === -1;
-  const transferAmount = transferIsTotal
-    ? Number(agreement.total_price || 0)
-    : Number(transferMilestone?.amount || 0);
-  const transferTitleLabel = transferIsTotal
-    ? agreement.project_title
-    : transferMilestone
-      ? `${transferModalIndex! + 1}. ${transferMilestone.title}`
-      : "";
-  const releaseConfirmMilestone =
-    releaseConfirmIndex === null || releaseConfirmIndex < 0
-      ? null
-      : agreement.milestones?.[releaseConfirmIndex] ?? null;
-  const releaseConfirmIsTotal = releaseConfirmIndex === -1;
-  const transferReference =
-    transferModalIndex === null
-      ? readableAgreementId
-      : transferModalIndex < 0
-        ? readableAgreementId
-        : `${readableAgreementId}-M${transferModalIndex + 1}`;
+  const paymentScheduleRows = buildPaymentScheduleRows(agreement, tx);
+
+  const milestoneStatusBadge = (isSigned: boolean) =>
+    isSigned ? (
+      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-xs font-bold text-emerald-800">
+        <CheckCircle2 className="h-3.5 w-3.5" />
+        {tx.statusSigned}
+      </span>
+    ) : (
+      <span className="inline-flex rounded-full border border-slate-200 bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-700">
+        {tx.pendingSignature}
+      </span>
+    );
+
   return (
     <main key={routeKey} className="min-h-screen bg-slate-100 px-3 py-6 md:px-6 md:py-10">
       <div ref={printableRef} className="relative mx-auto w-full min-w-0 max-w-[min(100%,55rem)] rounded-md border border-slate-200 bg-white px-4 py-5 shadow-[0_8px_30px_rgba(15,23,42,0.08)] md:px-10 md:py-9">
-        {paymentReleased ? (
-          <div className="pointer-events-none absolute right-3 top-5 hidden rotate-[-12deg] rounded border-4 border-emerald-600 px-3 py-1.5 text-xs font-black tracking-widest text-emerald-700 opacity-90 sm:block md:right-8 md:top-8 md:text-sm">
-            {tx.paidInFull}
-          </div>
-        ) : null}
         {actionError ? (
           <div
             role="alert"
@@ -1011,14 +850,7 @@ export default function AgreementClientPage() {
 
         <div className="border-b border-slate-200 pb-4">
           <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">{tx.offer}</p>
-          <div className="mt-2 flex flex-wrap items-start justify-between gap-2">
-            <h1 className="min-w-0 flex-1 text-2xl font-black text-[#0033A0] md:text-3xl">{tx.title}</h1>
-            {paymentReleased ? (
-              <span className="inline-flex shrink-0 rounded-full border border-emerald-600 bg-emerald-50 px-2.5 py-1 text-[10px] font-black uppercase tracking-wide text-emerald-700 sm:hidden">
-                {tx.paidInFull}
-              </span>
-            ) : null}
-          </div>
+          <h1 className="mt-2 text-2xl font-black text-[#0033A0] md:text-3xl">{tx.title}</h1>
           <p className="mt-1 text-sm text-slate-600">{tx.subtitle}</p>
         </div>
 
@@ -1039,16 +871,6 @@ export default function AgreementClientPage() {
                 : agreement.status === "completed"
                   ? tx.phaseCompleted
                   : tx.phaseSigned}
-            </p>
-            <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-slate-500">{tx.paymentPhase}</p>
-            <p className="mt-0.5 font-bold text-slate-900">
-              {agreement.payment_status === "released"
-                ? tx.phasePayReleased
-                : agreement.payment_status === "escrow_held"
-                  ? tx.phasePayEscrow
-                  : verificationPendingIndexes.length > 0
-                    ? tx.phasePayVerification
-                    : tx.phasePayPending}
             </p>
           </div>
         </div>
@@ -1087,166 +909,103 @@ export default function AgreementClientPage() {
           </div>
         </section>
 
+        {agreement.scope_of_work?.trim() ||
+        agreement.scope_exclusions?.trim() ||
+        agreement.estimated_completion_date?.trim() ? (
+          <section className="mt-6 space-y-4 rounded border border-slate-200 p-4">
+            {agreement.scope_of_work?.trim() ? (
+              <div>
+                <p className="text-sm font-bold uppercase tracking-wide text-slate-700">{tx.scopeOfWork}</p>
+                <pre className="mt-3 whitespace-pre-wrap break-words font-sans text-sm leading-6 text-slate-700">
+                  {agreement.scope_of_work.trim()}
+                </pre>
+              </div>
+            ) : null}
+            {agreement.scope_exclusions?.trim() ? (
+              <div>
+                <p className="text-sm font-bold uppercase tracking-wide text-slate-700">{tx.scopeExclusions}</p>
+                <pre className="mt-3 whitespace-pre-wrap break-words font-sans text-sm leading-6 text-slate-700">
+                  {agreement.scope_exclusions.trim()}
+                </pre>
+              </div>
+            ) : null}
+            {agreement.estimated_completion_date?.trim() ? (
+              <div>
+                <p className="text-sm font-bold uppercase tracking-wide text-slate-700">{tx.estimatedCompletionDate}</p>
+                <p className="mt-3 text-sm leading-6 text-slate-700">
+                  {formatDateDMY(agreement.estimated_completion_date)}
+                </p>
+              </div>
+            ) : null}
+          </section>
+        ) : null}
+
         <section className="mt-6 rounded border border-slate-200 p-4">
           <p className="text-sm font-bold uppercase tracking-wide text-slate-700">{tx.termsAndConditions}</p>
           <pre className="mt-3 whitespace-pre-wrap break-words font-sans text-sm leading-6 text-slate-700">
             {agreement.custom_terms?.trim() || defaultTerms}
           </pre>
         </section>
-        <div className="mt-3 border-t border-slate-200 pt-3 text-left">
-          <p className="text-sm font-semibold text-slate-800">
-            {tx.total}: {money(Number(agreement.total_price || 0))} ֏
-          </p>
-        </div>
 
-        {signatureImage && signed ? (
-          <section
-            className="mt-8 overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_4px_24px_-4px_rgba(15,23,42,0.12)] ring-1 ring-slate-900/[0.04]"
-            aria-label={tx.clientSignature}
-          >
-            <div className="flex flex-wrap items-end justify-between gap-3 border-b border-slate-100 bg-gradient-to-r from-[#0033A0]/[0.07] to-slate-50/80 px-4 py-4 sm:px-6">
-              <div>
-                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[#0033A0]">{tx.clientSignature}</p>
-                <p className="mt-1 text-base font-bold text-slate-900">{agreement.client_name}</p>
-              </div>
-            </div>
-            <div className="bg-[linear-gradient(to_bottom,#f8fafc_0%,#ffffff_100%)] px-4 py-6 sm:px-8 sm:py-8">
-              <div className="relative mx-auto max-w-lg rounded-xl bg-white p-6 shadow-inner ring-1 ring-slate-200/90 sm:p-8">
-                <div className="pointer-events-none absolute inset-x-8 bottom-6 border-b border-slate-300/90 sm:inset-x-10 sm:bottom-8" aria-hidden />
-                <Image
-                  src={signatureImage}
-                  alt={`${agreement.client_name} — ${tx.clientSignature}`}
-                  width={640}
-                  height={180}
-                  unoptimized
-                  className="relative z-[1] mx-auto block h-auto max-h-36 w-auto max-w-full object-contain sm:max-h-40"
-                />
-              </div>
-            </div>
-          </section>
-        ) : null}
+        <section className="mt-6 rounded border border-slate-200 p-4">
+          <p className="text-sm font-bold uppercase tracking-wide text-slate-700">{tx.paymentSchedule}</p>
+          <p className="mt-1 text-xs leading-5 text-slate-500">{tx.paymentScheduleIntro}</p>
 
-        {depositConfirmation ? (
-          <div
-            role="status"
-            className="mt-6 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950"
-          >
-            <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
-            <div>
-              <p className="font-black">{tx.verificationPending}</p>
-              <p className="mt-0.5">{depositConfirmation}</p>
-            </div>
+          <div className="mt-4 hidden overflow-x-auto md:block">
+            <table className="w-full min-w-[32rem] text-sm">
+              <thead>
+                <tr className="border-b border-slate-200 text-left text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <th className="pb-2 pr-3">#</th>
+                  <th className="pb-2 pr-4">{tx.scheduleStage}</th>
+                  <th className="pb-2 pr-4">{tx.scheduleAmount}</th>
+                  <th className="pb-2 pr-4">{tx.scheduleCondition}</th>
+                  <th className="pb-2">{tx.scheduleStatus}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paymentScheduleRows.map((row) => (
+                  <tr key={`${row.index}-${row.stage}`} className="border-b border-slate-100 last:border-0">
+                    <td className="py-3 pr-3 font-semibold text-slate-700">{row.index}</td>
+                    <td className="py-3 pr-4 font-semibold text-slate-900">{row.stage}</td>
+                    <td className="py-3 pr-4 tabular-nums font-bold text-[#0033A0]">{money(row.amount)} ֏</td>
+                    <td className="py-3 pr-4 text-slate-700">{row.condition}</td>
+                    <td className="py-3">{milestoneStatusBadge(signed)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
-        ) : null}
 
-        {agreement.payment_type === "milestones" ? (
-          <section className="mt-6 rounded border border-slate-200 p-4">
-            <p className="text-sm font-bold uppercase tracking-wide text-slate-700">{tx.milestones}</p>
-            <ul className="mt-2 space-y-2 text-sm">
-              {(agreement.milestones ?? []).map((m, i) => (
-                <li key={`${m.title}-${i}`} className="rounded border border-slate-200 bg-slate-50 p-2.5">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <p>
-                      {i + 1}. {m.title} - {money(Number(m.amount || 0))} ֏
-                    </p>
-                    <div className="flex flex-wrap items-center justify-end gap-2">
-                      {m.status === "released" ? (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-800">
-                          <CheckCircle2 className="h-3.5 w-3.5" />
-                          {tx.paid}
-                        </span>
-                      ) : m.status === "escrow_held" ? (
-                        <>
-                          <span className="inline-flex rounded-full border border-blue-200 bg-blue-100 px-2 py-0.5 text-xs font-semibold text-[#0033A0]">
-                            {tx.escrowHeld}
-                          </span>
-                          {agreement.status === "signed" ? (
-                            <button
-                              type="button"
-                              onClick={() => requestReleaseMilestone(i)}
-                              disabled={releasingMilestoneIndex === i}
-                              className="rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white transition hover:bg-emerald-700 disabled:opacity-60"
-                            >
-                              {releasingMilestoneIndex === i ? tx.releasingMilestone : tx.releaseMilestone}
-                            </button>
-                          ) : null}
-                        </>
-                      ) : verificationPendingIndexes.includes(i) ? (
-                        <span className="inline-flex rounded-full border border-amber-200 bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-900">
-                          {tx.verificationPending}
-                        </span>
-                      ) : (
-                        <>
-                          <span className="inline-flex rounded-full border border-slate-200 bg-slate-100 px-2 py-0.5 text-xs font-semibold text-slate-700">
-                            {tx.pendingMilestone}
-                          </span>
-                          {agreement.status === "signed" ? (
-                            <button
-                              type="button"
-                              onClick={() => openMilestoneTransfer(i)}
-                              className="rounded-lg bg-[#0033A0] px-2.5 py-1 text-xs font-bold text-white transition hover:opacity-95 disabled:opacity-60"
-                            >
-                              {tx.depositMilestone}
-                            </button>
-                          ) : null}
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
+          <ul className="mt-4 space-y-3 md:hidden">
+            {paymentScheduleRows.map((row) => (
+              <li key={`${row.index}-${row.stage}-mobile`} className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                    {tx.scheduleStage} {row.index}
+                  </p>
+                  {milestoneStatusBadge(signed)}
+                </div>
+                <p className="mt-2 font-semibold text-slate-900">{row.stage}</p>
+                <p className="mt-1 text-sm font-bold tabular-nums text-[#0033A0]">
+                  {money(row.amount)} ֏
+                </p>
+                <p className="mt-2 text-xs text-slate-500">{tx.scheduleCondition}</p>
+                <p className="mt-0.5 text-sm text-slate-700">{row.condition}</p>
+              </li>
+            ))}
+          </ul>
 
-        {!paymentReleased &&
-        agreement.status === "signed" &&
-        agreement.payment_status === "pending" &&
-        (agreement.milestones ?? []).length === 0 &&
-        !verificationPendingIndexes.includes(-1) ? (
-          <button
-            type="button"
-            onClick={openTotalTransfer}
-            disabled={verifyingIndex === -1}
-            className="mt-6 w-full rounded-xl bg-[#0033A0] px-5 py-3 text-base font-black text-white transition hover:opacity-95 disabled:opacity-60"
-          >
-            <span className="flex flex-col items-center gap-0.5 leading-tight">
-              <span>{verifyingIndex === -1 ? tx.verifyingPayment : tx.depositTotalToEscrow}</span>
-              <span className="text-sm font-bold opacity-95">{money(Number(agreement.total_price))} ֏</span>
-            </span>
-          </button>
-        ) : null}
-
-        {!paymentReleased &&
-        agreement.status === "signed" &&
-        agreement.payment_status === "pending" &&
-        (agreement.milestones ?? []).length === 0 &&
-        verificationPendingIndexes.includes(-1) ? (
-          <div className="mt-6 rounded-xl border border-amber-200 bg-amber-50 p-4">
-            <p className="text-sm font-black text-amber-950">{tx.verificationPending}</p>
-            <p className="mt-1 text-sm text-amber-900">{tx.depositSubmitted}</p>
+          <div className="mt-4 border-t border-slate-200 pt-3">
+            <p className="text-sm font-semibold text-slate-800">
+              {tx.total}: {money(Number(agreement.total_price || 0))} ֏
+            </p>
           </div>
-        ) : null}
-
-        {!paymentReleased && agreement.status === "signed" && agreement.payment_status === "escrow_held" && (agreement.milestones ?? []).length === 0 ? (
-          <div className="mt-6 rounded-xl border border-blue-200 bg-blue-50 p-4">
-            <p className="text-sm font-black text-[#0033A0]">{tx.fundsSecuredTitle}</p>
-            <p className="mt-1 text-sm text-slate-700">{tx.fundsSecuredBody}</p>
-            <button
-              type="button"
-              onClick={requestReleaseTotal}
-              disabled={releasingMilestoneIndex === -1}
-              className="mt-4 w-full rounded-xl bg-emerald-600 px-5 py-3 text-base font-black text-white transition hover:bg-emerald-700 disabled:opacity-60"
-            >
-              {releasingMilestoneIndex === -1 ? tx.releasingTotalPayment : tx.releaseTotalPayment}
-            </button>
-          </div>
-        ) : null}
+        </section>
 
         {agreement.status === "pending" ? (
-          <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <div className="mt-8 rounded-xl border border-slate-200 bg-slate-50 p-4">
             <p className="text-sm font-semibold text-slate-800">{tx.optionalSignature}</p>
-            <p className="mt-1 text-xs text-slate-500">{tx.signatureHint}</p>
+            <p className="mt-1 text-xs leading-5 text-slate-600">{tx.signatureHint}</p>
             <canvas
               ref={canvasRef}
               width={640}
@@ -1276,190 +1035,43 @@ export default function AgreementClientPage() {
           </div>
         ) : null}
 
+        {signatureImage && signed ? (
+          <section
+            className="mt-8 overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_4px_24px_-4px_rgba(15,23,42,0.12)] ring-1 ring-slate-900/[0.04]"
+            aria-label={tx.clientSignature}
+          >
+            <div className="flex flex-wrap items-end justify-between gap-3 border-b border-slate-100 bg-gradient-to-r from-[#0033A0]/[0.07] to-slate-50/80 px-4 py-4 sm:px-6">
+              <div>
+                <p className="text-[11px] font-black uppercase tracking-[0.22em] text-[#0033A0]">{tx.clientSignature}</p>
+                <p className="mt-1 text-base font-bold text-slate-900">{agreement.client_name}</p>
+              </div>
+            </div>
+            <div className="bg-[linear-gradient(to_bottom,#f8fafc_0%,#ffffff_100%)] px-4 py-6 sm:px-8 sm:py-8">
+              <div className="relative mx-auto max-w-lg rounded-xl bg-white p-6 shadow-inner ring-1 ring-slate-200/90 sm:p-8">
+                <div className="pointer-events-none absolute inset-x-8 bottom-6 border-b border-slate-300/90 sm:inset-x-10 sm:bottom-8" aria-hidden />
+                <Image
+                  src={signatureImage}
+                  alt={`${agreement.client_name} — ${tx.clientSignature}`}
+                  width={640}
+                  height={180}
+                  unoptimized
+                  className="relative z-[1] mx-auto block h-auto max-h-36 w-auto max-w-full object-contain sm:max-h-40"
+                />
+              </div>
+            </div>
+          </section>
+        ) : null}
+
         {signed ? (
           <div className="mt-6 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-emerald-800">
             <p className="inline-flex items-center gap-2 font-bold">
               <CheckCircle2 className="h-5 w-5" />
               {tx.signedSuccess}
             </p>
-            <p className="mt-1 text-sm font-semibold">
-              {tx.signedByClient}: {agreement.client_name}
-            </p>
+            <p className="mt-1 text-sm text-emerald-900/90">{tx.signedSuccessNote}</p>
           </div>
         ) : null}
-
-        {paymentReleased ? (
-          <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 p-4 text-blue-800">
-            <p className="font-bold">{tx.paymentSuccessful}</p>
-            <p className="mt-1 text-sm font-semibold">{tx.transactionComplete}</p>
-            <p className="mt-1 text-sm">{tx.transactionCompleteBody}</p>
-            <div className="mt-3">
-              <Link
-                href="/"
-                className="inline-flex items-center rounded-lg border border-blue-300 bg-white px-3 py-1.5 text-sm font-semibold text-blue-800 hover:bg-blue-50"
-              >
-                {tx.backHome}
-              </Link>
-            </div>
-          </div>
-        ) : null}
-        <p className="mt-4 break-words text-center text-xs text-slate-500 [overflow-wrap:anywhere]">{tx.escrowLegalNote}</p>
       </div>
-
-      {releaseConfirmIndex !== null && (releaseConfirmIsTotal || releaseConfirmMilestone) ? (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm"
-          role="presentation"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setReleaseConfirmIndex(null);
-          }}
-        >
-          <section
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="release-confirm-title"
-            className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl"
-          >
-            <h2 id="release-confirm-title" className="text-base font-black text-slate-900">
-              {releaseConfirmIsTotal ? tx.releaseTotalPayment : tx.releaseMilestone}
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              {releaseConfirmIsTotal ? tx.confirmReleaseTotal : tx.confirmReleaseMilestone}
-            </p>
-            <p className="mt-3 rounded-xl bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800">
-              {releaseConfirmIsTotal
-                ? `${agreement.project_title} · ${money(Number(agreement.total_price || 0))} ֏`
-                : `${releaseConfirmIndex + 1}. ${releaseConfirmMilestone!.title} · ${money(
-                    Number(releaseConfirmMilestone!.amount || 0)
-                  )} ֏`}
-            </p>
-            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-              <button
-                type="button"
-                onClick={() => setReleaseConfirmIndex(null)}
-                className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
-              >
-                {tx.cancelRelease}
-              </button>
-              <button
-                type="button"
-                onClick={() =>
-                  void (releaseConfirmIsTotal ? confirmReleaseTotal() : confirmReleaseMilestone())
-                }
-                className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-black text-white transition hover:bg-emerald-700"
-              >
-                {tx.approveRelease}
-              </button>
-            </div>
-          </section>
-        </div>
-      ) : null}
-
-      {transferModalIndex !== null && (transferIsTotal || transferMilestone) ? (
-        <div
-          className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/60 p-0 backdrop-blur-sm sm:items-center sm:p-4"
-          role="presentation"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) setTransferModalIndex(null);
-          }}
-        >
-          <section
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="bank-transfer-title"
-            className="max-h-[92vh] w-full overflow-y-auto rounded-t-3xl bg-white shadow-2xl sm:max-w-xl sm:rounded-3xl"
-          >
-            <div className="border-b border-slate-200 bg-gradient-to-r from-[#0033A0] to-[#0754c9] px-5 py-5 text-white sm:px-7">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-white/15">
-                    <Landmark className="h-6 w-6" />
-                  </span>
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-blue-100">
-                      {tx.demoOnly}
-                    </p>
-                    <h2 id="bank-transfer-title" className="mt-1 text-xl font-black">
-                      {tx.transferTitle}
-                    </h2>
-                  </div>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setTransferModalIndex(null)}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/10 transition hover:bg-white/20"
-                  aria-label={tx.cancelTransfer}
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-            </div>
-
-            <div className="space-y-5 p-5 sm:p-7">
-              <p className="text-sm leading-6 text-slate-600">{tx.transferIntro}</p>
-
-              <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-4">
-                <p className="text-xs font-bold uppercase tracking-wide text-blue-700">
-                  {tx.depositAmount}
-                </p>
-                <p className="mt-1 text-2xl font-black tabular-nums text-[#0033A0]">
-                  {money(transferAmount)} ֏
-                </p>
-                {transferTitleLabel ? (
-                  <p className="mt-1 text-sm font-semibold text-slate-700">{transferTitleLabel}</p>
-                ) : null}
-              </div>
-
-              <dl className="divide-y divide-slate-200 overflow-hidden rounded-2xl border border-slate-200">
-                {[
-                  [tx.bankName, DEMO_BANK_NAME],
-                  [tx.accountNumber, DEMO_BANK_ACCOUNT],
-                  [tx.beneficiaryName, DEMO_BENEFICIARY],
-                  [tx.paymentReference, transferReference]
-                ].map(([label, value]) => (
-                  <div key={label} className="px-4 py-3.5">
-                    <dt className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                      {label}
-                    </dt>
-                    <dd className="mt-1 break-all font-mono text-sm font-bold text-slate-900">
-                      {value}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-
-              <div className="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                <Building2 className="mt-0.5 h-5 w-5 shrink-0 text-amber-700" />
-                <div>
-                  <p className="text-sm font-black text-amber-950">{tx.transferInstructions}</p>
-                  <p className="mt-1 text-sm leading-5 text-amber-900">
-                    {tx.transferInstructionsBody}
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-                <button
-                  type="button"
-                  onClick={() => setTransferModalIndex(null)}
-                  className="rounded-xl border border-slate-300 px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50"
-                >
-                  {tx.cancelTransfer}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void submitDemoTransfer()}
-                  disabled={verifyingIndex !== null}
-                  className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#F2A800] px-5 py-3 text-sm font-black text-slate-950 transition hover:brightness-95 disabled:opacity-60"
-                >
-                  <CheckCircle2 className="h-5 w-5" />
-                  {verifyingIndex !== null ? tx.verifyingPayment : tx.madeTransfer}
-                </button>
-              </div>
-            </div>
-          </section>
-        </div>
-      ) : null}
     </main>
   );
 }

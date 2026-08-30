@@ -56,6 +56,9 @@ type Agreement = {
   project_title: string;
   service_area: string;
   custom_terms: string;
+  scope_of_work?: string;
+  scope_exclusions?: string;
+  estimated_completion_date?: string;
   total_price: number;
   payment_type: PaymentType;
   milestones: Milestone[] | null;
@@ -76,7 +79,7 @@ type Tx = {
   agreementsTitle: string;
   archivedTitle: string;
   totalAgreementValue: string;
-  pendingRelease: string;
+  awaitingSignature: string;
   signedAgreements: string;
   loading: string;
   emptyTitle: string;
@@ -132,6 +135,16 @@ type Tx = {
   viewDetails: string;
   contractTerms: string;
   contractTermsPlaceholder: string;
+  scopeOfWork: string;
+  scopeOfWorkPlaceholder: string;
+  scopeExclusions: string;
+  scopeExclusionsPlaceholder: string;
+  estimatedCompletionDate: string;
+  dateDay: string;
+  dateMonth: string;
+  dateYear: string;
+  completeScopeOfWork: string;
+  completeCompletionDate: string;
   billing: string;
   billingTitle: string;
   currentPlan: string;
@@ -169,8 +182,8 @@ const t: Record<Lang, Tx> = {
     language: "Language",
     agreementsTitle: "Agreements",
     archivedTitle: "Agreement History",
-    totalAgreementValue: "Total Earned Revenue",
-    pendingRelease: "Pending Release",
+    totalAgreementValue: "Total Contract Value",
+    awaitingSignature: "Awaiting Signature",
     signedAgreements: "Signed Agreements",
     loading: "Loading agreements...",
     emptyTitle: "Create your first deal to get started",
@@ -199,7 +212,7 @@ const t: Record<Lang, Tx> = {
     completeRequired: "Please complete all required fields.",
     completeMilestones: "Please fill all milestone titles and amounts.",
     agreementHistory: "Agreement History",
-    noHistory: "Completed agreements will appear here.",
+    noHistory: "Signed agreements will appear here.",
     successTitle: "Agreement Created Successfully!",
     successSubtitle: "Share this public agreement link with your client.",
     publicLink: "Public Link",
@@ -226,6 +239,16 @@ const t: Record<Lang, Tx> = {
     viewDetails: "View Details",
     contractTerms: "Contract Terms",
     contractTermsPlaceholder: "Editable at any time. Your latest saved terms load when you open the dashboard.",
+    scopeOfWork: "Scope of Work (Included)",
+    scopeOfWorkPlaceholder: "List exact deliverables (e.g., demolition, wiring, finishing, cleanup).",
+    scopeExclusions: "What is NOT Included (Optional)",
+    scopeExclusionsPlaceholder: "e.g., material purchases, extra coats, furniture moving",
+    estimatedCompletionDate: "Estimated Completion Date",
+    dateDay: "Day",
+    dateMonth: "Month",
+    dateYear: "Year",
+    completeScopeOfWork: "Please describe the scope of work.",
+    completeCompletionDate: "Please set an estimated completion date.",
     billing: "Billing",
     billingTitle: "Billing & Plan",
     currentPlan: "Current plan",
@@ -261,8 +284,8 @@ const t: Record<Lang, Tx> = {
     language: "Լեզու",
     agreementsTitle: "Պայմանագրեր",
     archivedTitle: "Պայմանագրերի պատմություն",
-    totalAgreementValue: "Ընդհանուր եկամուտ",
-    pendingRelease: "Սպասող արձակում",
+    totalAgreementValue: "Ընդհանուր պայմանագրային արժեք",
+    awaitingSignature: "Սպասում է ստորագրության",
     signedAgreements: "Ստորագրված պայմանագրեր",
     loading: "Բեռնում…",
     emptyTitle: "Սկսեք առաջին գործարքով",
@@ -291,7 +314,7 @@ const t: Record<Lang, Tx> = {
     completeRequired: "Լրացրեք բոլոր պարտադիր դաշտերը։",
     completeMilestones: "Լրացրեք փուլերի անուններն ու գումարները։",
     agreementHistory: "Պայմանագրերի պատմություն",
-    noHistory: "Ավարտված պայմանագրերը կհայտնվեն այստեղ։",
+    noHistory: "Ստորագրված պայմանագրերը կհայտնվեն այստեղ։",
     successTitle: "Պայմանագիրը պատրաստ է",
     successSubtitle: "Ուղարկեք հղումը հաճախորդին։",
     publicLink: "Հանրային հղում",
@@ -319,6 +342,16 @@ const t: Record<Lang, Tx> = {
     contractTerms: "Պայմաններ",
     contractTermsPlaceholder:
       "Խմբագրելի է միշտ։ Վերջին պահվածը՝ վահանակը բացելիս։",
+    scopeOfWork: "Աշխատանքի շրջանակ (ներառված)",
+    scopeOfWorkPlaceholder: "Նշեք կատարվող աշխատանքները (օր.՝ քանդում, էլեկտրամոնтаж, ավարտ)...",
+    scopeExclusions: "Ինչը չի ներառվում (ընտրովի)",
+    scopeExclusionsPlaceholder: "օր.՝ նյութերի գնում, լրացուցիչ շերտեր",
+    estimatedCompletionDate: "Ավարտի մոտավոր ամսաթիվ",
+    dateDay: "Օր",
+    dateMonth: "Ամիս",
+    dateYear: "Տարի",
+    completeScopeOfWork: "Լրացրեք աշխատանքի շրջանակը։",
+    completeCompletionDate: "Նշեք ավարտի մոտավոր ամսաթիվը։",
     billing: "Վճարում",
     billingTitle: "Փաթեթ և վճարում",
     currentPlan: "Ընթացիկ փաթեթ",
@@ -354,8 +387,8 @@ const t: Record<Lang, Tx> = {
     language: "Язык",
     agreementsTitle: "Соглашения",
     archivedTitle: "История соглашений",
-    totalAgreementValue: "Совокупный доход",
-    pendingRelease: "Ожидает выплаты",
+    totalAgreementValue: "Общая сумма соглашений",
+    awaitingSignature: "Ожидает подписи",
     signedAgreements: "Подписанные соглашения",
     loading: "Загрузка…",
     emptyTitle: "Создайте первое соглашение",
@@ -384,7 +417,7 @@ const t: Record<Lang, Tx> = {
     completeRequired: "Заполните обязательные поля.",
     completeMilestones: "Укажите названия и суммы всех этапов.",
     agreementHistory: "История соглашений",
-    noHistory: "Здесь появятся завершённые соглашения.",
+    noHistory: "Здесь появятся подписанные соглашения.",
     successTitle: "Соглашение создано",
     successSubtitle: "Отправьте клиенту эту публичную ссылку.",
     publicLink: "Публичная ссылка",
@@ -412,6 +445,16 @@ const t: Record<Lang, Tx> = {
     contractTerms: "Условия",
     contractTermsPlaceholder:
       "Можно менять в любой момент. При открытии кабинета подставляются последние сохранённые условия.",
+    scopeOfWork: "Объём работ (включено)",
+    scopeOfWorkPlaceholder: "Перечислите работы (напр., демонтаж, электрика, отделка)...",
+    scopeExclusions: "Что НЕ включено (необязательно)",
+    scopeExclusionsPlaceholder: "напр., закупка материалов, дополнительные слои",
+    estimatedCompletionDate: "Ориентировочная дата завершения",
+    dateDay: "День",
+    dateMonth: "Месяц",
+    dateYear: "Год",
+    completeScopeOfWork: "Опишите объём работ.",
+    completeCompletionDate: "Укажите ориентировочную дату завершения.",
     billing: "Оплата",
     billingTitle: "Тариф и оплата",
     currentPlan: "Текущий тариф",
@@ -480,6 +523,19 @@ function isNetworkErrorMessage(message: string | undefined): boolean {
   );
 }
 
+const selectFieldClass =
+  "mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-slate-500";
+
+function buildCompletionDate(year: string, month: string, day: string): string {
+  if (!year || !month || !day) return "";
+  return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+}
+
+function completionYearOptions(): number[] {
+  const start = new Date().getFullYear();
+  return Array.from({ length: 4 }, (_, i) => start + i);
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const { user, loading, signOut } = useAuth();
@@ -505,12 +561,16 @@ export default function DashboardPage() {
   const [projectTitle, setProjectTitle] = useState("");
   const [serviceArea, setServiceArea] = useState("");
   const [contractTerms, setContractTerms] = useState("");
+  const [scopeOfWork, setScopeOfWork] = useState("");
+  const [scopeExclusions, setScopeExclusions] = useState("");
+  const [completionDay, setCompletionDay] = useState("");
+  const [completionMonth, setCompletionMonth] = useState("");
+  const [completionYear, setCompletionYear] = useState("");
   const [totalPriceInput, setTotalPriceInput] = useState("");
   const [paymentType, setPaymentType] = useState<PaymentType>("single");
   const [milestones, setMilestones] = useState<MilestoneDraft[]>([]);
   /** Latest saved agreement body text for this provider — mirrors DB + updates on each successful create. */
   const [globalTermsTemplate, setGlobalTermsTemplate] = useState("");
-  const lastPaymentStatusByIdRef = useRef<Record<string, Agreement["payment_status"]>>({});
   /** One-time hydrate of contract terms from the latest agreement (or static boilerplate). */
   const termsHydratedRef = useRef(false);
   /** Protects against overwriting user-typed terms mid-session. */
@@ -584,53 +644,12 @@ export default function DashboardPage() {
     verification_pending: tx.verificationPending
   };
 
-  const getReleasedMilestoneAmount = (agreement: Agreement) => {
-    if (agreement.payment_type !== "milestones") return 0;
-    return (agreement.milestones ?? []).reduce(
-      (sum, m) => sum + (m.status === "released" ? Number(m.amount || 0) : 0),
-      0
-    );
-  };
-
-  const getEscrowHeldMilestoneAmount = (agreement: Agreement) => {
-    if (agreement.payment_type !== "milestones") return 0;
-    return (agreement.milestones ?? []).reduce(
-      (sum, m) => sum + (m.status === "escrow_held" ? Number(m.amount || 0) : 0),
-      0
-    );
-  };
-
-  const getPendingMilestoneAmount = (agreement: Agreement) => {
-    if (agreement.payment_type !== "milestones") return 0;
-    return (agreement.milestones ?? []).reduce(
-      (sum, m) => sum + ((m.status ?? "pending") === "pending" ? Number(m.amount || 0) : 0),
-      0
-    );
-  };
-
-  const getReleaseProgress = (agreement: Agreement): { pct: number; released: number; escrow: number; pending: number } => {
-    const total = Number(agreement.total_price || 0);
-    if (agreement.payment_type === "milestones") {
-      const released = getReleasedMilestoneAmount(agreement);
-      const escrow = getEscrowHeldMilestoneAmount(agreement);
-      const pending = Math.max(0, total - released - escrow);
-      const pct = total > 0 ? Math.max(0, Math.min(100, (released / total) * 100)) : 0;
-      return { pct, released, escrow, pending };
-    }
-
-    const released = agreement.payment_status === "released" ? total : 0;
-    const escrow = agreement.payment_status === "escrow_held" ? total : 0;
-    const pending = agreement.payment_status === "pending" ? total : 0;
-    const pct = agreement.payment_status === "released" ? 100 : agreement.payment_status === "escrow_held" ? 50 : 0;
-    return { pct, released, escrow, pending };
-  };
-
   const getDerivedStatus = (agreement: Agreement): DerivedAgreementStatus =>
     getDerivedAgreementStatus(agreement);
 
   const isHistoryAgreement = (agreement: Agreement) => {
-    // History only lists fully finished deals.
-    if (agreement.status === "completed") return true;
+    if (agreement.status === "signed" || agreement.status === "completed") return true;
+    // Legacy: payment-completed deals from earlier escrow flow
     if (agreement.payment_status === "released") return true;
     if (agreement.payment_type === "milestones") {
       const milestones = agreement.milestones ?? [];
@@ -655,21 +674,12 @@ export default function DashboardPage() {
     return () => window.clearTimeout(tm);
   }, [copiedAgreementId]);
 
-  useEffect(() => {
-    const prev = lastPaymentStatusByIdRef.current;
-    let releasedDetected = false;
-    for (const a of agreements) {
-      if (prev[a.id] && prev[a.id] !== "released" && a.payment_status === "released") {
-        releasedDetected = true;
-      }
-      prev[a.id] = a.payment_status;
-    }
-    if (releasedDetected) {
-      setToast(tx.paymentReleasedBanner);
-    }
-  }, [agreements, tx.paymentReleasedBanner]);
-
   const totalPrice = useMemo(() => parseGroupedNumberInput(totalPriceInput), [totalPriceInput]);
+
+  const estimatedCompletionDate = useMemo(
+    () => buildCompletionDate(completionYear, completionMonth, completionDay),
+    [completionYear, completionMonth, completionDay]
+  );
 
   const milestonesParsed = useMemo(
     () =>
@@ -804,6 +814,11 @@ export default function DashboardPage() {
     setProjectTitle("");
     setServiceArea("");
     setContractTerms(nextContractTerms ?? "");
+    setScopeOfWork("");
+    setScopeExclusions("");
+    setCompletionDay("");
+    setCompletionMonth("");
+    setCompletionYear("");
     setTotalPriceInput("");
     setPaymentType("single");
     setMilestones([]);
@@ -919,6 +934,9 @@ export default function DashboardPage() {
       project_title: projectTitle.trim() || "—",
       service_area: serviceArea.trim() || "Armenia",
       custom_terms: terms,
+      scope_of_work: scopeOfWork.trim() || undefined,
+      scope_exclusions: scopeExclusions.trim() || undefined,
+      estimated_completion_date: estimatedCompletionDate.trim() || undefined,
       total_price: totalPrice || 0,
       payment_type: paymentType,
       milestones: paymentType === "milestones" ? milestonesParsed : null,
@@ -930,6 +948,9 @@ export default function DashboardPage() {
     buildDefaultTerms,
     clientName,
     contractTerms,
+    scopeOfWork,
+    scopeExclusions,
+    estimatedCompletionDate,
     milestonesParsed,
     paymentType,
     projectTitle,
@@ -1042,6 +1063,16 @@ export default function DashboardPage() {
       return;
     }
 
+    if (!scopeOfWork.trim()) {
+      setError(tx.completeScopeOfWork);
+      return;
+    }
+
+    if (!estimatedCompletionDate.trim()) {
+      setError(tx.completeCompletionDate);
+      return;
+    }
+
     if (paymentType === "milestones") {
       if (milestonesParsed.length === 0 || milestonesParsed.some((m) => !m.title || m.amount <= 0)) {
         setError(tx.completeMilestones);
@@ -1076,6 +1107,9 @@ export default function DashboardPage() {
         projectTitle: projectTitle.trim(),
         serviceArea: serviceArea.trim(),
         customTerms: customTermsText,
+        scopeOfWork: scopeOfWork.trim(),
+        scopeExclusions: scopeExclusions.trim() || undefined,
+        estimatedCompletionDate: estimatedCompletionDate.trim(),
         totalPrice,
         paymentType,
         milestones: paymentType === "milestones" ? milestonesParsed : []
@@ -1102,6 +1136,9 @@ export default function DashboardPage() {
           project_title: draft.projectTitle,
           service_area: draft.serviceArea,
           custom_terms: customTermsText,
+          scope_of_work: scopeOfWork.trim(),
+          scope_exclusions: scopeExclusions.trim() || undefined,
+          estimated_completion_date: estimatedCompletionDate.trim(),
           total_price: totalPrice,
           payment_type: paymentType,
           milestones:
@@ -1153,28 +1190,17 @@ export default function DashboardPage() {
   const stats = useMemo(
     () => ({
       totalValue: agreements.reduce((sum, a) => sum + Number(a.total_price || 0), 0),
-      pendingRelease: agreements.reduce((sum, a) => {
-        if (getDerivedAgreementStatus(a) === "pending") return sum;
-        const total = Number(a.total_price || 0);
-        let released = 0;
-        if (a.payment_type === "milestones") {
-          released = (a.milestones ?? []).reduce(
-            (milestoneSum, m) =>
-              milestoneSum + (m.status === "released" ? Number(m.amount || 0) : 0),
-            0
-          );
-        } else if (a.payment_status === "released") {
-          released = total;
-        }
-        return sum + Math.max(0, total - released);
-      }, 0),
-      signedCount: agreements.filter((a) => a.payment_status === "escrow_held" || a.payment_status === "released").length
+      awaitingSignature: agreements.reduce(
+        (sum, a) => sum + (a.status === "pending" ? Number(a.total_price || 0) : 0),
+        0
+      ),
+      signedCount: agreements.filter((a) => a.status === "signed" || a.status === "completed").length
     }),
     [agreements]
   );
 
   const archived = agreements.filter(isHistoryAgreement);
-  const listed = agreements;
+  const listed = agreements.filter((a) => !isHistoryAgreement(a));
   const showClientSearch = listed.length > 15;
   const filteredListed = useMemo(() => {
     const query = clientSearch.trim().toLowerCase();
@@ -1191,13 +1217,15 @@ export default function DashboardPage() {
         item.service_area,
         formatAgreementNumber(item.id, item.created_at),
         item.id,
-        statusText.completed
+        statusText.completed,
+        statusText.signed,
+        statusText.paid
       ]
         .join(" ")
         .toLowerCase();
       return haystack.includes(query);
     });
-  }, [archived, historySearch, statusText.completed]);
+  }, [archived, historySearch, statusText.completed, statusText.signed, statusText.paid]);
 
   if (loading || !user) return <div className="min-h-dvh bg-[#F9FAFB] p-6">Loading dashboard...</div>;
 
@@ -1323,8 +1351,8 @@ export default function DashboardPage() {
                     <p className="mt-2 text-3xl font-black tabular-nums">{formatAmount(stats.totalValue)}</p>
                   </article>
                   <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                    <p className="text-sm font-semibold text-slate-500">{tx.pendingRelease}</p>
-                    <p className="mt-2 text-3xl font-black tabular-nums text-[#0033A0]">{formatAmount(stats.pendingRelease)}</p>
+                    <p className="text-sm font-semibold text-slate-500">{tx.awaitingSignature}</p>
+                    <p className="mt-2 text-3xl font-black tabular-nums text-[#0033A0]">{formatAmount(stats.awaitingSignature)}</p>
                   </article>
                   <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm sm:col-span-2 lg:col-span-1">
                     <p className="text-sm font-semibold text-slate-500">{tx.signedAgreements}</p>
@@ -1355,7 +1383,6 @@ export default function DashboardPage() {
                       ) : null}
                       <div className="space-y-3 md:hidden">
                         {filteredListed.map((item) => {
-                          const progress = getReleaseProgress(item);
                           const derived = getDerivedStatus(item);
                           return (
                             <article key={item.id} className="rounded-xl border border-slate-200 p-3">
@@ -1366,19 +1393,16 @@ export default function DashboardPage() {
                                     <p className="break-words text-sm font-bold text-slate-900">{item.client_name}</p>
                                   </div>
                                   <div>
+                                    <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{tx.projectTitle}</p>
+                                    <p className="break-words text-sm text-slate-800">{item.project_title}</p>
+                                  </div>
+                                  <div>
                                     <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{tx.price}</p>
                                     <p className="mt-0.5 font-mono text-sm font-semibold text-slate-800">{formatAmount(Number(item.total_price))}</p>
                                   </div>
                                 </div>
                                 <div>
                                   <AgreementStatusPill status={derived} label={statusText[derived]} />
-                                </div>
-                              </div>
-                              <div className="mt-3">
-                                <p className="mb-1 break-words text-xs font-semibold text-slate-600">{formatAmount(progress.released)} / {formatAmount(Number(item.total_price || 0))} {tx.releasedOfTotal}</p>
-                                <p className="mb-1 break-words text-[11px] font-semibold text-slate-500">{tx.vault}: {formatAmount(progress.escrow)} | {tx.waiting}: {formatAmount(progress.pending)}</p>
-                                <div className="h-2 w-full rounded-full bg-slate-200">
-                                  <div className="h-2 rounded-full bg-[#F2A800] transition-all" style={{ width: `${progress.pct}%` }} />
                                 </div>
                               </div>
                               <div className="mt-3 grid grid-cols-3 gap-2">
@@ -1396,8 +1420,8 @@ export default function DashboardPage() {
                           <thead>
                             <tr className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
                               <th className="px-3 py-2">{tx.clientName}</th>
+                              <th className="px-3 py-2">{tx.projectTitle}</th>
                               <th className="px-3 py-2">{tx.price}</th>
-                              <th className="px-3 py-2">{tx.releaseProgress}</th>
                               <th className="px-3 py-2">{tx.status}</th>
                               <th className="px-3 py-2">
                                 <span className="sr-only">{tx.viewLink} / {tx.copyLink} / {tx.download}</span>
@@ -1408,25 +1432,8 @@ export default function DashboardPage() {
                             {filteredListed.map((item) => (
                               <tr key={item.id} className="border-b border-slate-100">
                                 <td className="px-3 py-3 font-semibold">{item.client_name}</td>
+                                <td className="px-3 py-3 text-slate-700">{item.project_title}</td>
                                 <td className="px-3 py-3">{formatAmount(Number(item.total_price))}</td>
-                                <td className="px-3 py-3">
-                                  {(() => {
-                                    const progress = getReleaseProgress(item);
-                                    return (
-                                      <div className="min-w-0 w-full max-w-[11.875rem]">
-                                        <p className="mb-1 text-xs font-semibold text-slate-600">
-                                          {formatAmount(progress.released)} / {formatAmount(Number(item.total_price || 0))} {tx.releasedOfTotal}
-                                        </p>
-                                        <p className="mb-1 text-[11px] font-semibold text-slate-500">
-                                          {tx.vault}: {formatAmount(progress.escrow)} | {tx.waiting}: {formatAmount(progress.pending)}
-                                        </p>
-                                        <div className="h-2 w-full rounded-full bg-slate-200">
-                                          <div className="h-2 rounded-full bg-[#F2A800] transition-all" style={{ width: `${progress.pct}%` }} />
-                                        </div>
-                                      </div>
-                                    );
-                                  })()}
-                                </td>
                                 <td className="px-3 py-3">
                                   {(() => {
                                     const derived = getDerivedStatus(item);
@@ -1487,6 +1494,94 @@ export default function DashboardPage() {
                       placeholder={tx.contractTermsPlaceholder}
                       className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500"
                     />
+                  </div>
+                </div>
+
+                <div className="mt-5 grid gap-4 md:grid-cols-2">
+                  <div className="md:col-span-2">
+                    <label className="text-sm font-semibold text-slate-700" htmlFor="scope-of-work-create">
+                      {tx.scopeOfWork}
+                    </label>
+                    <textarea
+                      id="scope-of-work-create"
+                      value={scopeOfWork}
+                      onChange={(e) => setScopeOfWork(e.target.value)}
+                      rows={4}
+                      placeholder={tx.scopeOfWorkPlaceholder}
+                      className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="text-sm font-semibold text-slate-700" htmlFor="scope-exclusions-create">
+                      {tx.scopeExclusions}
+                    </label>
+                    <textarea
+                      id="scope-exclusions-create"
+                      value={scopeExclusions}
+                      onChange={(e) => setScopeExclusions(e.target.value)}
+                      rows={3}
+                      placeholder={tx.scopeExclusionsPlaceholder}
+                      className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <p className="text-sm font-semibold text-slate-700">{tx.estimatedCompletionDate}</p>
+                    <div className="mt-1 grid grid-cols-3 gap-3 sm:max-w-lg">
+                      <label className="min-w-0 text-xs font-medium text-slate-500">
+                        {tx.dateDay}
+                        <select
+                          value={completionDay}
+                          onChange={(e) => setCompletionDay(e.target.value)}
+                          className={selectFieldClass}
+                          aria-label={tx.dateDay}
+                        >
+                          <option value="">—</option>
+                          {Array.from({ length: 31 }, (_, i) => {
+                            const day = String(i + 1).padStart(2, "0");
+                            return (
+                              <option key={day} value={day}>
+                                {day}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </label>
+                      <label className="min-w-0 text-xs font-medium text-slate-500">
+                        {tx.dateMonth}
+                        <select
+                          value={completionMonth}
+                          onChange={(e) => setCompletionMonth(e.target.value)}
+                          className={selectFieldClass}
+                          aria-label={tx.dateMonth}
+                        >
+                          <option value="">—</option>
+                          {Array.from({ length: 12 }, (_, i) => {
+                            const month = String(i + 1).padStart(2, "0");
+                            return (
+                              <option key={month} value={month}>
+                                {month}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </label>
+                      <label className="min-w-0 text-xs font-medium text-slate-500">
+                        {tx.dateYear}
+                        <select
+                          value={completionYear}
+                          onChange={(e) => setCompletionYear(e.target.value)}
+                          className={selectFieldClass}
+                          aria-label={tx.dateYear}
+                        >
+                          <option value="">—</option>
+                          {completionYearOptions().map((year) => (
+                            <option key={year} value={String(year)}>
+                              {year}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
                   </div>
                 </div>
 
@@ -1568,7 +1663,9 @@ export default function DashboardPage() {
                       />
                     </div>
                     <div className="space-y-3 md:hidden">
-                      {filteredArchived.map((item) => (
+                      {filteredArchived.map((item) => {
+                        const historyStatus = getDerivedStatus(item);
+                        return (
                           <article key={item.id} className="rounded-xl border border-slate-200 p-3">
                             <div className="space-y-2">
                               <div>
@@ -1584,14 +1681,18 @@ export default function DashboardPage() {
                               <div className="grid grid-cols-2 gap-3">
                                 <div>
                                   <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{tx.completionDateCol}</p>
-                                  <p className="text-sm text-slate-700">{formatDateDMY(item.created_at)}</p>
+                                  <p className="text-sm text-slate-700">
+                                    {item.estimated_completion_date
+                                      ? formatDateDMY(item.estimated_completion_date)
+                                      : formatDateDMY(item.created_at)}
+                                  </p>
                                 </div>
                                 <div>
                                   <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{tx.price}</p>
                                   <p className="font-mono text-sm font-semibold text-slate-800">{formatAmount(Number(item.total_price))}</p>
                                 </div>
                               </div>
-                              <AgreementStatusPill status="completed" label={statusText.completed} />
+                              <AgreementStatusPill status={historyStatus} label={statusText[historyStatus]} />
                             </div>
                             <div className="mt-3 grid grid-cols-3 gap-2">
                               <button type="button" onClick={() => openAgreementLink(item.id)} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.viewLink} title={tx.viewLink}><ExternalLink className="h-4 w-4" /></button>
@@ -1599,7 +1700,8 @@ export default function DashboardPage() {
                               <button type="button" onClick={() => downloadAgreementPdf(item)} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.download} title={tx.download}><Download className="h-4 w-4" /></button>
                             </div>
                           </article>
-                        ))}
+                        );
+                      })}
                       {filteredArchived.length === 0 ? (
                         <p className="py-4 text-center text-sm text-slate-500">{tx.noSearchResults}</p>
                       ) : null}
@@ -1619,16 +1721,22 @@ export default function DashboardPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {filteredArchived.map((item) => (
+                          {filteredArchived.map((item) => {
+                            const historyStatus = getDerivedStatus(item);
+                            return (
                             <tr key={item.id} className="border-b border-slate-100">
                               <td className="px-3 py-3 font-mono text-xs font-semibold tracking-wide text-slate-700">
                                 {formatAgreementNumber(item.id, item.created_at)}
                               </td>
                               <td className="px-3 py-3 font-semibold">{item.client_name}</td>
-                              <td className="px-3 py-3 text-slate-700">{formatDateDMY(item.created_at)}</td>
+                              <td className="px-3 py-3 text-slate-700">
+                                {item.estimated_completion_date
+                                  ? formatDateDMY(item.estimated_completion_date)
+                                  : formatDateDMY(item.created_at)}
+                              </td>
                               <td className="px-3 py-3 font-mono font-semibold">{formatAmount(Number(item.total_price))}</td>
                               <td className="px-3 py-3">
-                                <AgreementStatusPill status="completed" label={statusText.completed} />
+                                <AgreementStatusPill status={historyStatus} label={statusText[historyStatus]} />
                               </td>
                               <td className="px-3 py-3">
                                 <div className="flex items-center gap-2">
@@ -1638,7 +1746,8 @@ export default function DashboardPage() {
                                 </div>
                               </td>
                             </tr>
-                          ))}
+                            );
+                          })}
                           {filteredArchived.length === 0 ? (
                             <tr>
                               <td colSpan={6} className="px-3 py-6 text-center text-sm text-slate-500">

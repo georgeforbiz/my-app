@@ -1,6 +1,7 @@
 "use client";
 
 import { Reveal } from "@/components/reveal";
+import { HERO_BG_GRADIENT } from "@/lib/brand";
 import type { Language } from "@/lib/i18n/locales";
 
 type FeatureCopy = {
@@ -40,8 +41,11 @@ export function MarketingFeaturesSection({
             const lines = splitFeatureLines(text, locale);
             return (
               <Reveal key={`${locale}-${idx}`} delay={idx * 30}>
-                <div className="flex h-full min-h-[5rem] items-center justify-center border border-[#0033A0]/15 bg-[#DBEAFE] px-5 py-5 text-center sm:min-h-[5.5rem] sm:px-6 sm:py-6">
-                  <p className="text-base font-bold leading-snug text-slate-900 sm:text-[17px]">
+                <div
+                  className="flex h-full min-h-[5rem] items-center justify-center px-5 py-5 text-center sm:min-h-[5.5rem] sm:px-6 sm:py-6"
+                  style={{ background: HERO_BG_GRADIENT }}
+                >
+                  <p className="text-base font-bold leading-snug text-white sm:text-[17px]">
                     {lines.map((line, lineIdx) => (
                       <span key={lineIdx}>
                         {lineIdx > 0 ? <br /> : null}

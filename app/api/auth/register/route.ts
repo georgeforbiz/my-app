@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 import { recordActivityEvent } from "@/lib/admin/activity";
-import { humanizeAuthError } from "@/lib/auth/humanize-auth-error";
+import { humanizeAuthError, isAuthNetworkError } from "@/lib/auth/humanize-auth-error";
 
 type RegisterBody = {
   email?: string;
@@ -65,6 +65,12 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { error: "An account with this email already exists. Please log in." },
         { status: 409 }
+      );
+    }
+    if (isAuthNetworkError(error.message)) {
+      return NextResponse.json(
+        { error: error.message, code: "SUPABASE_UNREACHABLE" },
+        { status: 503 }
       );
     }
     return NextResponse.json({ error: humanizeAuthError(error.message) }, { status: 400 });

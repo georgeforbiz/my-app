@@ -18,6 +18,9 @@ export type NormalizedAgreement = {
   project_title: string;
   service_area: string;
   custom_terms: string;
+  scope_of_work?: string;
+  scope_exclusions?: string;
+  estimated_completion_date?: string;
   total_price: number;
   payment_type: PaymentType;
   milestones: Milestone[] | null;
@@ -97,6 +100,9 @@ export function normalizeAgreementRow(row: Record<string, unknown>): NormalizedA
     project_title,
     service_area: String(row.service_area ?? "").trim(),
     custom_terms: String(row.custom_terms ?? "").trim(),
+    scope_of_work: String(row.scope_of_work ?? "").trim() || undefined,
+    scope_exclusions: String(row.scope_exclusions ?? "").trim() || undefined,
+    estimated_completion_date: String(row.estimated_completion_date ?? "").trim() || undefined,
     total_price: Number(row.total_price ?? 0),
     payment_type,
     milestones,
@@ -123,6 +129,31 @@ export function isMissingColumnOrSchemaCacheError(message: string | undefined): 
   );
 }
 
+/** Embeds scope fields in contract text when dedicated DB columns are unavailable. */
+export function augmentCustomTermsWithScope(
+  customTerms: string,
+  scope: {
+    scopeOfWork: string;
+    scopeExclusions?: string;
+    estimatedCompletionDate?: string;
+  }
+): string {
+  const blocks: string[] = [];
+  const base = customTerms.trim();
+  if (base) blocks.push(base);
+
+  const included = scope.scopeOfWork.trim();
+  if (included) blocks.push(`SCOPE OF WORK (INCLUDED):\n${included}`);
+
+  const excluded = scope.scopeExclusions?.trim();
+  if (excluded) blocks.push(`WHAT IS NOT INCLUDED:\n${excluded}`);
+
+  const completion = scope.estimatedCompletionDate?.trim();
+  if (completion) blocks.push(`ESTIMATED COMPLETION DATE:\n${completion}`);
+
+  return blocks.join("\n\n");
+}
+
 /**
  * Inserts using the modern column set first; if the DB is an older agreements table
  * (no project_title / payment_type / milestones), falls back to legacy columns.
@@ -140,18 +171,31 @@ export async function insertAgreementWithSchemaFallback(
     /** agreements.business_name — from signup / profile metadata */
     business_name?: string | null;
     customTerms: string;
+    scopeOfWork: string;
+    scopeExclusions?: string;
+    estimatedCompletionDate?: string;
     totalPrice: number;
     paymentType: PaymentType;
     milestones: Milestone[];
   }
 ): Promise<{ id?: string; error?: string }> {
-  const modernBase = {
+  const scopeColumns = {
+    scope_of_work: params.scopeOfWork.trim(),
+    scope_exclusions: params.scopeExclusions?.trim() || null,
+    estimated_completion_date: params.estimatedCompletionDate?.trim() || null
+  };
+  const customTermsWithScope = augmentCustomTermsWithScope(params.customTerms, {
+    scopeOfWork: params.scopeOfWork,
+    scopeExclusions: params.scopeExclusions,
+    estimatedCompletionDate: params.estimatedCompletionDate
+  });
+
+  const modernBaseCore = {
     provider_id: params.providerId,
     client_name: params.clientName,
     project_title: params.projectTitle,
     service_area: params.serviceArea,
     provider_name: params.providerName,
-    custom_terms: params.customTerms,
     total_price: params.totalPrice,
     payment_type: params.paymentType,
     milestones:
@@ -162,6 +206,15 @@ export async function insertAgreementWithSchemaFallback(
           }))
         : [],
     status: "pending" as const
+  };
+  const modernBase = {
+    ...modernBaseCore,
+    custom_terms: params.customTerms,
+    ...scopeColumns
+  };
+  const modernBaseWithoutScopeColumns = {
+    ...modernBaseCore,
+    custom_terms: customTermsWithScope
   };
   const namesOnly = {
     full_name: params.full_name ?? null,
@@ -177,27 +230,34 @@ export async function insertAgreementWithSchemaFallback(
     ...legacyNames
   };
   const modernWithCanonicalNames = { ...modernBase, ...namesOnly };
+  const modernWithProviderDetailsNoScope = {
+    ...modernBaseWithoutScopeColumns,
+    ...namesOnly,
+    ...legacyNames
+  };
+  const modernWithCanonicalNamesNoScope = { ...modernBaseWithoutScopeColumns, ...namesOnly };
 
-  let { data: modernData, error: modernError } = await supabase
-    .from("agreements")
-    .insert(modernWithProviderDetails)
-    .select("id")
-    .single();
+  const insertCandidates = [
+    modernWithProviderDetails,
+    modernWithCanonicalNames,
+    modernBase,
+    modernWithProviderDetailsNoScope,
+    modernWithCanonicalNamesNoScope,
+    modernBaseWithoutScopeColumns
+  ];
 
-  if (modernError && isMissingColumnOrSchemaCacheError(modernError.message)) {
+  let modernData: { id?: string } | null = null;
+  let modernError: { message?: string } | null = null;
+
+  for (const candidate of insertCandidates) {
     ({ data: modernData, error: modernError } = await supabase
       .from("agreements")
-      .insert(modernWithCanonicalNames)
+      .insert(candidate)
       .select("id")
       .single());
-  }
 
-  if (modernError && isMissingColumnOrSchemaCacheError(modernError.message)) {
-    ({ data: modernData, error: modernError } = await supabase
-      .from("agreements")
-      .insert(modernBase)
-      .select("id")
-      .single());
+    if (!modernError && modernData?.id) break;
+    if (!isMissingColumnOrSchemaCacheError(modernError?.message)) break;
   }
 
   if (!modernError && modernData?.id) {
