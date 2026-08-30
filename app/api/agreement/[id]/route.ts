@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { normalizeAgreementRow } from "@/lib/agreements/row";
 import { getAgreementServerClient } from "@/lib/supabase/agreement-server";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 /** Public read — used when the browser Supabase client is unavailable or RLS blocks anon reads. */
 export async function GET(_request: Request, { params }: { params: { id: string } }) {
   const agreementId = params.id?.trim();

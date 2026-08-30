@@ -18,6 +18,10 @@ import { useLanguage } from "@/lib/i18n/language-context";
 import { normalizeAgreementRow } from "@/lib/agreements/row";
 import { NAVY, ORANGE } from "@/lib/brand";
 
+function agreementFetchUrl(agreementId: string): string {
+  return `/api/agreement/${encodeURIComponent(agreementId)}?_=${Date.now()}`;
+}
+
 async function postAgreementAction(
   agreementId: string,
   body: Record<string, unknown> = {}
@@ -60,7 +64,7 @@ async function fetchAgreementStatusFromServer(
   agreementId: string
 ): Promise<"pending" | "signed" | "completed" | null> {
   try {
-    const res = await fetch(`/api/agreement/${encodeURIComponent(agreementId)}`, { cache: "no-store" });
+    const res = await fetch(agreementFetchUrl(agreementId), { cache: "no-store" });
     if (!res.ok) return null;
     const payload = (await res.json()) as { agreement?: { status?: string } };
     const status = payload.agreement?.status;
@@ -654,6 +658,12 @@ export default function AgreementClientPage() {
 
     if (next.status === "signed" || next.status === "completed") {
       justSignedRef.current = false;
+      if (local && local.status !== next.status) {
+        updateLocalAgreement(next.id, {
+          status: next.status,
+          client_signature: next.client_signature ?? local.client_signature
+        });
+      }
     }
     return next;
   }, []);
@@ -680,7 +690,7 @@ export default function AgreementClientPage() {
 
     const loadFromApi = async () => {
       try {
-        const res = await fetch(`/api/agreement/${encodeURIComponent(id)}`, { cache: "no-store" });
+        const res = await fetch(agreementFetchUrl(id), { cache: "no-store" });
         if (!res.ok) return false;
         const payload = (await res.json()) as { agreement?: Agreement };
         if (!payload.agreement) return false;
@@ -769,12 +779,17 @@ export default function AgreementClientPage() {
     const onVisible = () => {
       if (document.visibilityState === "visible") refresh();
     };
+    const onPageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) refresh();
+    };
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", onVisible);
+    window.addEventListener("pageshow", onPageShow);
     window.addEventListener("storage", onStorage);
     return () => {
       window.removeEventListener("focus", refresh);
       document.removeEventListener("visibilitychange", onVisible);
+      window.removeEventListener("pageshow", onPageShow);
       window.removeEventListener("storage", onStorage);
     };
   }, [id, fetchAgreement]);
@@ -962,12 +977,17 @@ export default function AgreementClientPage() {
       if (res.ok || res.alreadySigned) {
         persistSignedLocally(agreement, signature);
         applySignedState(signature);
-        const serverStatus = await fetchAgreementStatusFromServer(agreement.id);
+        let serverStatus = await fetchAgreementStatusFromServer(agreement.id);
         if (serverStatus !== "signed" && serverStatus !== "completed") {
           await tryClientUpdate({
             status: "signed",
             client_signature: signature
           });
+          serverStatus = await fetchAgreementStatusFromServer(agreement.id);
+        }
+        if (serverStatus === "signed" || serverStatus === "completed") {
+          justSignedRef.current = false;
+          await fetchAgreement();
         }
         return;
       }
@@ -979,6 +999,7 @@ export default function AgreementClientPage() {
       if (fallback.ok) {
         persistSignedLocally(agreement, signature);
         applySignedState(signature);
+        await fetchAgreement();
         return;
       }
 
