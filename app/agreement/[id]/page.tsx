@@ -573,6 +573,21 @@ export default function AgreementClientPage() {
   const printableRef = useRef<HTMLDivElement | null>(null);
   const downloadTriggeredRef = useRef(false);
   const fetchSeqRef = useRef(0);
+  const justSignedRef = useRef(false);
+
+  const applySignedState = (signature: string | null) => {
+    justSignedRef.current = true;
+    setAgreement((prev) =>
+      prev
+        ? {
+            ...prev,
+            status: "signed",
+            ...(signature ? { client_signature: signature } : {})
+          }
+        : prev
+    );
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const fetchAgreement = useCallback(async () => {
     if (!id) {
@@ -587,7 +602,12 @@ export default function AgreementClientPage() {
       if (isStale()) return false;
       const local = getLocalAgreement(id) as Agreement | null;
       if (!local) return false;
-      setAgreement(local);
+      setAgreement((prev) => {
+        if (justSignedRef.current && prev?.status === "signed" && local.status === "pending") {
+          return { ...local, status: "signed", client_signature: prev.client_signature ?? local.client_signature };
+        }
+        return local;
+      });
       setError("");
       setActionError("");
       setLoading(false);
@@ -601,7 +621,21 @@ export default function AgreementClientPage() {
         const payload = (await res.json()) as { agreement?: Agreement };
         if (!payload.agreement) return false;
         if (isStale()) return true;
-        setAgreement(payload.agreement);
+        const next = payload.agreement;
+        setAgreement((prev) => {
+          if (
+            justSignedRef.current &&
+            prev &&
+            prev.status === "signed" &&
+            next.status === "pending"
+          ) {
+            return { ...next, status: "signed" as const, client_signature: prev.client_signature ?? next.client_signature };
+          }
+          if (next.status === "signed" || next.status === "completed") {
+            justSignedRef.current = false;
+          }
+          return next;
+        });
         setError("");
         setActionError("");
         setLoading(false);
@@ -647,7 +681,16 @@ export default function AgreementClientPage() {
       }
 
       if (isStale()) return;
-      setAgreement(normalizeAgreementRow(data as Record<string, unknown>) as Agreement);
+      const next = normalizeAgreementRow(data as Record<string, unknown>) as Agreement;
+      setAgreement((prev) => {
+        if (justSignedRef.current && prev?.status === "signed" && next.status === "pending") {
+          return { ...next, status: "signed", client_signature: prev.client_signature ?? next.client_signature };
+        }
+        if (next.status === "signed" || next.status === "completed") {
+          justSignedRef.current = false;
+        }
+        return next;
+      });
       setError("");
       setActionError("");
       setLoading(false);
@@ -858,30 +901,41 @@ export default function AgreementClientPage() {
     const signature =
       typeof drawnSignature === "string" && drawnSignature.startsWith("data:image/") ? drawnSignature : null;
 
-    const res = await postAgreementAction(agreement.id, { signature: signature ?? undefined });
-    if (!res.ok && !res.alreadySigned) {
+    try {
+      if (isLocalAgreementId(agreement.id)) {
+        const next = updateLocalAgreement(agreement.id, {
+          status: "signed",
+          ...(signature ? { client_signature: signature } : {})
+        });
+        if (!next) {
+          setActionError(tx.signFailed);
+          return;
+        }
+        applySignedState(signature);
+        return;
+      }
+
+      const res = await postAgreementAction(agreement.id, { signature: signature ?? undefined });
+      if (res.ok || res.alreadySigned) {
+        applySignedState(signature);
+        void fetchAgreement();
+        return;
+      }
+
       const fallback = await tryClientUpdate({
         status: "signed",
         client_signature: signature
       });
-      if (!fallback.ok) {
-        setActionError(res.error || fallback.error || tx.signBlocked);
-        setSigning(false);
+      if (fallback.ok) {
+        applySignedState(signature);
+        void fetchAgreement();
         return;
       }
-    }
 
-    setAgreement((prev) =>
-      prev
-        ? {
-            ...prev,
-            status: "signed",
-            ...(signature ? { client_signature: signature } : {})
-          }
-        : prev
-    );
-    await fetchAgreement();
-    setSigning(false);
+      setActionError(res.error || fallback.error || tx.signBlocked);
+    } finally {
+      setSigning(false);
+    }
   };
 
   const defaultTerms = [

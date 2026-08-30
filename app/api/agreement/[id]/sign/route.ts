@@ -67,6 +67,15 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     ({ data: updatedRows, error: statusError } = await runSignUpdate({ status: "signed" }));
   }
 
+  // Last resort: update by id only (handles status drift / RLS edge cases).
+  if (!updatedRows?.length && !statusError) {
+    ({ data: updatedRows, error: statusError } = await supabase
+      .from("agreements")
+      .update({ status: "signed" })
+      .eq("id", agreementId)
+      .select("id,status,client_signature"));
+  }
+
   if (statusError) {
     return NextResponse.json({ error: statusError.message }, { status: 500 });
   }
