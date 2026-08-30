@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { formatDateDMY } from "@/lib/format-date";
 
 export type PaymentType = "single" | "milestones";
 export type Milestone = { title: string; amount: number; status?: "pending" | "escrow_held" | "released" };
@@ -149,7 +150,9 @@ export function augmentCustomTermsWithScope(
   if (excluded) blocks.push(`WHAT IS NOT INCLUDED:\n${excluded}`);
 
   const completion = scope.estimatedCompletionDate?.trim();
-  if (completion) blocks.push(`ESTIMATED COMPLETION DATE:\n${completion}`);
+  if (completion) {
+    blocks.push(`ESTIMATED COMPLETION DATE:\n${formatDateDMY(completion) || completion}`);
+  }
 
   return blocks.join("\n\n");
 }

@@ -1,6 +1,6 @@
 
 import type { Language } from "@/lib/i18n/locales";
-import { formatDateDMY } from "@/lib/format-date";
+import { formatDateDMY, formatEmbeddedDatesInTerms } from "@/lib/format-date";
 
 const money = (v: number) => v.toLocaleString("en-US", { maximumFractionDigits: 2 });
 
@@ -331,7 +331,7 @@ export function AgreementDocumentPreview({
       <section className="mt-6 rounded border border-slate-200 p-4">
         <p className="text-sm font-bold uppercase tracking-wide text-slate-700">{tx.termsAndConditions}</p>
         <pre className="mt-3 whitespace-pre-wrap break-words font-sans text-sm leading-6 text-slate-700">
-          {terms || "—"}
+          {terms ? formatEmbeddedDatesInTerms(terms) : "—"}
         </pre>
       </section>
 

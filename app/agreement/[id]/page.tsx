@@ -12,7 +12,7 @@ import {
   isLocalAgreementId,
   updateLocalAgreement
 } from "@/lib/agreements/local-store";
-import { formatDateDMY } from "@/lib/format-date";
+import { formatDateDMY, formatEmbeddedDatesInTerms } from "@/lib/format-date";
 import { useLanguage } from "@/lib/i18n/language-context";
 import { normalizeAgreementRow } from "@/lib/agreements/row";
 import { NAVY, ORANGE } from "@/lib/brand";
@@ -1175,7 +1175,7 @@ export default function AgreementClientPage() {
           <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm ring-1 ring-slate-900/[0.03] sm:p-6">
             <AgreementSectionTitle>{tx.termsAndConditions}</AgreementSectionTitle>
             <pre className="mt-4 max-h-[min(24rem,50vh)] overflow-y-auto whitespace-pre-wrap break-words rounded-xl border border-slate-100 bg-slate-50/70 p-4 font-sans text-sm leading-7 text-slate-700 sm:max-h-none sm:overflow-visible sm:p-5">
-              {agreement.custom_terms?.trim() || defaultTerms}
+              {formatEmbeddedDatesInTerms(agreement.custom_terms?.trim() || defaultTerms)}
             </pre>
             {signed ? (
               <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800">
