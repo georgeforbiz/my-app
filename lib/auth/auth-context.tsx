@@ -358,7 +358,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const resendConfirmation = useCallback(async (email: string) => {
-    const supabase = getSupabaseBrowser();
+    const supabase = (await ensureSupabaseBrowser()) ?? getSupabaseBrowser();
     if (!supabase) return { error: "Email service is unavailable." };
     const { error } = await supabase.auth.resend({
       type: "signup",
@@ -368,7 +368,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const requestPasswordReset = useCallback(async (email: string) => {
-    const supabase = getSupabaseBrowser();
+    const supabase = (await ensureSupabaseBrowser()) ?? getSupabaseBrowser();
     if (!supabase) return { error: "Email service is unavailable." };
     const redirectTo =
       typeof window !== "undefined" ? `${window.location.origin}/login` : undefined;
@@ -385,58 +385,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         business_name: metadata?.business_name
       });
       const login = mockLogin(trimmedEmail, password);
-      // An existing local account is fine when cloud registration succeeded but
-      // establishing the cloud session timed out.
       if (reg.error && !login.user) return reg;
       if (login.error) return { error: login.error };
       if (login.user) setUser({ ...login.user, source: "mock" });
       return {};
     };
 
-    // Try cloud register quickly; if Supabase is down, use local mock immediately.
     try {
-      const controller = new AbortController();
-      const timeout = window.setTimeout(() => controller.abort(), 3_000);
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: trimmedEmail, password, metadata }),
-        signal: controller.signal
+        body: JSON.stringify({ email: trimmedEmail, password, metadata })
       });
-      window.clearTimeout(timeout);
       const payload = (await res.json().catch(() => ({}))) as { error?: string; code?: string; ok?: boolean };
 
-      if (res.ok) {
-        const supabase = getSupabaseBrowser();
-        if (supabase) {
-          try {
-            const signInResult = await Promise.race([
-              supabase.auth.signInWithPassword({ email: trimmedEmail, password }),
-              new Promise<null>((resolve) => {
-                window.setTimeout(() => resolve(null), 3_000);
-              })
-            ]);
-            if (signInResult && !signInResult.error && signInResult.data.user) {
-              setUser(mapSupabaseUser(signInResult.data.user));
-              return {};
-            }
-          } catch {
-            // fall through
-          }
+      if (res.ok || res.status === 409) {
+        const session = await establishSessionFromLoginApi(trimmedEmail, password, setUser);
+        if (session.ok) return {};
+        if (res.ok) {
+          return {
+            error:
+              session.error ??
+              "Account was created but sign-in failed. Try logging in with your email and password."
+          };
         }
-        if (!isMockAuthAllowed()) {
-          return {};
-        }
-        // Cloud user may exist, but client auth timed out — local session so the app is usable in dev.
-        return finishMock();
-      }
-
-      if (res.status === 409) {
-        if (isMockAuthAllowed()) {
-          const mockResult = finishMock();
-          if (!mockResult.error) return mockResult;
-        }
-        return { error: payload.error ?? "An account with this email already exists. Please log in." };
+        return {
+          error:
+            payload.error ??
+            session.error ??
+            "An account with this email already exists. Please log in."
+        };
       }
 
       const serverMsg = String(payload.error ?? "");
@@ -450,8 +428,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (isValidationError) {
         return { error: humanizeAuthError(serverMsg) };
       }
-    } catch {
-      // Timeout / network
+
+      if (payload.error) {
+        return { error: humanizeAuthError(serverMsg) };
+      }
+    } catch (err) {
+      if (!isMockAuthAllowed()) {
+        const message = err instanceof Error ? err.message : "";
+        return { error: humanizeAuthError(message || "Could not create account. Try again.") };
+      }
     }
 
     if (!isMockAuthAllowed()) {

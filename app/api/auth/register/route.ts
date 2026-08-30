@@ -41,17 +41,12 @@ export async function POST(req: Request) {
   let data: Awaited<ReturnType<typeof admin.auth.admin.createUser>>["data"];
   let error: Awaited<ReturnType<typeof admin.auth.admin.createUser>>["error"];
   try {
-    const result = await Promise.race([
-      admin.auth.admin.createUser({
-        email,
-        password,
-        email_confirm: true,
-        user_metadata: metadata
-      }),
-      new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error("Supabase timed out")), 2_500);
-      })
-    ]);
+    const result = await admin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: metadata
+    });
     data = result.data;
     error = result.error;
   } catch (err) {
