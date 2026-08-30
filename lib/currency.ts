@@ -4,7 +4,7 @@ import type { Language } from "@/lib/i18n/locales";
 export const AMD_SYMBOL = "֏";
 
 /** Pro subscription price (AMD only). */
-export const PRO_MONTHLY_AMD = 25_000;
+export const PRO_MONTHLY_AMD = 15_000;
 
 /** Stable locale so SSR and browser render the same grouping (avoids hydration mismatch). */
 const NUMBER_FORMAT_LOCALE = "en-US";
@@ -17,7 +17,7 @@ export function formatAMD(
   return `${value.toLocaleString(NUMBER_FORMAT_LOCALE, { maximumFractionDigits: maxFractionDigits })} ${AMD_SYMBOL}`;
 }
 
-/** Pro price in dram for every locale, e.g. `25,000 ֏ / month`. */
+/** Pro price in dram for every locale, e.g. `15,000 ֏ / month`. */
 export function formatProMonthly(perMonthSuffix: string, language: Language = "en"): string {
   return `${formatAMD(PRO_MONTHLY_AMD, { language })} ${perMonthSuffix.trim()}`;
 }

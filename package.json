@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "clean": "node scripts/clean-next.cjs",
-    "dev": "node scripts/cloud-sync-warning.cjs && next dev -p 3000",
+    "dev": "node scripts/dev-local.cjs",
     "sync:local": "node scripts/sync-local.cjs",
     "dev:local": "node scripts/dev-local.cjs",
     "dev:local:clean": "node scripts/dev-local.cjs --clean",

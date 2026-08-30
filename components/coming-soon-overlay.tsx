@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { Suspense, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
 import type { ReactNode } from "react";
 
@@ -8,7 +8,7 @@ type ComingSoonOverlayProps = {
   children: ReactNode;
 };
 
-export function ComingSoonOverlay({ children }: ComingSoonOverlayProps) {
+function ComingSoonOverlayLayer() {
   const searchParams = useSearchParams();
   const enabledByEnv = process.env.NEXT_PUBLIC_COMING_SOON === "1";
 
@@ -34,20 +34,28 @@ export function ComingSoonOverlay({ children }: ComingSoonOverlayProps) {
 
   const showOverlay = enabledByEnv && !bypassOverlay;
 
+  if (!showOverlay) return null;
+
+  return (
+    <div
+      className="fixed inset-0 flex items-center justify-center bg-slate-950/90 px-6 text-center text-white"
+      style={{ zIndex: 9999 }}
+    >
+      <div className="max-w-xl space-y-4">
+        <p className="text-xs font-bold uppercase tracking-[0.25em] text-orange-300">VSTAH</p>
+        <h2 className="text-3xl font-black md:text-4xl">Coming Soon</h2>
+      </div>
+    </div>
+  );
+}
+
+export function ComingSoonOverlay({ children }: ComingSoonOverlayProps) {
   return (
     <div className="relative">
       {children}
-      {showOverlay ? (
-        <div
-          className="fixed inset-0 flex items-center justify-center bg-slate-950/90 px-6 text-center text-white"
-          style={{ zIndex: 9999 }}
-        >
-          <div className="max-w-xl space-y-4">
-            <p className="text-xs font-bold uppercase tracking-[0.25em] text-orange-300">VSTAH</p>
-            <h2 className="text-3xl font-black md:text-4xl">Coming Soon</h2>
-          </div>
-        </div>
-      ) : null}
+      <Suspense fallback={null}>
+        <ComingSoonOverlayLayer />
+      </Suspense>
     </div>
   );
 }

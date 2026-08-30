@@ -165,7 +165,7 @@ const translations: Record<Locale, TranslationBundle> = {
     heroTitleBefore: "Stop Working on Handshakes.",
     heroTitleHighlight: "",
     heroTitleAfter: "Protect Every Deal Before You Start.",
-    heroSubtitle: "Send a link. Lock the terms. Avoid the argument.",
+    heroSubtitle: "Send a link. Lock the terms.\nAvoid the argument.",
     heroPainPoints: [
       "When the client is terrified to pay you upfront, but you can't work for free...",
       "When you feel awkward chasing your own money, but bills are due...",
@@ -359,7 +359,7 @@ const translations: Record<Locale, TranslationBundle> = {
       name: "Pro",
       tagline: "Simple pricing",
       subtitle: "Start free, upgrade when ready",
-      price: "25,000 ֏ / month",
+      price: "15,000 ֏ / month",
       features: ["3 free agreements included", "Unlimited after upgrade"],
       cta: "Start Free Trial"
     },
@@ -402,7 +402,7 @@ const translations: Record<Locale, TranslationBundle> = {
     heroTitleBefore: "Դադարեցրեք աշխատանքը ձեռքի թափով։",
     heroTitleHighlight: "",
     heroTitleAfter: "Պաշտպանեք յուրաքանչյուր գորցարք մինչեվ սկսելը։",
-    heroSubtitle: "Ուղարկեք հղում։ Կողպեք պայմանները։ Խուսափեք վեճից։",
+    heroSubtitle: "Ուղարկեք հղում։ Կողպեք պայմանները։\nԽուսափեք վեճից։",
     heroPainPoints: [
       "Երբ հաճախորդը վախենում է կանխավճարից, բայց դուք չեք կարող անվճար աշխատել...",
       "Երբ ամաչում եք հետապնդել ձեր գումարը, բայց հաշիվները ժամանակին են...",
@@ -597,7 +597,7 @@ const translations: Record<Locale, TranslationBundle> = {
       name: "Pro",
       tagline: "Պարզ գին",
       subtitle: "Սկսեք անվճար, թարմացրեք երբ պատրաստ եք",
-      price: "25,000 ֏ / ամիս",
+      price: "15,000 ֏ / ամիս",
       features: ["3 անվճար պայմանագիր ներառված է", "Թարմացումից հետո՝ անսահմանափակ"],
       cta: "Սկսել անվճար փորձարկում"
     },
@@ -636,7 +636,7 @@ const translations: Record<Locale, TranslationBundle> = {
     heroTitleBefore: "Хватит работать на словах.",
     heroTitleHighlight: "",
     heroTitleAfter: "Защитите каждую сделку до начала работы.",
-    heroSubtitle: "Отправьте ссылку. Зафиксируйте условия. Избегите спора.",
+    heroSubtitle: "Отправьте ссылку. Зафиксируйте условия.\nИзбегите спора.",
     heroPainPoints: [
       "Когда клиент боится платить вперёд, а вы не можете работать бесплатно...",
       "Когда неловко требовать свои деньги, а счета уже пора оплачивать...",
@@ -830,7 +830,7 @@ const translations: Record<Locale, TranslationBundle> = {
       name: "Pro",
       tagline: "Простые тарифы",
       subtitle: "Начните бесплатно, перейдите на Pro когда будете готовы",
-      price: "25,000 ֏ / месяц",
+      price: "15,000 ֏ / месяц",
       features: ["3 соглашения бесплатно включено", "Безлимит после перехода на тариф"],
       cta: "Начать бесплатный период"
     },

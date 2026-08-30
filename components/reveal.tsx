@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+
+const useIsomorphicLayoutEffect = typeof window !== "undefined" ? useLayoutEffect : useEffect;
 
 type Props = {
   children: ReactNode;
@@ -16,7 +18,7 @@ export function Reveal({ children, className = "", delay = 0, once = true }: Pro
   const ref = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
 
-  useEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
 
