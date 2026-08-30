@@ -34,13 +34,13 @@ import { useRouter } from "next/navigation";
 import { authDisplayName, useAuth } from "@/lib/auth/auth-context";
 import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
 import { normalizeAgreementRow } from "@/lib/agreements/row";
-import { fetchDashboardAgreementsViaApi, mergeAgreementsById, publishLocalAgreementViaApi } from "@/lib/agreements/create-via-api";
+import { fetchDashboardAgreementsViaApi, mergeAgreementsById, publishLocalAgreementToCloud } from "@/lib/agreements/create-via-api";
 import { getAgreementPublicUrl, isShareableAgreementId } from "@/lib/agreements/public-url";
-import { createShareableAgreement, verifyAgreementIsPublic } from "@/lib/agreements/shareable-create";
+import { createShareableAgreement } from "@/lib/agreements/shareable-create";
 import {
   getLocalAgreement,
   isLocalAgreementId,
-  listLocalAgreements,
+  listLocalAgreementsForDashboard,
   replaceLocalAgreementId,
   saveLocalAgreement
 } from "@/lib/agreements/local-store";
@@ -107,6 +107,10 @@ type Tx = {
   cloudSaveFailed: string;
   signInRequiredForSharing: string;
   mockAccountBanner: string;
+  getShareableLink: string;
+  publishingLink: string;
+  linkPublished: string;
+  localDealBanner: string;
   copied: string;
   createSafeAgreement: string;
   totalPrice: string;
@@ -218,6 +222,11 @@ const t: Record<Lang, Tx> = {
       "Sign in with your VSTAH account to create shareable agreement links. Demo login cannot send links to clients.",
     mockAccountBanner:
       "You are in demo mode. Register or sign in with your real account to share agreement links on vstah.am.",
+    getShareableLink: "Get shareable link",
+    publishingLink: "Publishing…",
+    linkPublished: "Shareable link copied!",
+    localDealBanner:
+      "Some agreements are saved on this device only. Click Get shareable link to publish them on vstah.am.",
     copied: "Copied!",
     createSafeAgreement: "Create Safe Agreement",
     totalPrice: "Total Price (֏)",
@@ -327,6 +336,11 @@ const t: Record<Lang, Tx> = {
       "Մուտք գործեք VSTAH հաշվով, որպեսզի հղումը հնարավոր լինի ուղարկել հաճախորդին։",
     mockAccountBanner:
       "Դեմո ռեժիմ եք։ Գրանցվեք կամ մուտք գործեք իրական հաշվով՝ հղումներ ուղարկելու համար։",
+    getShareableLink: "Ստանալ հղում",
+    publishingLink: "Հրապարակում…",
+    linkPublished: "Հղումը պատճենված է!",
+    localDealBanner:
+      "Որոշ պայմանագրեր պահված են միայն այս սարքում։ Սեղմեք «Ստանալ հղում»՝ vstah.am-ում հրապարակելու համար։",
     copied: "Պատճենված է!",
     createSafeAgreement: "Ստեղծել անվտանգ պայմանագիր",
     totalPrice: "Ընդհանուր գին (֏)",
@@ -437,6 +451,11 @@ const t: Record<Lang, Tx> = {
       "Войдите в аккаунт VSTAH, чтобы создавать ссылки для клиентов. Демо-вход не поддерживает отправку ссылок.",
     mockAccountBanner:
       "Демо-режим. Зарегистрируйтесь или войдите в реальный аккаунт, чтобы делиться ссылками на vstah.am.",
+    getShareableLink: "Получить ссылку",
+    publishingLink: "Публикация…",
+    linkPublished: "Ссылка скопирована!",
+    localDealBanner:
+      "Некоторые соглашения сохранены только на этом устройстве. Нажмите «Получить ссылку», чтобы опубликовать на vstah.am.",
     copied: "Скопировано",
     createSafeAgreement: "Создать защищённое соглашение",
     totalPrice: "Сумма по соглашению (֏)",
@@ -570,6 +589,7 @@ export default function DashboardPage() {
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
   const [copiedAgreementId, setCopiedAgreementId] = useState("");
+  const [publishingLinkId, setPublishingLinkId] = useState("");
   const [clientSearch, setClientSearch] = useState("");
   const [historySearch, setHistorySearch] = useState("");
   const [successAgreementId, setSuccessAgreementId] = useState("");
@@ -598,6 +618,8 @@ export default function DashboardPage() {
   const termsDirtyRef = useRef(false);
   const contractTermsRef = useRef(contractTerms);
   const agreementsFetchSeqRef = useRef(0);
+  const agreementsRef = useRef(agreements);
+  agreementsRef.current = agreements;
   contractTermsRef.current = contractTerms;
 
   useEffect(() => {
@@ -718,7 +740,7 @@ export default function DashboardPage() {
     const seq = ++agreementsFetchSeqRef.current;
     const isStale = () => seq !== agreementsFetchSeqRef.current;
 
-    const local = user?.id ? (listLocalAgreements(user.id) as Agreement[]) : [];
+    const local = user?.id ? (listLocalAgreementsForDashboard(user.id) as Agreement[]) : [];
     if (!user?.id) {
       if (isStale()) return;
       setAgreements([]);
@@ -786,15 +808,14 @@ export default function DashboardPage() {
 
   useEffect(() => {
     if (!supabase || !user?.id || user.source === "mock") return;
-    const locals = listLocalAgreements(user.id).filter((a) => isLocalAgreementId(a.id));
+    const locals = listLocalAgreementsForDashboard(user.id).filter((a) => isLocalAgreementId(a.id));
     if (locals.length === 0) return;
 
     void (async () => {
-      const token = (await supabase.auth.getSession()).data.session?.access_token;
-      if (!token) return;
       let migrated = false;
       for (const local of locals) {
-        const published = await publishLocalAgreementViaApi(token, local);
+        const localForPublish = { ...local, provider_id: user.id };
+        const published = await publishLocalAgreementToCloud(supabase, localForPublish);
         if (published.id) {
           replaceLocalAgreementId(local.id, published.id);
           migrated = true;
@@ -843,21 +864,17 @@ export default function DashboardPage() {
   const resolvePublicAgreementId = useCallback(
     async (id: string): Promise<{ id: string; error?: string }> => {
       if (!isLocalAgreementId(id)) return { id };
-      if (!supabase || user?.source === "mock") {
+      if (!supabase || !user?.id || user.source === "mock") {
         return { id, error: tx.linkNotPublished };
       }
-      const local = getLocalAgreement(id);
-      const token = (await supabase.auth.getSession()).data.session?.access_token;
-      if (!local || !token) {
+      const stored = getLocalAgreement(id) ?? agreementsRef.current.find((a) => a.id === id) ?? null;
+      if (!stored) {
         return { id, error: tx.linkNotPublished };
       }
-      const published = await publishLocalAgreementViaApi(token, local);
+      const localForPublish = { ...stored, provider_id: user.id };
+      const published = await publishLocalAgreementToCloud(supabase, localForPublish);
       if (!published.id) {
         return { id, error: published.error ?? tx.linkNotPublished };
-      }
-      const verified = await verifyAgreementIsPublic(published.id);
-      if (!verified) {
-        return { id, error: tx.linkNotPublished };
       }
       replaceLocalAgreementId(id, published.id);
       setAgreements((prev) =>
@@ -866,8 +883,27 @@ export default function DashboardPage() {
       if (successAgreementId === id) setSuccessAgreementId(published.id);
       return { id: published.id };
     },
-    [supabase, user?.source, successAgreementId, tx.linkNotPublished]
+    [supabase, user?.id, user?.source, successAgreementId, tx.linkNotPublished]
   );
+
+  const publishAndCopyShareableLink = async (id: string) => {
+    setPublishingLinkId(id);
+    try {
+      const resolved = await resolvePublicAgreementId(id);
+      if (!isShareableAgreementId(resolved.id)) {
+        setToast(resolved.error ?? tx.linkNotPublished);
+        return;
+      }
+      const link = getAgreementPublicUrl(resolved.id);
+      await navigator.clipboard.writeText(link);
+      setCopiedAgreementId(resolved.id);
+      setToast(tx.linkPublished);
+    } catch {
+      setToast(tx.linkNotPublished);
+    } finally {
+      setPublishingLinkId("");
+    }
+  };
 
   const copyAgreementLink = async (id: string) => {
     const resolved = await resolvePublicAgreementId(id);
@@ -1289,6 +1325,10 @@ export default function DashboardPage() {
 
   const archived = agreements.filter(isHistoryAgreement);
   const listed = agreements;
+  const hasUnpublishedLocal = useMemo(
+    () => user?.source !== "mock" && agreements.some((a) => isLocalAgreementId(a.id)),
+    [agreements, user?.source]
+  );
   const showClientSearch = listed.length > 15;
   const filteredListed = useMemo(() => {
     const query = clientSearch.trim().toLowerCase();
@@ -1316,6 +1356,23 @@ export default function DashboardPage() {
   }, [archived, historySearch, statusText.completed, statusText.signed, statusText.paid]);
 
   if (loading || !user) return <div className="min-h-dvh bg-[#F9FAFB] p-6">Loading dashboard...</div>;
+
+  const renderLocalShareableLinkCta = (itemId: string, className = "") => {
+    if (!isLocalAgreementId(itemId)) return null;
+    const busy = publishingLinkId === itemId;
+    const copied = copiedAgreementId === itemId && !isLocalAgreementId(copiedAgreementId);
+    return (
+      <button
+        type="button"
+        onClick={() => void publishAndCopyShareableLink(itemId)}
+        disabled={busy}
+        className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-[#F2A800] px-3 py-2 text-sm font-bold text-slate-900 disabled:opacity-60 ${className}`}
+      >
+        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />}
+        {busy ? tx.publishingLink : copied ? tx.copied : tx.getShareableLink}
+      </button>
+    );
+  };
 
   return (
     <div className="fixed inset-0 flex overflow-hidden bg-[#F9FAFB] text-slate-900">
@@ -1371,6 +1428,12 @@ export default function DashboardPage() {
             {user.source === "mock" ? (
               <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-relaxed text-amber-950">
                 {tx.mockAccountBanner}
+              </div>
+            ) : null}
+
+            {hasUnpublishedLocal ? (
+              <div className="rounded-xl border border-orange-300 bg-orange-50 px-4 py-3 text-sm leading-relaxed text-orange-950">
+                {tx.localDealBanner}
               </div>
             ) : null}
 
@@ -1500,6 +1563,7 @@ export default function DashboardPage() {
                                   <AgreementStatusPill status={derived} label={statusText[derived]} />
                                 </div>
                               </div>
+                              {renderLocalShareableLinkCta(item.id, "mt-3 w-full")}
                               <div className="mt-3 grid grid-cols-3 gap-2">
                                 <button type="button" onClick={() => openAgreementLink(item.id)} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.viewLink} title={tx.viewLink}><ExternalLink className="h-4 w-4" /></button>
                                 <button type="button" onClick={() => void copyAgreementLink(item.id)} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.copyLink} title={tx.copyLink}><Copy className="h-4 w-4" /></button>
@@ -1536,7 +1600,8 @@ export default function DashboardPage() {
                                   })()}
                                 </td>
                                 <td className="px-3 py-3">
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    {renderLocalShareableLinkCta(item.id)}
                                     <button type="button" onClick={() => openAgreementLink(item.id)} className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.viewLink} title={tx.viewLink}><ExternalLink className="h-4 w-4" /></button>
                                     <button type="button" onClick={() => void copyAgreementLink(item.id)} className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.copyLink} title={tx.copyLink}><Copy className="h-4 w-4" /></button>
                                     <button type="button" onClick={() => downloadAgreementPdf(item)} className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.download} title={tx.download}><Download className="h-4 w-4" /></button>
@@ -1789,6 +1854,7 @@ export default function DashboardPage() {
                               </div>
                               <AgreementStatusPill status={historyStatus} label={statusText[historyStatus]} />
                             </div>
+                            {renderLocalShareableLinkCta(item.id, "mt-3 w-full")}
                             <div className="mt-3 grid grid-cols-3 gap-2">
                               <button type="button" onClick={() => openAgreementLink(item.id)} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.viewLink} title={tx.viewLink}><ExternalLink className="h-4 w-4" /></button>
                               <button type="button" onClick={() => void copyAgreementLink(item.id)} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.copyLink} title={tx.copyLink}><Copy className="h-4 w-4" /></button>
@@ -1834,7 +1900,8 @@ export default function DashboardPage() {
                                 <AgreementStatusPill status={historyStatus} label={statusText[historyStatus]} />
                               </td>
                               <td className="px-3 py-3">
-                                <div className="flex items-center gap-2">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  {renderLocalShareableLinkCta(item.id)}
                                   <button type="button" onClick={() => openAgreementLink(item.id)} className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.viewLink} title={tx.viewLink}><ExternalLink className="h-4 w-4" /></button>
                                   <button type="button" onClick={() => void copyAgreementLink(item.id)} className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.copyLink} title={tx.copyLink}><Copy className="h-4 w-4" /></button>
                                   <button type="button" onClick={() => downloadAgreementPdf(item)} className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.download} title={tx.download}><Download className="h-4 w-4" /></button>
@@ -2022,7 +2089,11 @@ export default function DashboardPage() {
             <p className="mt-1 text-sm text-slate-600">{tx.successSubtitle}</p>
             <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
               <p className="text-xs font-semibold text-slate-500">{tx.publicLink}</p>
-              <p className="mt-1 break-all text-sm font-bold text-slate-900">{getAgreementPublicUrl(successAgreementId)}</p>
+              {isLocalAgreementId(successAgreementId) ? (
+                <p className="mt-1 text-sm text-orange-800">{tx.localDealBanner}</p>
+              ) : (
+                <p className="mt-1 break-all text-sm font-bold text-slate-900">{getAgreementPublicUrl(successAgreementId)}</p>
+              )}
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
               <button
@@ -2033,7 +2104,11 @@ export default function DashboardPage() {
                 <Eye className="h-4 w-4" />
                 {tx.previewAgreement}
               </button>
-              <button type="button" onClick={() => void copyAgreementLink(successAgreementId)} className="inline-flex items-center gap-2 rounded-xl bg-[#F2A800] px-4 py-2 text-sm font-bold text-slate-900"><Copy className="h-4 w-4" />{copiedAgreementId === successAgreementId ? tx.copied : tx.copyToClipboard}</button>
+              {isLocalAgreementId(successAgreementId) ? (
+                renderLocalShareableLinkCta(successAgreementId)
+              ) : (
+                <button type="button" onClick={() => void copyAgreementLink(successAgreementId)} className="inline-flex items-center gap-2 rounded-xl bg-[#F2A800] px-4 py-2 text-sm font-bold text-slate-900"><Copy className="h-4 w-4" />{copiedAgreementId === successAgreementId ? tx.copied : tx.copyToClipboard}</button>
+              )}
               <button type="button" onClick={() => setSuccessAgreementId("")} className="ml-auto rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700">{tx.close}</button>
             </div>
           </div>

@@ -1,5 +1,7 @@
-import type { PaymentType } from "./row";
-import type { NormalizedAgreement } from "./row";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { isLocalAgreementId } from "./local-store";
+import type { PaymentType, NormalizedAgreement } from "./row";
+import { ensureSupabaseAccessToken, verifyAgreementIsPublic } from "./shareable-create";
 
 export type CreateAgreementApiPayload = {
   clientName: string;
@@ -17,7 +19,7 @@ export type CreateAgreementApiPayload = {
   milestones: { title: string; amount: number }[];
 };
 
-/** Creates an agreement on the server (service role) so shared links work for any client. */
+/** Creates an agreement on the server so shared links work for any client. */
 export async function createAgreementViaApi(
   accessToken: string,
   payload: CreateAgreementApiPayload
@@ -70,6 +72,35 @@ export async function publishLocalAgreementViaApi(
   local: NormalizedAgreement
 ): Promise<{ id?: string; error?: string }> {
   return createAgreementViaApi(accessToken, localAgreementToApiPayload(local));
+}
+
+/** Upload a browser-only agreement to Supabase and verify the public link works. */
+export async function publishLocalAgreementToCloud(
+  supabase: SupabaseClient,
+  local: NormalizedAgreement
+): Promise<{ id?: string; error?: string }> {
+  const token = await ensureSupabaseAccessToken(supabase);
+  if (!token) {
+    return { error: "Session expired. Please sign out and sign in again." };
+  }
+
+  const result = await createAgreementViaApi(token, localAgreementToApiPayload(local));
+  if (result.error || !result.id) {
+    return { error: result.error ?? "Failed to publish agreement online." };
+  }
+
+  if (isLocalAgreementId(result.id)) {
+    return { error: "Agreement was not saved online." };
+  }
+
+  const verified = await verifyAgreementIsPublic(result.id);
+  if (!verified) {
+    return {
+      error: "Agreement was saved but the public link is not ready yet. Try again in a moment."
+    };
+  }
+
+  return { id: result.id };
 }
 
 export async function fetchDashboardAgreementsViaApi(

@@ -55,6 +55,21 @@ function writeAll(list: NormalizedAgreement[]) {
   }
 }
 
+/** Includes local-only rows even if provider_id differs (e.g. after switching from demo to real login). */
+export function listLocalAgreementsForDashboard(currentProviderId?: string): NormalizedAgreement[] {
+  const all = readAll();
+  if (!currentProviderId) {
+    return [...all].sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+  }
+  const byId = new Map<string, NormalizedAgreement>();
+  for (const row of all) {
+    if (row.provider_id === currentProviderId || isLocalAgreementId(row.id)) {
+      byId.set(row.id, row);
+    }
+  }
+  return [...byId.values()].sort((a, b) => (a.created_at < b.created_at ? 1 : -1));
+}
+
 /** Newest first, optionally limited to one provider. */
 export function listLocalAgreements(providerId?: string): NormalizedAgreement[] {
   const all = readAll();
