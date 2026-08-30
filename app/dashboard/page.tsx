@@ -33,8 +33,10 @@ import { FREE_AGREEMENT_LIMIT, readMockPlan, writeMockPlan, type MockPlanId } fr
 import { useRouter } from "next/navigation";
 import { authDisplayName, useAuth } from "@/lib/auth/auth-context";
 import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
-import { insertAgreementWithSchemaFallback, normalizeAgreementRow } from "@/lib/agreements/row";
-import { createAgreementViaApi, fetchDashboardAgreementsViaApi, mergeAgreementsById, publishLocalAgreementViaApi } from "@/lib/agreements/create-via-api";
+import { normalizeAgreementRow } from "@/lib/agreements/row";
+import { fetchDashboardAgreementsViaApi, mergeAgreementsById, publishLocalAgreementViaApi } from "@/lib/agreements/create-via-api";
+import { getAgreementPublicUrl, isShareableAgreementId } from "@/lib/agreements/public-url";
+import { createShareableAgreement, verifyAgreementIsPublic } from "@/lib/agreements/shareable-create";
 import {
   getLocalAgreement,
   isLocalAgreementId,
@@ -103,6 +105,8 @@ type Tx = {
   noSearchResults: string;
   linkNotPublished: string;
   cloudSaveFailed: string;
+  signInRequiredForSharing: string;
+  mockAccountBanner: string;
   copied: string;
   createSafeAgreement: string;
   totalPrice: string;
@@ -210,6 +214,10 @@ const t: Record<Lang, Tx> = {
     noSearchResults: "No agreements match your search.",
     linkNotPublished: "Could not save this agreement online. Shared links will not work until it is saved.",
     cloudSaveFailed: "Could not save agreement to the cloud. Please try again.",
+    signInRequiredForSharing:
+      "Sign in with your VSTAH account to create shareable agreement links. Demo login cannot send links to clients.",
+    mockAccountBanner:
+      "You are in demo mode. Register or sign in with your real account to share agreement links on vstah.am.",
     copied: "Copied!",
     createSafeAgreement: "Create Safe Agreement",
     totalPrice: "Total Price (֏)",
@@ -315,6 +323,10 @@ const t: Record<Lang, Tx> = {
     noSearchResults: "Որոնմամբ պայմանագիր չի գտնվել։",
     linkNotPublished: "Չհաջողվեց առցանց պահել։ Հղումը կաշխատի միայն պահպանվելուց հետո։",
     cloudSaveFailed: "Չհաջողվեց պահպանել ամպում։ Փորձեք կրկին։",
+    signInRequiredForSharing:
+      "Մուտք գործեք VSTAH հաշվով, որպեսզի հղումը հնարավոր լինի ուղարկել հաճախորդին։",
+    mockAccountBanner:
+      "Դեմո ռեժիմ եք։ Գրանցվեք կամ մուտք գործեք իրական հաշվով՝ հղումներ ուղարկելու համար։",
     copied: "Պատճենված է!",
     createSafeAgreement: "Ստեղծել անվտանգ պայմանագիր",
     totalPrice: "Ընդհանուր գին (֏)",
@@ -421,6 +433,10 @@ const t: Record<Lang, Tx> = {
     noSearchResults: "Ничего не найдено.",
     linkNotPublished: "Не удалось сохранить в облаке. Ссылка не будет работать, пока соглашение не сохранено.",
     cloudSaveFailed: "Не удалось сохранить соглашение. Попробуйте снова.",
+    signInRequiredForSharing:
+      "Войдите в аккаунт VSTAH, чтобы создавать ссылки для клиентов. Демо-вход не поддерживает отправку ссылок.",
+    mockAccountBanner:
+      "Демо-режим. Зарегистрируйтесь или войдите в реальный аккаунт, чтобы делиться ссылками на vstah.am.",
     copied: "Скопировано",
     createSafeAgreement: "Создать защищённое соглашение",
     totalPrice: "Сумма по соглашению (֏)",
@@ -526,20 +542,6 @@ async function withNetworkTimeout<T>(promise: Promise<T>, ms = 5_000): Promise<T
   } catch {
     return null;
   }
-}
-
-function isNetworkErrorMessage(message: string | undefined): boolean {
-  if (!message) return false;
-  const m = message.toLowerCase();
-  return (
-    m.includes("failed to fetch") ||
-    m.includes("fetch failed") ||
-    m.includes("load failed") ||
-    m.includes("networkerror") ||
-    m.includes("network error") ||
-    m.includes("timed out") ||
-    m.includes("timeout")
-  );
 }
 
 const selectFieldClass =
@@ -853,6 +855,10 @@ export default function DashboardPage() {
       if (!published.id) {
         return { id, error: published.error ?? tx.linkNotPublished };
       }
+      const verified = await verifyAgreementIsPublic(published.id);
+      if (!verified) {
+        return { id, error: tx.linkNotPublished };
+      }
       replaceLocalAgreementId(id, published.id);
       setAgreements((prev) =>
         prev.map((a) => (a.id === id ? ({ ...a, id: published.id! } as Agreement) : a))
@@ -865,29 +871,22 @@ export default function DashboardPage() {
 
   const copyAgreementLink = async (id: string) => {
     const resolved = await resolvePublicAgreementId(id);
-    if (isLocalAgreementId(resolved.id)) {
+    if (!isShareableAgreementId(resolved.id)) {
       setToast(resolved.error ?? tx.linkNotPublished);
       return;
     }
-    const publicId = resolved.id;
-    const base = typeof window !== "undefined" ? window.location.origin : "https://vstah.am";
-    const link = `${base}/agreement/${publicId}`;
+    const link = getAgreementPublicUrl(resolved.id);
     try {
       await navigator.clipboard.writeText(link);
-      setCopiedAgreementId(publicId);
+      setCopiedAgreementId(resolved.id);
     } catch {
       setToast("Could not copy link.");
     }
   };
 
-  const getAgreementPublicUrl = (id: string) => {
-    const base = typeof window !== "undefined" ? window.location.origin : "https://vstah.am";
-    return `${base}/agreement/${id}`;
-  };
-
   const openAgreementLink = async (id: string) => {
     const resolved = await resolvePublicAgreementId(id);
-    if (isLocalAgreementId(resolved.id)) {
+    if (!isShareableAgreementId(resolved.id)) {
       setToast(resolved.error ?? tx.linkNotPublished);
       return;
     }
@@ -1141,6 +1140,12 @@ export default function DashboardPage() {
       setError("You must be logged in to create an agreement.");
       return;
     }
+
+    if (!supabase || user.source === "mock") {
+      setError(tx.signInRequiredForSharing);
+      return;
+    }
+
     setError("");
 
     if (isAtFreeLimit) {
@@ -1205,79 +1210,14 @@ export default function DashboardPage() {
         milestones: paymentType === "milestones" ? milestonesParsed : []
       };
 
-      let result: { id?: string; error?: string } = {};
-      if (supabase && user.source !== "mock") {
-        const token = (await supabase.auth.getSession()).data.session?.access_token;
-        if (token) {
-          result = await createAgreementViaApi(token, {
-            clientName: draft.clientName,
-            projectTitle: draft.projectTitle,
-            serviceArea: draft.serviceArea,
-            providerName,
-            full_name,
-            business_name,
-            customTerms: customTermsText,
-            scopeOfWork: scopeOfWork.trim(),
-            scopeExclusions: scopeExclusions.trim() || undefined,
-            estimatedCompletionDate: estimatedCompletionDate.trim(),
-            totalPrice,
-            paymentType,
-            milestones: paymentType === "milestones" ? milestonesParsed : []
-          });
-        }
-      }
-
-      if (!result.id && supabase && user.source !== "mock") {
-        try {
-          result = await insertAgreementWithSchemaFallback(supabase, draft);
-        } catch (err) {
-          result = { error: err instanceof Error ? err.message : "Failed to fetch" };
-        }
-      }
-
-      // Browser-only fallback for mock auth or when Supabase is completely offline.
-      if (
-        !result.id &&
-        (user.source === "mock" || !supabase || isNetworkErrorMessage(result.error))
-      ) {
-        const saved = saveLocalAgreement({
-          provider_id: user.id,
-          provider_name: providerName,
-          full_name: full_name || undefined,
-          business_name: business_name || undefined,
-          client_name: draft.clientName,
-          project_title: draft.projectTitle,
-          service_area: draft.serviceArea,
-          custom_terms: customTermsText,
-          scope_of_work: scopeOfWork.trim(),
-          scope_exclusions: scopeExclusions.trim() || undefined,
-          estimated_completion_date: estimatedCompletionDate.trim(),
-          total_price: totalPrice,
-          payment_type: paymentType,
-          milestones:
-            paymentType === "milestones"
-              ? milestonesParsed.map((m) => ({ ...m, status: "pending" as const }))
-              : null,
-          status: "pending",
-          payment_status: "pending"
-        });
-        result = { id: saved.id };
-      }
+      const result = await createShareableAgreement(supabase, draft);
 
       if (result.error || !result.id) {
         setError(result.error ?? tx.cloudSaveFailed);
         return;
       }
 
-      let agreementId = result.id;
-      if (isLocalAgreementId(agreementId)) {
-        const published = await resolvePublicAgreementId(agreementId);
-        if (isLocalAgreementId(published.id)) {
-          setError(published.error ?? tx.linkNotPublished);
-          return;
-        }
-        agreementId = published.id;
-      }
+      const agreementId = result.id;
 
       const createdRow: Agreement = {
         id: agreementId,
@@ -1316,7 +1256,7 @@ export default function DashboardPage() {
       setGlobalTermsTemplate(customTermsText);
       // Persist the latest agreement terms as the user's default template.
       // This keeps the Create form prefilled on the next offer for this user.
-      if (supabase && user.source !== "mock") {
+      if (supabase) {
         void supabase.auth
           .updateUser({ data: { default_agreement_terms: customTermsText } })
           .catch(() => {
@@ -1425,6 +1365,12 @@ export default function DashboardPage() {
                 >
                   {tx.upgrade}
                 </button>
+              </div>
+            ) : null}
+
+            {user.source === "mock" ? (
+              <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-relaxed text-amber-950">
+                {tx.mockAccountBanner}
               </div>
             ) : null}
 
@@ -2076,7 +2022,7 @@ export default function DashboardPage() {
             <p className="mt-1 text-sm text-slate-600">{tx.successSubtitle}</p>
             <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
               <p className="text-xs font-semibold text-slate-500">{tx.publicLink}</p>
-              <p className="mt-1 break-all text-sm font-bold text-slate-900">{typeof window !== "undefined" ? `${window.location.origin}/agreement/${successAgreementId}` : `/agreement/${successAgreementId}`}</p>
+              <p className="mt-1 break-all text-sm font-bold text-slate-900">{getAgreementPublicUrl(successAgreementId)}</p>
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
               <button
