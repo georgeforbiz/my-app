@@ -64,20 +64,25 @@ export function mockRegister(
   return {};
 }
 
-export function mockLogin(email: string, password: string): { user?: MockUser; error?: string } {
+export function mockVerifyCredentials(email: string, password: string): MockUser | null {
   const users = readUsers();
   const found = users.find(
     (u) => u.email === email.trim().toLowerCase() && u.password === password
   );
-  if (!found) return { error: "Invalid email or password." };
-  const session: MockUser = {
+  if (!found) return null;
+  return {
     id: found.id,
     email: found.email,
     ...(found.full_name ? { full_name: found.full_name } : {}),
     ...(found.business_name ? { business_name: found.business_name } : {})
   };
-  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-  return { user: session };
+}
+
+export function mockLogin(email: string, password: string): { user?: MockUser; error?: string } {
+  const user = mockVerifyCredentials(email, password);
+  if (!user) return { error: "Invalid email or password." };
+  localStorage.setItem(SESSION_KEY, JSON.stringify(user));
+  return { user };
 }
 
 export function mockLogout() {
