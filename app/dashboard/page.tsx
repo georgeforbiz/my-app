@@ -106,10 +106,6 @@ type Tx = {
   linkNotPublished: string;
   cloudSaveFailed: string;
   signInRequiredForSharing: string;
-  getShareableLink: string;
-  publishingLink: string;
-  linkPublished: string;
-  localDealBanner: string;
   copied: string;
   createSafeAgreement: string;
   totalPrice: string;
@@ -219,11 +215,6 @@ const t: Record<Lang, Tx> = {
     cloudSaveFailed: "Could not save agreement to the cloud. Please try again.",
     signInRequiredForSharing:
       "Could not save online. Sign out, sign in again, then copy the link.",
-    getShareableLink: "Get shareable link",
-    publishingLink: "Publishing…",
-    linkPublished: "Shareable link copied!",
-    localDealBanner:
-      "Some agreements are saved on this device only. Click Get shareable link to publish them on vstah.am.",
     copied: "Copied!",
     createSafeAgreement: "Create Safe Agreement",
     totalPrice: "Total Price (֏)",
@@ -331,11 +322,6 @@ const t: Record<Lang, Tx> = {
     cloudSaveFailed: "Չհաջողվեց պահպանել ամպում։ Փորձեք կրկին։",
     signInRequiredForSharing:
       "Չհաջողվեց առցանց պահել։ Դուրս գալ, նորից մուտք գործել, ապա պատճենել հղումը։",
-    getShareableLink: "Ստանալ հղում",
-    publishingLink: "Հրապարակում…",
-    linkPublished: "Հղումը պատճենված է!",
-    localDealBanner:
-      "Որոշ պայմանագրեր պահված են միայն այս սարքում։ Սեղմեք «Ստանալ հղում»՝ vstah.am-ում հրապարակելու համար։",
     copied: "Պատճենված է!",
     createSafeAgreement: "Ստեղծել անվտանգ պայմանագիր",
     totalPrice: "Ընդհանուր գին (֏)",
@@ -444,11 +430,6 @@ const t: Record<Lang, Tx> = {
     cloudSaveFailed: "Не удалось сохранить соглашение. Попробуйте снова.",
     signInRequiredForSharing:
       "Не удалось сохранить в облаке. Выйдите, войдите снова и скопируйте ссылку.",
-    getShareableLink: "Получить ссылку",
-    publishingLink: "Публикация…",
-    linkPublished: "Ссылка скопирована!",
-    localDealBanner:
-      "Некоторые соглашения сохранены только на этом устройстве. Нажмите «Получить ссылку», чтобы опубликовать на vstah.am.",
     copied: "Скопировано",
     createSafeAgreement: "Создать защищённое соглашение",
     totalPrice: "Сумма по соглашению (֏)",
@@ -582,7 +563,6 @@ export default function DashboardPage() {
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
   const [copiedAgreementId, setCopiedAgreementId] = useState("");
-  const [publishingLinkId, setPublishingLinkId] = useState("");
   const [clientSearch, setClientSearch] = useState("");
   const [historySearch, setHistorySearch] = useState("");
   const [successAgreementId, setSuccessAgreementId] = useState("");
@@ -889,25 +869,6 @@ export default function DashboardPage() {
     [supabase, user?.id, successAgreementId, tx.linkNotPublished, tx.signInRequiredForSharing]
   );
 
-  const publishAndCopyShareableLink = async (id: string) => {
-    setPublishingLinkId(id);
-    try {
-      const resolved = await resolvePublicAgreementId(id);
-      if (!isShareableAgreementId(resolved.id)) {
-        setToast(resolved.error ?? tx.linkNotPublished);
-        return;
-      }
-      const link = getAgreementPublicUrl(resolved.id);
-      await navigator.clipboard.writeText(link);
-      setCopiedAgreementId(resolved.id);
-      setToast(tx.linkPublished);
-    } catch {
-      setToast(tx.linkNotPublished);
-    } finally {
-      setPublishingLinkId("");
-    }
-  };
-
   const copyAgreementLink = async (id: string) => {
     const resolved = await resolvePublicAgreementId(id);
     if (!isShareableAgreementId(resolved.id)) {
@@ -932,8 +893,13 @@ export default function DashboardPage() {
     window.open(getAgreementPublicUrl(resolved.id), "_blank", "noopener,noreferrer");
   };
 
-  const downloadAgreementPdf = (agreement: Agreement) => {
-    const link = `${getAgreementPublicUrl(agreement.id)}?download=1`;
+  const downloadAgreementPdf = async (agreement: Agreement) => {
+    const resolved = await resolvePublicAgreementId(agreement.id);
+    if (!isShareableAgreementId(resolved.id)) {
+      setToast(resolved.error ?? tx.linkNotPublished);
+      return;
+    }
+    const link = `${getAgreementPublicUrl(resolved.id)}?download=1`;
     window.open(link, "_blank", "noopener,noreferrer");
   };
 
@@ -1336,10 +1302,6 @@ export default function DashboardPage() {
 
   const archived = agreements.filter(isHistoryAgreement);
   const listed = agreements;
-  const hasUnpublishedLocal = useMemo(
-    () => agreements.some((a) => isLocalAgreementId(a.id)),
-    [agreements]
-  );
   const showClientSearch = listed.length > 15;
   const filteredListed = useMemo(() => {
     const query = clientSearch.trim().toLowerCase();
@@ -1367,23 +1329,6 @@ export default function DashboardPage() {
   }, [archived, historySearch, statusText.completed, statusText.signed, statusText.paid]);
 
   if (loading || !user) return <div className="min-h-dvh bg-[#F9FAFB] p-6">Loading dashboard...</div>;
-
-  const renderLocalShareableLinkCta = (itemId: string, className = "") => {
-    if (!isLocalAgreementId(itemId)) return null;
-    const busy = publishingLinkId === itemId;
-    const copied = copiedAgreementId === itemId && !isLocalAgreementId(copiedAgreementId);
-    return (
-      <button
-        type="button"
-        onClick={() => void publishAndCopyShareableLink(itemId)}
-        disabled={busy}
-        className={`inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-[#F2A800] px-3 py-2 text-sm font-bold text-slate-900 disabled:opacity-60 ${className}`}
-      >
-        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Copy className="h-4 w-4" />}
-        {busy ? tx.publishingLink : copied ? tx.copied : tx.getShareableLink}
-      </button>
-    );
-  };
 
   return (
     <div className="fixed inset-0 flex overflow-hidden bg-[#F9FAFB] text-slate-900">
@@ -1436,11 +1381,6 @@ export default function DashboardPage() {
               </div>
             ) : null}
 
-            {hasUnpublishedLocal ? (
-              <div className="rounded-xl border border-orange-300 bg-orange-50 px-4 py-3 text-sm leading-relaxed text-orange-950">
-                {tx.localDealBanner}
-              </div>
-            ) : null}
 
             <header className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
               <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1568,11 +1508,10 @@ export default function DashboardPage() {
                                   <AgreementStatusPill status={derived} label={statusText[derived]} />
                                 </div>
                               </div>
-                              {renderLocalShareableLinkCta(item.id, "mt-3 w-full")}
                               <div className="mt-3 grid grid-cols-3 gap-2">
                                 <button type="button" onClick={() => openAgreementLink(item.id)} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.viewLink} title={tx.viewLink}><ExternalLink className="h-4 w-4" /></button>
                                 <button type="button" onClick={() => void copyAgreementLink(item.id)} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.copyLink} title={tx.copyLink}><Copy className="h-4 w-4" /></button>
-                                <button type="button" onClick={() => downloadAgreementPdf(item)} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.download} title={tx.download}><Download className="h-4 w-4" /></button>
+                                <button type="button" onClick={() => void downloadAgreementPdf(item)} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.download} title={tx.download}><Download className="h-4 w-4" /></button>
                               </div>
                             </article>
                           );
@@ -1605,11 +1544,10 @@ export default function DashboardPage() {
                                   })()}
                                 </td>
                                 <td className="px-3 py-3">
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    {renderLocalShareableLinkCta(item.id)}
+                                  <div className="flex items-center gap-2">
                                     <button type="button" onClick={() => openAgreementLink(item.id)} className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.viewLink} title={tx.viewLink}><ExternalLink className="h-4 w-4" /></button>
                                     <button type="button" onClick={() => void copyAgreementLink(item.id)} className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.copyLink} title={tx.copyLink}><Copy className="h-4 w-4" /></button>
-                                    <button type="button" onClick={() => downloadAgreementPdf(item)} className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.download} title={tx.download}><Download className="h-4 w-4" /></button>
+                                    <button type="button" onClick={() => void downloadAgreementPdf(item)} className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.download} title={tx.download}><Download className="h-4 w-4" /></button>
                                   </div>
                                 </td>
                               </tr>
@@ -1859,11 +1797,10 @@ export default function DashboardPage() {
                               </div>
                               <AgreementStatusPill status={historyStatus} label={statusText[historyStatus]} />
                             </div>
-                            {renderLocalShareableLinkCta(item.id, "mt-3 w-full")}
                             <div className="mt-3 grid grid-cols-3 gap-2">
                               <button type="button" onClick={() => openAgreementLink(item.id)} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.viewLink} title={tx.viewLink}><ExternalLink className="h-4 w-4" /></button>
                               <button type="button" onClick={() => void copyAgreementLink(item.id)} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.copyLink} title={tx.copyLink}><Copy className="h-4 w-4" /></button>
-                              <button type="button" onClick={() => downloadAgreementPdf(item)} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.download} title={tx.download}><Download className="h-4 w-4" /></button>
+                              <button type="button" onClick={() => void downloadAgreementPdf(item)} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.download} title={tx.download}><Download className="h-4 w-4" /></button>
                             </div>
                           </article>
                         );
@@ -1905,11 +1842,10 @@ export default function DashboardPage() {
                                 <AgreementStatusPill status={historyStatus} label={statusText[historyStatus]} />
                               </td>
                               <td className="px-3 py-3">
-                                <div className="flex flex-wrap items-center gap-2">
-                                  {renderLocalShareableLinkCta(item.id)}
+                                <div className="flex items-center gap-2">
                                   <button type="button" onClick={() => openAgreementLink(item.id)} className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.viewLink} title={tx.viewLink}><ExternalLink className="h-4 w-4" /></button>
                                   <button type="button" onClick={() => void copyAgreementLink(item.id)} className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.copyLink} title={tx.copyLink}><Copy className="h-4 w-4" /></button>
-                                  <button type="button" onClick={() => downloadAgreementPdf(item)} className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.download} title={tx.download}><Download className="h-4 w-4" /></button>
+                                  <button type="button" onClick={() => void downloadAgreementPdf(item)} className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.download} title={tx.download}><Download className="h-4 w-4" /></button>
                                 </div>
                               </td>
                             </tr>
@@ -2094,11 +2030,7 @@ export default function DashboardPage() {
             <p className="mt-1 text-sm text-slate-600">{tx.successSubtitle}</p>
             <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
               <p className="text-xs font-semibold text-slate-500">{tx.publicLink}</p>
-              {isLocalAgreementId(successAgreementId) ? (
-                <p className="mt-1 text-sm text-orange-800">{tx.localDealBanner}</p>
-              ) : (
-                <p className="mt-1 break-all text-sm font-bold text-slate-900">{getAgreementPublicUrl(successAgreementId)}</p>
-              )}
+              <p className="mt-1 break-all text-sm font-bold text-slate-900">{getAgreementPublicUrl(successAgreementId)}</p>
             </div>
             <div className="mt-4 flex flex-wrap gap-2">
               <button
@@ -2109,11 +2041,7 @@ export default function DashboardPage() {
                 <Eye className="h-4 w-4" />
                 {tx.previewAgreement}
               </button>
-              {isLocalAgreementId(successAgreementId) ? (
-                renderLocalShareableLinkCta(successAgreementId)
-              ) : (
-                <button type="button" onClick={() => void copyAgreementLink(successAgreementId)} className="inline-flex items-center gap-2 rounded-xl bg-[#F2A800] px-4 py-2 text-sm font-bold text-slate-900"><Copy className="h-4 w-4" />{copiedAgreementId === successAgreementId ? tx.copied : tx.copyToClipboard}</button>
-              )}
+              <button type="button" onClick={() => void copyAgreementLink(successAgreementId)} className="inline-flex items-center gap-2 rounded-xl bg-[#F2A800] px-4 py-2 text-sm font-bold text-slate-900"><Copy className="h-4 w-4" />{copiedAgreementId === successAgreementId ? tx.copied : tx.copyToClipboard}</button>
               <button type="button" onClick={() => setSuccessAgreementId("")} className="ml-auto rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700">{tx.close}</button>
             </div>
           </div>
