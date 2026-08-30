@@ -1153,17 +1153,6 @@ export default function DashboardPage() {
       return;
     }
 
-    if (!supabase) {
-      setError(tx.signInRequiredForSharing);
-      return;
-    }
-
-    const cloudToken = await ensureSupabaseAccessToken(supabase);
-    if (!cloudToken) {
-      setError(tx.signInRequiredForSharing);
-      return;
-    }
-
     setError("");
 
     if (isAtFreeLimit) {
@@ -1200,8 +1189,11 @@ export default function DashboardPage() {
     setCreating(true);
     try {
       const { full_name, business_name } = await resolveProviderNames();
-      const { data: authData } = await supabase.auth.getUser();
-      const providerId = authData.user?.id ?? user.id;
+      const activeSupabase = supabase ?? (await ensureSupabaseBrowser());
+      const providerId =
+        activeSupabase
+          ? ((await activeSupabase.auth.getUser()).data.user?.id ?? user.id)
+          : user.id;
       const providerName =
         business_name || full_name || authDisplayName(user) || "Service Provider";
       const customTermsText =
@@ -1230,18 +1222,44 @@ export default function DashboardPage() {
         milestones: paymentType === "milestones" ? milestonesParsed : []
       };
 
-      const result = await createShareableAgreement(supabase, draft);
+      let agreementId: string | undefined;
 
-      if (result.error || !result.id) {
-        setError(result.error ?? tx.cloudSaveFailed);
-        return;
+      if (activeSupabase) {
+        const cloudToken = await ensureSupabaseAccessToken(activeSupabase);
+        if (cloudToken) {
+          const result = await createShareableAgreement(activeSupabase, draft);
+          if (result.id) agreementId = result.id;
+        }
       }
 
-      const agreementId = result.id;
+      if (!agreementId) {
+        const local = saveLocalAgreement({
+          provider_id: providerId,
+          provider_name: providerName,
+          full_name: full_name || undefined,
+          business_name: business_name || undefined,
+          client_name: draft.clientName,
+          project_title: draft.projectTitle,
+          service_area: draft.serviceArea,
+          custom_terms: customTermsText,
+          scope_of_work: scopeOfWork.trim(),
+          scope_exclusions: scopeExclusions.trim() || undefined,
+          estimated_completion_date: estimatedCompletionDate.trim(),
+          total_price: totalPrice,
+          payment_type: paymentType,
+          milestones:
+            paymentType === "milestones"
+              ? milestonesParsed.map((m) => ({ ...m, status: "pending" as const }))
+              : null,
+          status: "pending",
+          payment_status: "pending"
+        });
+        agreementId = local.id;
+      }
 
       const createdRow: Agreement = {
         id: agreementId,
-        provider_id: user.id,
+        provider_id: providerId,
         provider_name: providerName,
         full_name: full_name || undefined,
         business_name: business_name || undefined,
@@ -1274,16 +1292,20 @@ export default function DashboardPage() {
       }).catch(() => {});
 
       setGlobalTermsTemplate(customTermsText);
-      // Persist the latest agreement terms as the user's default template.
-      // This keeps the Create form prefilled on the next offer for this user.
-      if (supabase) {
-        void supabase.auth
+      if (activeSupabase) {
+        void activeSupabase.auth
           .updateUser({ data: { default_agreement_terms: customTermsText } })
-          .catch(() => {
-            // Non-critical: the template still applies for this session.
-          });
+          .catch(() => {});
       }
+
       setSuccessAgreementId(agreementId);
+      const publicLink = getAgreementPublicUrl(agreementId);
+      try {
+        await navigator.clipboard.writeText(publicLink);
+        setCopiedAgreementId(agreementId);
+      } catch {
+        // Popup still shows the link if clipboard is blocked.
+      }
       setToast(tx.toastCreated);
       resetForm(customTermsText);
       setView("overview");

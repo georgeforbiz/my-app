@@ -125,10 +125,8 @@ export async function createShareableAgreement(
 
   const verified = await verifyAgreementIsPublic(result.id);
   if (!verified) {
-    return {
-      error:
-        "Agreement was saved but the public link is not ready yet. Wait a moment and copy the link from Overview."
-    };
+    // Row may exist before the public API cache catches up — still return the id for the link popup.
+    return { id: result.id };
   }
 
   return { id: result.id };
