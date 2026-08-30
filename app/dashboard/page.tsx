@@ -32,7 +32,7 @@ import {
 import { FREE_AGREEMENT_LIMIT, readMockPlan, writeMockPlan, type MockPlanId } from "@/lib/subscription/mock";
 import { useRouter } from "next/navigation";
 import { authDisplayName, useAuth } from "@/lib/auth/auth-context";
-import { ensureSupabaseBrowser, getSupabaseBrowser } from "@/lib/supabase/browser-client";
+import { ensureSupabaseBrowser, getSupabaseBrowser, getSupabaseReachable } from "@/lib/supabase/browser-client";
 import { normalizeAgreementRow } from "@/lib/agreements/row";
 import { fetchDashboardAgreementsViaApi, mergeAgreementsById, publishLocalAgreementToCloud } from "@/lib/agreements/create-via-api";
 import { getAgreementPublicUrl, isShareableAgreementId } from "@/lib/agreements/public-url";
@@ -952,7 +952,7 @@ export default function DashboardPage() {
       full_name: user?.full_name?.trim() ?? "",
       business_name: user?.business_name?.trim() ?? ""
     };
-    if (!user || !supabase) return fallback;
+    if (!user || !supabase || user.source === "mock" || getSupabaseReachable() !== true) return fallback;
 
     try {
       const authData = await withNetworkTimeout(
@@ -1205,12 +1205,10 @@ export default function DashboardPage() {
 
     setCreating(true);
     try {
+      await ensureSupabaseBrowser();
       const { full_name, business_name } = await resolveProviderNames();
-      const activeSupabase = supabase ?? (await ensureSupabaseBrowser());
-      const providerId =
-        activeSupabase
-          ? ((await activeSupabase.auth.getUser()).data.user?.id ?? user.id)
-          : user.id;
+      const providerId = user.id;
+      const cloudOnline = getSupabaseReachable() === true && user.source !== "mock";
       const providerName =
         business_name || full_name || authDisplayName(user) || "Service Provider";
       const customTermsText =
@@ -1241,43 +1239,46 @@ export default function DashboardPage() {
 
       let agreementId: string | undefined;
 
-      if (activeSupabase) {
-        const cloudToken = await ensureSupabaseAccessToken(activeSupabase);
-        if (cloudToken) {
-          const result = await createShareableAgreement(activeSupabase, draft);
-          if (result.id) agreementId = result.id;
+      if (cloudOnline) {
+        const activeSupabase = supabase ?? getSupabaseBrowser();
+        if (activeSupabase) {
+          const cloudToken = await withNetworkTimeout(ensureSupabaseAccessToken(activeSupabase), 5_000);
+          if (cloudToken) {
+            const result = await withNetworkTimeout(createShareableAgreement(activeSupabase, draft), 12_000);
+            if (result?.id) agreementId = result.id;
+          }
         }
-      }
 
-      if (!agreementId) {
-        try {
-          const deviceRes = await fetch("/api/agreement/device", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              providerId: user.id,
-              providerName,
-              full_name: full_name || undefined,
-              business_name: business_name || undefined,
-              clientName: draft.clientName,
-              projectTitle: draft.projectTitle,
-              serviceArea: draft.serviceArea,
-              customTerms: customTermsText,
-              scopeOfWork: scopeOfWork.trim(),
-              scopeExclusions: scopeExclusions.trim() || undefined,
-              estimatedCompletionDate: estimatedCompletionDate.trim(),
-              totalPrice,
-              paymentType,
-              milestones:
-                paymentType === "milestones"
-                  ? milestonesParsed.map((m) => ({ title: m.title, amount: m.amount }))
-                  : []
-            })
-          });
-          const deviceData = (await deviceRes.json().catch(() => ({}))) as { id?: string };
-          if (deviceRes.ok && deviceData.id) agreementId = deviceData.id;
-        } catch {
-          // Fall through to local save.
+        if (!agreementId) {
+          try {
+            const deviceRes = await fetch("/api/agreement/device", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                providerId: user.id,
+                providerName,
+                full_name: full_name || undefined,
+                business_name: business_name || undefined,
+                clientName: draft.clientName,
+                projectTitle: draft.projectTitle,
+                serviceArea: draft.serviceArea,
+                customTerms: customTermsText,
+                scopeOfWork: scopeOfWork.trim(),
+                scopeExclusions: scopeExclusions.trim() || undefined,
+                estimatedCompletionDate: estimatedCompletionDate.trim(),
+                totalPrice,
+                paymentType,
+                milestones:
+                  paymentType === "milestones"
+                    ? milestonesParsed.map((m) => ({ title: m.title, amount: m.amount }))
+                    : []
+              })
+            });
+            const deviceData = (await deviceRes.json().catch(() => ({}))) as { id?: string };
+            if (deviceRes.ok && deviceData.id) agreementId = deviceData.id;
+          } catch {
+            // Fall through to local save.
+          }
         }
       }
 
@@ -1341,8 +1342,8 @@ export default function DashboardPage() {
       }).catch(() => {});
 
       setGlobalTermsTemplate(customTermsText);
-      if (activeSupabase) {
-        void activeSupabase.auth
+      if (cloudOnline && supabase) {
+        void supabase.auth
           .updateUser({ data: { default_agreement_terms: customTermsText } })
           .catch(() => {});
       }
@@ -1358,7 +1359,7 @@ export default function DashboardPage() {
       setToast(tx.toastCreated);
       resetForm(customTermsText);
       setView("overview");
-      await fetchAgreements();
+      void fetchAgreements();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create agreement.");
     } finally {
@@ -2110,11 +2111,6 @@ export default function DashboardPage() {
               <p className="text-xs font-semibold text-slate-500">{tx.publicLink}</p>
               <p className="mt-1 break-all text-sm font-bold text-slate-900">{getAgreementPublicUrl(successAgreementId)}</p>
             </div>
-            {!isShareableAgreementId(successAgreementId) ? (
-              <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-                {tx.linkLocalWarning}
-              </p>
-            ) : null}
             <div className="mt-4 flex flex-wrap gap-2">
               <button
                 type="button"
