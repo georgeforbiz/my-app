@@ -163,7 +163,7 @@ function MetaCard({
   value: React.ReactNode;
 }) {
   return (
-    <div className="flex min-w-0 gap-3 rounded-xl border border-slate-200/90 bg-gradient-to-br from-white to-slate-50/90 p-3.5 sm:p-4">
+    <div className="flex min-w-0 gap-3 rounded-xl border border-slate-200/90 bg-gradient-to-br from-white to-slate-50/90 p-3.5 shadow-sm ring-1 ring-slate-900/[0.03] sm:p-4">
       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#0033A0]/10 text-[#0033A0] sm:h-10 sm:w-10">
         <Icon className="h-4 w-4 sm:h-[18px] sm:w-[18px]" aria-hidden />
       </div>
@@ -218,8 +218,9 @@ export default function AgreementClientPage() {
           clearSignature: "Մաքրել ստորագրությունը",
           signing: "Ստորագրում…",
           signAndAccept: "Ստորագրել և ընդունել պայմանագիրը",
-            signedSuccess: "Պայմանագիրը ստորագրված է։ Մատակարարը ծանուցված է։",
-            signedSuccessNote: "Հաճախորդը ստորագրել է հղումով — հաշիվ պարտադիր չէ։",
+            signedSuccess: "Պայմանագիրը ստորագրված է",
+            signedSuccessNote: "Մատակարարը ծանուցված է։",
+            signedSuccessHint: "Հաշիվ պարտադիր չէ։",
             clientSignature: "Հաճախորդի ստորագրություն",
           signFailed: "Չհաջողվեց ստորագրել պայմանագիրը։ Փորձեք կրկին։",
           signBlocked:
@@ -335,8 +336,9 @@ export default function AgreementClientPage() {
             clearSignature: "Очистить",
             signing: "Подписание…",
             signAndAccept: "Подписать и принять",
-            signedSuccess: "Соглашение подписано. Исполнитель уведомлён.",
-            signedSuccessNote: "Клиент подписал по ссылке — регистрация не требуется.",
+            signedSuccess: "Соглашение подписано",
+            signedSuccessNote: "Исполнитель уведомлён.",
+            signedSuccessHint: "Регистрация не требуется.",
             clientSignature: "Подпись клиента",
             signFailed: "Не удалось подписать. Попробуйте снова.",
             signBlocked:
@@ -451,8 +453,9 @@ export default function AgreementClientPage() {
             clearSignature: "Clear Signature",
             signing: "Signing...",
             signAndAccept: "Sign & Accept Agreement",
-            signedSuccess: "Agreement signed successfully. The provider has been notified.",
-            signedSuccessNote: "The client signed via this link — no account required.",
+            signedSuccess: "Agreement signed",
+            signedSuccessNote: "The provider has been notified.",
+            signedSuccessHint: "No account required.",
             clientSignature: "Client signature",
             signFailed: "Failed to sign agreement. Please try again.",
             signBlocked:
@@ -951,6 +954,7 @@ export default function AgreementClientPage() {
             <div className="min-w-0 flex-1">
               <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500 sm:text-xs">{tx.offer}</p>
               <h1 className="mt-2 text-balance text-2xl font-black leading-tight text-[#0033A0] sm:text-3xl">{tx.title}</h1>
+              <p className="mt-2 text-base font-bold text-slate-900">{agreement.project_title}</p>
               <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-600">{tx.subtitle}</p>
             </div>
             <span
@@ -973,7 +977,7 @@ export default function AgreementClientPage() {
           </div>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <section className="min-w-0 rounded-2xl border border-slate-200/90 bg-slate-50/50 p-4 sm:p-5">
+            <section className="min-w-0 rounded-2xl border border-slate-200/90 bg-slate-50/50 p-4 shadow-sm ring-1 ring-slate-900/[0.03] sm:p-5">
               <AgreementSectionTitle>{tx.providerDetails}</AgreementSectionTitle>
               <dl className="mt-4 space-y-3 text-sm text-slate-800">
                 <div className="flex gap-3">
@@ -1000,7 +1004,7 @@ export default function AgreementClientPage() {
               </dl>
             </section>
 
-            <section className="min-w-0 rounded-2xl border border-slate-200/90 bg-slate-50/50 p-4 sm:p-5">
+            <section className="min-w-0 rounded-2xl border border-slate-200/90 bg-slate-50/50 p-4 shadow-sm ring-1 ring-slate-900/[0.03] sm:p-5">
               <AgreementSectionTitle>{tx.clientDetails}</AgreementSectionTitle>
               <dl className="mt-4 space-y-3 text-sm text-slate-800">
                 <div className="flex gap-3">
@@ -1031,58 +1035,58 @@ export default function AgreementClientPage() {
           {agreement.scope_of_work?.trim() ||
           agreement.scope_exclusions?.trim() ||
           agreement.estimated_completion_date?.trim() ? (
-            <section className="space-y-5 rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-6">
+            <section className="space-y-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm ring-1 ring-slate-900/[0.03] sm:p-6">
               {agreement.scope_of_work?.trim() ? (
-                <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{tx.scopeOfWork}</p>
-                  <pre className="mt-2 whitespace-pre-wrap break-words font-sans text-sm leading-6 text-slate-700">{agreement.scope_of_work.trim()}</pre>
+                <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-4 sm:p-5">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-[#0033A0]">{tx.scopeOfWork}</p>
+                  <pre className="mt-3 whitespace-pre-wrap break-words font-sans text-sm leading-7 text-slate-700">{agreement.scope_of_work.trim()}</pre>
                 </div>
               ) : null}
               {agreement.scope_exclusions?.trim() ? (
-                <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{tx.scopeExclusions}</p>
-                  <pre className="mt-2 whitespace-pre-wrap break-words font-sans text-sm leading-6 text-slate-700">{agreement.scope_exclusions.trim()}</pre>
+                <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-4 sm:p-5">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-[#0033A0]">{tx.scopeExclusions}</p>
+                  <pre className="mt-3 whitespace-pre-wrap break-words font-sans text-sm leading-7 text-slate-700">{agreement.scope_exclusions.trim()}</pre>
                 </div>
               ) : null}
               {agreement.estimated_completion_date?.trim() ? (
-                <div className="rounded-xl border border-slate-100 bg-slate-50/80 p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{tx.estimatedCompletionDate}</p>
-                  <p className="mt-2 text-sm font-semibold text-slate-800">{formatDateDMY(agreement.estimated_completion_date)}</p>
+                <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-4 sm:p-5">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-[#0033A0]">{tx.estimatedCompletionDate}</p>
+                  <p className="mt-3 text-base font-semibold text-slate-800">{formatDateDMY(agreement.estimated_completion_date)}</p>
                 </div>
               ) : null}
             </section>
           ) : null}
 
-          <section className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-6">
+          <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm ring-1 ring-slate-900/[0.03] sm:p-6">
             <AgreementSectionTitle>{tx.termsAndConditions}</AgreementSectionTitle>
-            <pre className="mt-4 max-h-[min(24rem,50vh)] overflow-y-auto whitespace-pre-wrap break-words rounded-xl border border-slate-100 bg-slate-50/80 p-4 font-sans text-sm leading-6 text-slate-700 sm:max-h-none sm:overflow-visible">
+            <pre className="mt-4 max-h-[min(24rem,50vh)] overflow-y-auto whitespace-pre-wrap break-words rounded-xl border border-slate-100 bg-slate-50/70 p-4 font-sans text-sm leading-7 text-slate-700 sm:max-h-none sm:overflow-visible sm:p-5">
               {agreement.custom_terms?.trim() || defaultTerms}
             </pre>
           </section>
 
-          <section className="rounded-2xl border border-slate-200/90 bg-white p-4 sm:p-6">
+          <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm ring-1 ring-slate-900/[0.03] sm:p-6">
             <AgreementSectionTitle>{tx.paymentSchedule}</AgreementSectionTitle>
-            <p className="mt-3 text-xs leading-5 text-slate-500 sm:text-sm">{tx.paymentScheduleIntro}</p>
+            <p className="mt-3 text-xs leading-6 text-slate-500 sm:text-sm">{tx.paymentScheduleIntro}</p>
 
-            <div className="mt-5 hidden overflow-x-auto rounded-xl border border-slate-200 md:block">
+            <div className="mt-5 hidden overflow-hidden rounded-xl border border-slate-200 shadow-sm md:block">
               <table className="w-full min-w-[36rem] text-sm">
                 <thead>
-                  <tr className="bg-slate-50 text-left text-[10px] font-bold uppercase tracking-wide text-slate-500">
-                    <th className="px-4 py-3">#</th>
-                    <th className="px-4 py-3">{tx.scheduleStage}</th>
-                    <th className="px-4 py-3">{tx.scheduleAmount}</th>
-                    <th className="px-4 py-3">{tx.scheduleCondition}</th>
-                    <th className="px-4 py-3">{tx.scheduleStatus}</th>
+                  <tr className="bg-[#0033A0] text-left text-[10px] font-bold uppercase tracking-wide text-white">
+                    <th className="px-4 py-3.5">#</th>
+                    <th className="px-4 py-3.5">{tx.scheduleStage}</th>
+                    <th className="px-4 py-3.5">{tx.scheduleAmount}</th>
+                    <th className="px-4 py-3.5">{tx.scheduleCondition}</th>
+                    <th className="px-4 py-3.5">{tx.scheduleStatus}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {paymentScheduleRows.map((row, i) => (
-                    <tr key={`${row.index}-${row.stage}`} className={i % 2 === 0 ? "bg-white" : "bg-slate-50/60"}>
-                      <td className="px-4 py-3.5 font-semibold text-slate-600">{row.index}</td>
-                      <td className="px-4 py-3.5 font-semibold text-slate-900">{row.stage}</td>
-                      <td className="px-4 py-3.5 tabular-nums font-black text-[#0033A0]">{money(row.amount)} ֏</td>
-                      <td className="px-4 py-3.5 text-slate-700">{row.condition}</td>
-                      <td className="px-4 py-3.5">{milestoneStatusBadge(signed)}</td>
+                    <tr key={`${row.index}-${row.stage}`} className={i % 2 === 0 ? "bg-white" : "bg-slate-50/80"}>
+                      <td className="px-4 py-4 font-semibold text-slate-500">{row.index}</td>
+                      <td className="px-4 py-4 font-semibold text-slate-900">{row.stage}</td>
+                      <td className="px-4 py-4 tabular-nums text-base font-black text-[#0033A0]">{money(row.amount)} ֏</td>
+                      <td className="px-4 py-4 leading-snug text-slate-700">{row.condition}</td>
+                      <td className="px-4 py-4">{milestoneStatusBadge(signed)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -1093,18 +1097,18 @@ export default function AgreementClientPage() {
               {paymentScheduleRows.map((row) => (
                 <li
                   key={`${row.index}-${row.stage}-mobile`}
-                  className="overflow-hidden rounded-xl border border-slate-200/90 bg-gradient-to-br from-white to-slate-50/80 shadow-sm"
+                  className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-sm ring-1 ring-slate-900/[0.03]"
                 >
-                  <div className="flex items-center justify-between gap-2 border-b border-slate-100 bg-slate-50/80 px-3.5 py-2.5">
-                    <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                  <div className="flex items-center justify-between gap-2 bg-[#0033A0] px-3.5 py-2.5">
+                    <span className="text-[10px] font-bold uppercase tracking-wide text-white/90">
                       {tx.scheduleStage} {row.index}
                     </span>
                     {milestoneStatusBadge(signed)}
                   </div>
-                  <div className="space-y-2 px-3.5 py-3.5">
+                  <div className="space-y-2.5 px-3.5 py-4">
                     <p className="font-semibold leading-snug text-slate-900">{row.stage}</p>
-                    <p className="text-lg font-black tabular-nums text-[#0033A0]">{money(row.amount)} ֏</p>
-                    <div className="rounded-lg bg-slate-50 px-3 py-2">
+                    <p className="text-xl font-black tabular-nums text-[#0033A0]">{money(row.amount)} ֏</p>
+                    <div className="rounded-xl bg-slate-50 px-3 py-2.5 ring-1 ring-slate-100">
                       <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{tx.scheduleCondition}</p>
                       <p className="mt-1 text-sm leading-snug text-slate-700">{row.condition}</p>
                     </div>
@@ -1113,24 +1117,24 @@ export default function AgreementClientPage() {
               ))}
             </ul>
 
-            <div className="mt-5 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#0033A0]/15 bg-[#0033A0]/[0.04] px-4 py-3.5">
-              <span className="text-sm font-semibold text-slate-700">{tx.total}</span>
-              <span className="text-lg font-black tabular-nums text-[#0033A0] sm:text-xl">{money(Number(agreement.total_price || 0))} ֏</span>
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-[#0033A0] to-[#0033A0]/90 px-5 py-4 text-white shadow-md">
+              <span className="text-sm font-semibold text-white/90">{tx.total}</span>
+              <span className="text-xl font-black tabular-nums sm:text-2xl">{money(Number(agreement.total_price || 0))} ֏</span>
             </div>
           </section>
 
           {agreement.status === "pending" ? (
-            <section className="rounded-2xl border-2 border-dashed border-[#0033A0]/25 bg-gradient-to-br from-slate-50 to-white p-4 sm:p-6">
+            <section className="rounded-2xl border border-[#0033A0]/20 bg-gradient-to-br from-white via-slate-50/50 to-[#0033A0]/[0.03] p-5 shadow-sm ring-1 ring-[#0033A0]/10 sm:p-6">
               <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#0033A0]/10 text-[#0033A0]">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#0033A0] text-white shadow-md">
                   <PenLine className="h-5 w-5" aria-hidden />
                 </div>
                 <div className="min-w-0">
-                  <p className="text-base font-bold text-slate-900">{tx.optionalSignature}</p>
-                  <p className="mt-1 text-xs leading-5 text-slate-600 sm:text-sm">{tx.signatureHint}</p>
+                  <p className="text-lg font-bold text-slate-900">{tx.optionalSignature}</p>
+                  <p className="mt-1 text-xs leading-6 text-slate-600 sm:text-sm">{tx.signatureHint}</p>
                 </div>
               </div>
-              <div ref={signatureWrapRef} className="mt-4 w-full">
+              <div ref={signatureWrapRef} className="mt-5 w-full">
                 <canvas
                   ref={canvasRef}
                   width={640}
@@ -1140,10 +1144,10 @@ export default function AgreementClientPage() {
                   onPointerMove={onPointerMove}
                   onPointerUp={stopDraw}
                   onPointerLeave={stopDraw}
-                  className="touch-none rounded-xl border border-slate-200 bg-white shadow-inner ring-1 ring-slate-900/[0.03]"
+                  className="touch-none rounded-2xl border-2 border-dashed border-slate-300/90 bg-white shadow-inner"
                 />
               </div>
-              <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <button
                   type="button"
                   onClick={clearSignature}
@@ -1155,8 +1159,8 @@ export default function AgreementClientPage() {
                   type="button"
                   onClick={() => void signAgreement()}
                   disabled={signing}
-                  className="w-full rounded-xl px-5 py-3.5 text-base font-black text-slate-900 shadow-lg transition hover:opacity-95 disabled:opacity-60 sm:w-auto sm:min-w-[14rem]"
-                  style={{ backgroundColor: ORANGE, boxShadow: `0 10px 28px -8px ${ORANGE}99` }}
+                  className="w-full rounded-xl px-6 py-4 text-base font-black text-slate-900 shadow-lg transition hover:brightness-105 disabled:opacity-60 sm:w-auto sm:min-w-[16rem]"
+                  style={{ backgroundColor: ORANGE, boxShadow: `0 12px 32px -10px ${ORANGE}cc` }}
                 >
                   {signing ? tx.signing : tx.signAndAccept}
                 </button>
@@ -1178,7 +1182,7 @@ export default function AgreementClientPage() {
                   <div className="pointer-events-none absolute inset-x-6 bottom-5 border-b border-slate-300/90 sm:inset-x-10 sm:bottom-8" aria-hidden />
                   <Image
                     src={signatureImage}
-                    alt={`${agreement.client_name} — ${tx.clientSignature}`}
+                    alt={`${agreement.client_name}, ${tx.clientSignature}`}
                     width={640}
                     height={180}
                     unoptimized
@@ -1190,12 +1194,15 @@ export default function AgreementClientPage() {
           ) : null}
 
           {signed ? (
-            <div className="rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50 to-emerald-50/40 p-4 sm:p-5">
-              <p className="inline-flex items-center gap-2 text-base font-bold text-emerald-800">
-                <CheckCircle2 className="h-5 w-5 shrink-0" />
-                {tx.signedSuccess}
-              </p>
-              <p className="mt-2 text-sm leading-relaxed text-emerald-900/90">{tx.signedSuccessNote}</p>
+            <div className="flex gap-4 rounded-2xl border border-emerald-200/90 bg-white p-5 shadow-sm ring-1 ring-emerald-100 sm:gap-5 sm:p-6">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-emerald-100 sm:h-12 sm:w-12">
+                <CheckCircle2 className="h-6 w-6 text-emerald-600 sm:h-7 sm:w-7" aria-hidden />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xl font-black leading-tight text-slate-900 sm:text-2xl">{tx.signedSuccess}</p>
+                <p className="mt-2 text-base font-semibold leading-snug text-slate-700">{tx.signedSuccessNote}</p>
+                <p className="mt-2 text-sm text-slate-500">{tx.signedSuccessHint}</p>
+              </div>
             </div>
           ) : null}
         </div>
