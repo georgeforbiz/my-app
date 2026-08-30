@@ -36,7 +36,7 @@ import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
 import { normalizeAgreementRow } from "@/lib/agreements/row";
 import { fetchDashboardAgreementsViaApi, mergeAgreementsById, publishLocalAgreementToCloud } from "@/lib/agreements/create-via-api";
 import { getAgreementPublicUrl, isShareableAgreementId } from "@/lib/agreements/public-url";
-import { createShareableAgreement } from "@/lib/agreements/shareable-create";
+import { createShareableAgreement, ensureSupabaseAccessToken } from "@/lib/agreements/shareable-create";
 import {
   getLocalAgreement,
   isLocalAgreementId,
@@ -106,7 +106,6 @@ type Tx = {
   linkNotPublished: string;
   cloudSaveFailed: string;
   signInRequiredForSharing: string;
-  mockAccountBanner: string;
   getShareableLink: string;
   publishingLink: string;
   linkPublished: string;
@@ -219,9 +218,7 @@ const t: Record<Lang, Tx> = {
     linkNotPublished: "Could not save this agreement online. Shared links will not work until it is saved.",
     cloudSaveFailed: "Could not save agreement to the cloud. Please try again.",
     signInRequiredForSharing:
-      "Sign in with your VSTAH account to create shareable agreement links. Demo login cannot send links to clients.",
-    mockAccountBanner:
-      "You are in demo mode. Register or sign in with your real account to share agreement links on vstah.am.",
+      "Could not save online. Sign out, sign in again, then copy the link.",
     getShareableLink: "Get shareable link",
     publishingLink: "Publishing…",
     linkPublished: "Shareable link copied!",
@@ -333,9 +330,7 @@ const t: Record<Lang, Tx> = {
     linkNotPublished: "Չհաջողվեց առցանց պահել։ Հղումը կաշխատի միայն պահպանվելուց հետո։",
     cloudSaveFailed: "Չհաջողվեց պահպանել ամպում։ Փորձեք կրկին։",
     signInRequiredForSharing:
-      "Մուտք գործեք VSTAH հաշվով, որպեսզի հղումը հնարավոր լինի ուղարկել հաճախորդին։",
-    mockAccountBanner:
-      "Դեմո ռեժիմ եք։ Գրանցվեք կամ մուտք գործեք իրական հաշվով՝ հղումներ ուղարկելու համար։",
+      "Չհաջողվեց առցանց պահել։ Դուրս գալ, նորից մուտք գործել, ապա պատճենել հղումը։",
     getShareableLink: "Ստանալ հղում",
     publishingLink: "Հրապարակում…",
     linkPublished: "Հղումը պատճենված է!",
@@ -448,9 +443,7 @@ const t: Record<Lang, Tx> = {
     linkNotPublished: "Не удалось сохранить в облаке. Ссылка не будет работать, пока соглашение не сохранено.",
     cloudSaveFailed: "Не удалось сохранить соглашение. Попробуйте снова.",
     signInRequiredForSharing:
-      "Войдите в аккаунт VSTAH, чтобы создавать ссылки для клиентов. Демо-вход не поддерживает отправку ссылок.",
-    mockAccountBanner:
-      "Демо-режим. Зарегистрируйтесь или войдите в реальный аккаунт, чтобы делиться ссылками на vstah.am.",
+      "Не удалось сохранить в облаке. Выйдите, войдите снова и скопируйте ссылку.",
     getShareableLink: "Получить ссылку",
     publishingLink: "Публикация…",
     linkPublished: "Ссылка скопирована!",
@@ -748,7 +741,7 @@ export default function DashboardPage() {
       return;
     }
 
-    if (!supabase || user.source === "mock") {
+    if (!supabase) {
       if (isStale()) return;
       setAgreements(local);
       setLoadingAgreements(false);
@@ -800,21 +793,25 @@ export default function DashboardPage() {
     } finally {
       if (!isStale()) setLoadingAgreements(false);
     }
-  }, [supabase, user?.id, user?.source]);
+  }, [supabase, user?.id]);
 
   useEffect(() => {
     void fetchAgreements();
   }, [fetchAgreements]);
 
   useEffect(() => {
-    if (!supabase || !user?.id || user.source === "mock") return;
+    if (!supabase || !user?.id) return;
     const locals = listLocalAgreementsForDashboard(user.id).filter((a) => isLocalAgreementId(a.id));
     if (locals.length === 0) return;
 
     void (async () => {
+      const token = await ensureSupabaseAccessToken(supabase);
+      if (!token) return;
+      const { data: authData } = await supabase.auth.getUser();
+      const providerId = authData.user?.id ?? user.id;
       let migrated = false;
       for (const local of locals) {
-        const localForPublish = { ...local, provider_id: user.id };
+        const localForPublish = { ...local, provider_id: providerId };
         const published = await publishLocalAgreementToCloud(supabase, localForPublish);
         if (published.id) {
           replaceLocalAgreementId(local.id, published.id);
@@ -823,10 +820,10 @@ export default function DashboardPage() {
       }
       if (migrated) void fetchAgreements();
     })();
-  }, [supabase, user?.id, user?.source, fetchAgreements]);
+  }, [supabase, user?.id, fetchAgreements]);
 
   useEffect(() => {
-    if (!supabase || !user?.id || user.source === "mock") return;
+    if (!supabase || !user?.id) return;
     const channel = supabase
       .channel(`agreements-dashboard-${user.id}`)
       .on(
@@ -864,14 +861,20 @@ export default function DashboardPage() {
   const resolvePublicAgreementId = useCallback(
     async (id: string): Promise<{ id: string; error?: string }> => {
       if (!isLocalAgreementId(id)) return { id };
-      if (!supabase || !user?.id || user.source === "mock") {
+      if (!supabase || !user?.id) {
         return { id, error: tx.linkNotPublished };
       }
+      const token = await ensureSupabaseAccessToken(supabase);
+      if (!token) {
+        return { id, error: tx.signInRequiredForSharing };
+      }
+      const { data: authData } = await supabase.auth.getUser();
+      const providerId = authData.user?.id ?? user.id;
       const stored = getLocalAgreement(id) ?? agreementsRef.current.find((a) => a.id === id) ?? null;
       if (!stored) {
         return { id, error: tx.linkNotPublished };
       }
-      const localForPublish = { ...stored, provider_id: user.id };
+      const localForPublish = { ...stored, provider_id: providerId };
       const published = await publishLocalAgreementToCloud(supabase, localForPublish);
       if (!published.id) {
         return { id, error: published.error ?? tx.linkNotPublished };
@@ -883,7 +886,7 @@ export default function DashboardPage() {
       if (successAgreementId === id) setSuccessAgreementId(published.id);
       return { id: published.id };
     },
-    [supabase, user?.id, user?.source, successAgreementId, tx.linkNotPublished]
+    [supabase, user?.id, successAgreementId, tx.linkNotPublished, tx.signInRequiredForSharing]
   );
 
   const publishAndCopyShareableLink = async (id: string) => {
@@ -959,7 +962,7 @@ export default function DashboardPage() {
       full_name: user?.full_name?.trim() ?? "",
       business_name: user?.business_name?.trim() ?? ""
     };
-    if (!user || !supabase || user.source === "mock") return fallback;
+    if (!user || !supabase) return fallback;
 
     try {
       const authData = await withNetworkTimeout(
@@ -1097,7 +1100,7 @@ export default function DashboardPage() {
     let cancelled = false;
 
     void (async () => {
-      if (supabase && user?.id && user.source !== "mock") {
+      if (supabase && user?.id) {
         const authData = await withNetworkTimeout(supabase.auth.getUser());
         if (cancelled) return;
         if (authData) {
@@ -1177,7 +1180,13 @@ export default function DashboardPage() {
       return;
     }
 
-    if (!supabase || user.source === "mock") {
+    if (!supabase) {
+      setError(tx.signInRequiredForSharing);
+      return;
+    }
+
+    const cloudToken = await ensureSupabaseAccessToken(supabase);
+    if (!cloudToken) {
       setError(tx.signInRequiredForSharing);
       return;
     }
@@ -1218,6 +1227,8 @@ export default function DashboardPage() {
     setCreating(true);
     try {
       const { full_name, business_name } = await resolveProviderNames();
+      const { data: authData } = await supabase.auth.getUser();
+      const providerId = authData.user?.id ?? user.id;
       const providerName =
         business_name || full_name || authDisplayName(user) || "Service Provider";
       const customTermsText =
@@ -1230,7 +1241,7 @@ export default function DashboardPage() {
         });
 
       const draft = {
-        providerId: user.id,
+        providerId,
         providerName,
         full_name,
         business_name,
@@ -1326,8 +1337,8 @@ export default function DashboardPage() {
   const archived = agreements.filter(isHistoryAgreement);
   const listed = agreements;
   const hasUnpublishedLocal = useMemo(
-    () => user?.source !== "mock" && agreements.some((a) => isLocalAgreementId(a.id)),
-    [agreements, user?.source]
+    () => agreements.some((a) => isLocalAgreementId(a.id)),
+    [agreements]
   );
   const showClientSearch = listed.length > 15;
   const filteredListed = useMemo(() => {
@@ -1422,12 +1433,6 @@ export default function DashboardPage() {
                 >
                   {tx.upgrade}
                 </button>
-              </div>
-            ) : null}
-
-            {user.source === "mock" ? (
-              <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm leading-relaxed text-amber-950">
-                {tx.mockAccountBanner}
               </div>
             ) : null}
 

@@ -11,6 +11,7 @@ import {
   type ReactNode
 } from "react";
 import { humanizeAuthError, isAuthNetworkError } from "./humanize-auth-error";
+import { isMockAuthAllowed } from "./mock-auth-allowed";
 import { mockGetSession, mockLogin, mockLogout, mockRegister } from "./mock-storage";
 import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
 
@@ -114,11 +115,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (!supabase) {
       setUser(() => {
+        if (!isMockAuthAllowed()) return null;
         const m = mockGetSession();
         return m ? { ...m, source: "mock" as const } : null;
       });
       setLoading(false);
       return;
+    }
+
+    if (!isMockAuthAllowed()) {
+      mockLogout();
     }
 
     supabase.auth
@@ -129,10 +135,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(mapSupabaseUser(session.user));
           return;
         }
+        if (!isMockAuthAllowed()) {
+          setUser(null);
+          return;
+        }
         const mockSession = mockGetSession();
         setUser(mockSession ? { ...mockSession, source: "mock" } : null);
       })
       .catch(() => {
+        if (!isMockAuthAllowed()) {
+          setUser(null);
+          return;
+        }
         const m = mockGetSession();
         setUser(m ? { ...m, source: "mock" } : null);
       })
@@ -146,6 +160,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (session?.user) {
         mockLogout();
         setUser(mapSupabaseUser(session.user));
+        return;
+      }
+      if (!isMockAuthAllowed()) {
+        setUser(null);
         return;
       }
       const mockSession = mockGetSession();
@@ -172,22 +190,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return {};
         }
         if (result !== null && result.error && !isAuthNetworkError(result.error.message)) {
-          const mockAttempt = tryMockLogin(email, password, setUser);
-          if (mockAttempt.ok) return {};
+          if (isMockAuthAllowed()) {
+            const mockAttempt = tryMockLogin(email, password, setUser);
+            if (mockAttempt.ok) return {};
+          }
           return { error: humanizeAuthError(result.error.message) };
         }
       } catch {
-        // Cloud unreachable — use local mock auth.
+        // Cloud unreachable — optional local mock auth in dev only.
       }
     }
 
-    const mockAttempt = tryMockLogin(email, password, setUser);
-    if (mockAttempt.ok) return {};
-    return {
-      error:
-        mockAttempt.error ??
-        "Invalid email or password. Register first if you have not created an account on this device."
-    };
+    if (isMockAuthAllowed()) {
+      const mockAttempt = tryMockLogin(email, password, setUser);
+      if (mockAttempt.ok) return {};
+      return {
+        error:
+          mockAttempt.error ??
+          "Invalid email or password. Register first if you have not created an account on this device."
+      };
+    }
+
+    return { error: "Could not sign in. Check your connection and try again." };
   }, []);
 
   const resendConfirmation = useCallback(async (email: string) => {
@@ -254,16 +278,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               return {};
             }
           } catch {
-            // fall through to mock
+            // fall through
           }
         }
-        // Cloud user may exist, but client auth timed out — local session so the app is usable.
+        if (!isMockAuthAllowed()) {
+          return {};
+        }
+        // Cloud user may exist, but client auth timed out — local session so the app is usable in dev.
         return finishMock();
       }
 
       if (res.status === 409) {
-        const mockResult = finishMock();
-        if (!mockResult.error) return mockResult;
+        if (isMockAuthAllowed()) {
+          const mockResult = finishMock();
+          if (!mockResult.error) return mockResult;
+        }
         return { error: payload.error ?? "An account with this email already exists. Please log in." };
       }
 
@@ -279,7 +308,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { error: humanizeAuthError(serverMsg) };
       }
     } catch {
-      // Timeout / network — mock auth.
+      // Timeout / network
+    }
+
+    if (!isMockAuthAllowed()) {
+      return { error: "Could not create account. Check your connection and try again." };
     }
 
     return finishMock();
