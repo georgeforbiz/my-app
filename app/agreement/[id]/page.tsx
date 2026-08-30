@@ -15,7 +15,6 @@ import {
 import { formatDateDMY } from "@/lib/format-date";
 import { useLanguage } from "@/lib/i18n/language-context";
 import { normalizeAgreementRow } from "@/lib/agreements/row";
-import { VstahLogo } from "@/components/vstah-logo";
 import { NAVY, ORANGE } from "@/lib/brand";
 
 async function postAgreementAction(
@@ -191,7 +190,7 @@ export default function AgreementClientPage() {
           loading: "Բեռնում…",
           notConfigured: "Supabase-ը կարգավորված չէ։",
           notFound: "Պայմանագիրը չի գտնվել։",
-          offer: "VSTAH առաջարկ",
+          offer: "Առաջարկ",
           title: "Անվտանգ պայմանագիր",
           subtitle: "Ստուգեք տվյալները ստորագրելուց առաջ։",
           client: "Հաճախորդ",
@@ -308,7 +307,7 @@ export default function AgreementClientPage() {
             loading: "Загрузка соглашения…",
             notConfigured: "Supabase не настроен.",
             notFound: "Соглашение не найдено.",
-            offer: "Предложение VSTAH",
+            offer: "Предложение",
             title: "Сервисное соглашение с защитой",
             subtitle: "Проверьте детали ниже перед принятием.",
             client: "Клиент",
@@ -424,7 +423,7 @@ export default function AgreementClientPage() {
             loading: "Loading agreement...",
             notConfigured: "Supabase is not configured.",
             notFound: "Agreement not found.",
-            offer: "VSTAH Offer",
+            offer: "Offer",
             title: "Safe Service Agreement",
             subtitle: "Review all details below before accepting this offer.",
             client: "Client",
@@ -937,14 +936,9 @@ export default function AgreementClientPage() {
 
   return (
     <main key={routeKey} className="min-h-dvh bg-gradient-to-b from-slate-100 via-[#f8fafc] to-slate-200/90 px-3 py-5 sm:px-4 sm:py-8 md:py-10">
-      <div className="mx-auto mb-4 flex max-w-3xl items-center gap-2.5 px-0.5 sm:mb-6">
-        <VstahLogo size={30} />
-        <span className="text-sm font-black tracking-wide text-[#0033A0]">VSTAH</span>
-      </div>
-
       <div
         ref={printableRef}
-        className="vstah-animate-in mx-auto w-full min-w-0 max-w-3xl overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_20px_50px_-20px_rgba(15,23,42,0.18)] ring-1 ring-slate-900/[0.04]"
+        className="vstah-animate-in mx-auto w-full min-w-0 max-w-[min(100%,55rem)] overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_20px_50px_-20px_rgba(15,23,42,0.18)] ring-1 ring-slate-900/[0.04]"
       >
         {actionError ? (
           <div role="alert" className="mx-4 mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800 sm:mx-6 sm:mt-6">
