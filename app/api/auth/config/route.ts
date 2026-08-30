@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isSupabaseReachable } from "@/lib/supabase/health";
 
 /** Public Supabase client config — anon key is safe to expose; loaded at runtime for Vercel. */
 export async function GET() {
@@ -7,10 +8,23 @@ export async function GET() {
 
   if (!url || !anonKey) {
     return NextResponse.json(
-      { configured: false, error: "Auth server is not configured." },
+      { configured: false, reachable: false, error: "Auth server is not configured." },
       { status: 503 }
     );
   }
 
-  return NextResponse.json({ configured: true, url, anonKey });
+  const reachable = await isSupabaseReachable(url, anonKey);
+
+  return NextResponse.json({
+    configured: true,
+    reachable,
+    url,
+    anonKey,
+    ...(reachable
+      ? {}
+      : {
+          error:
+            "Supabase project URL does not exist or is offline. Replace it with a live project from supabase.com."
+        })
+  });
 }

@@ -1,4 +1,6 @@
 /** Maps Supabase GoTrue messages to short, actionable copy for the UI. */
+import { SUPABASE_OFFLINE_MESSAGE } from "@/lib/supabase/health";
+
 export function isAuthNetworkError(message: string): boolean {
   const m = message.toLowerCase();
   return (
@@ -20,7 +22,7 @@ export function isAuthNetworkError(message: string): boolean {
 export function humanizeAuthError(message: string): string {
   const m = message.toLowerCase();
   if (isAuthNetworkError(message)) {
-    return "Could not reach the auth server. Check your connection and try again.";
+    return SUPABASE_OFFLINE_MESSAGE;
   }
   if (m.includes("email not confirmed") || m.includes("not confirmed")) {
     return "Your account exists, but email confirmation is still required. Open your email inbox, click the confirmation link, then log in again.";

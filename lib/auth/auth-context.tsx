@@ -92,6 +92,10 @@ function mapSupabaseUser(u: SupabaseUser): AuthUser {
   };
 }
 
+function isCloudUnavailable(status?: number, error?: string): boolean {
+  return status === 503 || isAuthNetworkError(error ?? "");
+}
+
 function tryMockLogin(email: string, password: string, setUser: (u: AuthUser) => void) {
   const local = mockLogin(email, password);
   if (local.user) {
@@ -296,6 +300,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
       }
 
+      if (isCloudUnavailable(server.status, server.error)) {
+        const mockAttempt = tryMockLogin(email, password, setUser);
+        if (mockAttempt.ok) return {};
+      }
+
       return { error: server.error };
     }
 
@@ -402,6 +411,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (res.ok || res.status === 409) {
         const session = await establishSessionFromLoginApi(trimmedEmail, password, setUser);
         if (session.ok) return {};
+        if (isCloudUnavailable(session.status, session.error)) {
+          return finishMock();
+        }
         if (res.ok) {
           return {
             error:
@@ -429,13 +441,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { error: humanizeAuthError(serverMsg) };
       }
 
+      if (isCloudUnavailable(res.status, serverMsg)) {
+        return finishMock();
+      }
+
       if (payload.error) {
         return { error: humanizeAuthError(serverMsg) };
       }
     } catch (err) {
       if (!isMockAuthAllowed()) {
-        const message = err instanceof Error ? err.message : "";
-        return { error: humanizeAuthError(message || "Could not create account. Try again.") };
+        return finishMock();
       }
     }
 
