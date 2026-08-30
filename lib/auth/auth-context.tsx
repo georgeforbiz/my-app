@@ -1,6 +1,6 @@
 "use client";
 
-import type { Session, User as SupabaseUser } from "@supabase/supabase-js";
+import type { User as SupabaseUser } from "@supabase/supabase-js";
 import {
   createContext,
   useCallback,
@@ -13,7 +13,7 @@ import {
 import { humanizeAuthError, isAuthNetworkError } from "./humanize-auth-error";
 import { isMockAuthAllowed } from "./mock-auth-allowed";
 import { mockGetSession, mockLogin, mockLogout, mockRegister, mockVerifyCredentials } from "./mock-storage";
-import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
+import { getSupabaseBrowser, ensureSupabaseBrowser } from "@/lib/supabase/browser-client";
 
 export type AuthUser = {
   id: string;
@@ -135,7 +135,6 @@ async function registerDeviceAccountInCloud(
 }
 
 async function establishSessionFromLoginApi(
-  supabase: NonNullable<ReturnType<typeof getSupabaseBrowser>>,
   email: string,
   password: string,
   setUser: (u: AuthUser) => void
@@ -163,6 +162,16 @@ async function establishSessionFromLoginApi(
     return { ok: false, error: "Invalid sign-in response from server.", status: 500 };
   }
 
+  const supabase = await ensureSupabaseBrowser();
+  if (!supabase) {
+    return {
+      ok: false,
+      error:
+        "Sign-in service is not configured on the server. Add Supabase environment variables in Vercel and redeploy.",
+      status: 503
+    };
+  }
+
   const { data, error } = await supabase.auth.setSession({
     access_token: payload.access_token,
     refresh_token: payload.refresh_token
@@ -185,30 +194,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let supabase: ReturnType<typeof getSupabaseBrowser>;
-    try {
-      supabase = getSupabaseBrowser();
-    } catch {
-      supabase = null;
-    }
+    let cancelled = false;
+    let subscription: { unsubscribe: () => void } | null = null;
 
-    if (!supabase) {
-      setUser(() => {
-        if (!isMockAuthAllowed()) return null;
-        const m = mockGetSession();
-        return m ? { ...m, source: "mock" as const } : null;
-      });
-      setLoading(false);
-      return;
-    }
+    void (async () => {
+      let supabase: ReturnType<typeof getSupabaseBrowser>;
+      try {
+        supabase = (await ensureSupabaseBrowser()) ?? getSupabaseBrowser();
+      } catch {
+        supabase = null;
+      }
 
-    if (!isMockAuthAllowed()) {
-      mockLogout();
-    }
+      if (cancelled) return;
 
-    supabase.auth
-      .getSession()
-      .then(({ data: { session } }: { data: { session: Session | null } }) => {
+      if (!supabase) {
+        setUser(() => {
+          if (!isMockAuthAllowed()) return null;
+          const m = mockGetSession();
+          return m ? { ...m, source: "mock" as const } : null;
+        });
+        setLoading(false);
+        return;
+      }
+
+      if (!isMockAuthAllowed()) {
+        mockLogout();
+      }
+
+      try {
+        const {
+          data: { session }
+        } = await supabase.auth.getSession();
+        if (cancelled) return;
+
+        if (session?.user) {
+          mockLogout();
+          setUser(mapSupabaseUser(session.user));
+        } else if (!isMockAuthAllowed()) {
+          setUser(null);
+        } else {
+          const mockSession = mockGetSession();
+          setUser(mockSession ? { ...mockSession, source: "mock" } : null);
+        }
+      } catch {
+        if (cancelled) return;
+        if (!isMockAuthAllowed()) {
+          setUser(null);
+        } else {
+          const m = mockGetSession();
+          setUser(m ? { ...m, source: "mock" } : null);
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+
+      const {
+        data: { subscription: sub }
+      } = supabase.auth.onAuthStateChange((_event, session) => {
         if (session?.user) {
           mockLogout();
           setUser(mapSupabaseUser(session.user));
@@ -220,56 +262,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         const mockSession = mockGetSession();
         setUser(mockSession ? { ...mockSession, source: "mock" } : null);
-      })
-      .catch(() => {
-        if (!isMockAuthAllowed()) {
-          setUser(null);
-          return;
-        }
-        const m = mockGetSession();
-        setUser(m ? { ...m, source: "mock" } : null);
-      })
-      .finally(() => {
-        setLoading(false);
       });
-
-    const {
-      data: { subscription }
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session?.user) {
-        mockLogout();
-        setUser(mapSupabaseUser(session.user));
-        return;
-      }
-      if (!isMockAuthAllowed()) {
-        setUser(null);
-        return;
-      }
-      const mockSession = mockGetSession();
-      setUser(mockSession ? { ...mockSession, source: "mock" } : null);
-    });
+      subscription = sub;
+    })();
 
     return () => {
-      subscription.unsubscribe();
+      cancelled = true;
+      subscription?.unsubscribe();
     };
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
-    const supabase = getSupabaseBrowser();
-    if (!supabase) {
-      if (isMockAuthAllowed()) {
-        const mockAttempt = tryMockLogin(email, password, setUser);
-        if (mockAttempt.ok) return {};
-        return {
-          error:
-            mockAttempt.error ??
-            "Invalid email or password. Register first if you have not created an account on this device."
-        };
-      }
-      return { error: "Sign-in is temporarily unavailable. Please try again in a few minutes." };
-    }
-
-    const tryServerLogin = () => establishSessionFromLoginApi(supabase, email, password, setUser);
+    const tryServerLogin = () => establishSessionFromLoginApi(email, password, setUser);
 
     if (!isMockAuthAllowed()) {
       const server = await tryServerLogin();
@@ -293,6 +297,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       return { error: server.error };
+    }
+
+    const supabase = (await ensureSupabaseBrowser()) ?? getSupabaseBrowser();
+    if (!supabase) {
+      const mockAttempt = tryMockLogin(email, password, setUser);
+      if (mockAttempt.ok) return {};
+      return {
+        error:
+          mockAttempt.error ??
+          "Invalid email or password. Register first if you have not created an account on this device."
+      };
     }
 
     try {

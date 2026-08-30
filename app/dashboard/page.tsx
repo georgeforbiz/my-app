@@ -32,7 +32,7 @@ import {
 import { FREE_AGREEMENT_LIMIT, readMockPlan, writeMockPlan, type MockPlanId } from "@/lib/subscription/mock";
 import { useRouter } from "next/navigation";
 import { authDisplayName, useAuth } from "@/lib/auth/auth-context";
-import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
+import { ensureSupabaseBrowser, getSupabaseBrowser } from "@/lib/supabase/browser-client";
 import { normalizeAgreementRow } from "@/lib/agreements/row";
 import { fetchDashboardAgreementsViaApi, mergeAgreementsById, publishLocalAgreementToCloud } from "@/lib/agreements/create-via-api";
 import { getAgreementPublicUrl, isShareableAgreementId } from "@/lib/agreements/public-url";
@@ -554,7 +554,14 @@ export default function DashboardPage() {
   const router = useRouter();
   const { user, loading, signOut } = useAuth();
   const { language: lang, setLanguage: setLang } = useLanguage();
-  const supabase = getSupabaseBrowser();
+  const [supabase, setSupabase] = useState(() => getSupabaseBrowser());
+
+  useEffect(() => {
+    if (supabase) return;
+    void ensureSupabaseBrowser().then((client) => {
+      if (client) setSupabase(client);
+    });
+  }, [supabase]);
 
   const [view, setView] = useState<View>("overview");
   const [agreements, setAgreements] = useState<Agreement[]>([]);
