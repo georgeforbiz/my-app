@@ -34,7 +34,14 @@ import { useRouter } from "next/navigation";
 import { authDisplayName, useAuth } from "@/lib/auth/auth-context";
 import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
 import { insertAgreementWithSchemaFallback, normalizeAgreementRow } from "@/lib/agreements/row";
-import { listLocalAgreements, saveLocalAgreement } from "@/lib/agreements/local-store";
+import { createAgreementViaApi, publishLocalAgreementViaApi } from "@/lib/agreements/create-via-api";
+import {
+  getLocalAgreement,
+  isLocalAgreementId,
+  listLocalAgreements,
+  replaceLocalAgreementId,
+  saveLocalAgreement
+} from "@/lib/agreements/local-store";
 import { formatDateDMY } from "@/lib/format-date";
 import { useLanguage } from "@/lib/i18n/language-context";
 import type { Language } from "@/lib/i18n/locales";
@@ -784,12 +791,31 @@ export default function DashboardPage() {
     };
   }, [supabase, user?.id, user?.source, fetchAgreements]);
 
+  const resolvePublicAgreementId = useCallback(
+    async (id: string): Promise<string> => {
+      if (!isLocalAgreementId(id) || !supabase || user?.source === "mock") return id;
+      const local = getLocalAgreement(id);
+      const token = (await supabase.auth.getSession()).data.session?.access_token;
+      if (!local || !token) return id;
+      const published = await publishLocalAgreementViaApi(token, local);
+      if (!published.id) return id;
+      replaceLocalAgreementId(id, published.id);
+      setAgreements((prev) =>
+        prev.map((a) => (a.id === id ? ({ ...a, id: published.id! } as Agreement) : a))
+      );
+      if (successAgreementId === id) setSuccessAgreementId(published.id);
+      return published.id;
+    },
+    [supabase, user?.source, successAgreementId]
+  );
+
   const copyAgreementLink = async (id: string) => {
+    const publicId = await resolvePublicAgreementId(id);
     const base = typeof window !== "undefined" ? window.location.origin : "https://vstah.am";
-    const link = `${base}/agreement/${id}`;
+    const link = `${base}/agreement/${publicId}`;
     try {
       await navigator.clipboard.writeText(link);
-      setCopiedAgreementId(id);
+      setCopiedAgreementId(publicId);
     } catch {
       setToast("Could not copy link.");
     }
@@ -800,8 +826,9 @@ export default function DashboardPage() {
     return `${base}/agreement/${id}`;
   };
 
-  const openAgreementLink = (id: string) => {
-    window.open(getAgreementPublicUrl(id), "_blank", "noopener,noreferrer");
+  const openAgreementLink = async (id: string) => {
+    const publicId = await resolvePublicAgreementId(id);
+    window.open(getAgreementPublicUrl(publicId), "_blank", "noopener,noreferrer");
   };
 
   const downloadAgreementPdf = (agreement: Agreement) => {
@@ -1117,6 +1144,27 @@ export default function DashboardPage() {
 
       let result: { id?: string; error?: string } = {};
       if (supabase && user.source !== "mock") {
+        const token = (await supabase.auth.getSession()).data.session?.access_token;
+        if (token) {
+          result = await createAgreementViaApi(token, {
+            clientName: draft.clientName,
+            projectTitle: draft.projectTitle,
+            serviceArea: draft.serviceArea,
+            providerName,
+            full_name,
+            business_name,
+            customTerms: customTermsText,
+            scopeOfWork: scopeOfWork.trim(),
+            scopeExclusions: scopeExclusions.trim() || undefined,
+            estimatedCompletionDate: estimatedCompletionDate.trim(),
+            totalPrice,
+            paymentType,
+            milestones: paymentType === "milestones" ? milestonesParsed : []
+          });
+        }
+      }
+
+      if (!result.id && supabase && user.source !== "mock") {
         try {
           result = await insertAgreementWithSchemaFallback(supabase, draft);
         } catch (err) {
@@ -1124,8 +1172,7 @@ export default function DashboardPage() {
         }
       }
 
-      // Save in this browser when there is no reachable backend, so the deal is
-      // still created instead of failing with a network error.
+      // Browser-only fallback when cloud is unreachable or using mock auth.
       if (!result.id && (!supabase || user.source === "mock" || isNetworkErrorMessage(result.error))) {
         const saved = saveLocalAgreement({
           provider_id: user.id,
@@ -1156,7 +1203,12 @@ export default function DashboardPage() {
         return;
       }
 
-      void fetch(`/api/agreement/${encodeURIComponent(result.id)}/log`, {
+      let agreementId = result.id;
+      if (isLocalAgreementId(agreementId)) {
+        agreementId = await resolvePublicAgreementId(agreementId);
+      }
+
+      void fetch(`/api/agreement/${encodeURIComponent(agreementId)}/log`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -1175,7 +1227,7 @@ export default function DashboardPage() {
             // Non-critical: the template still applies for this session.
           });
       }
-      setSuccessAgreementId(result.id);
+      setSuccessAgreementId(agreementId);
       setToast(tx.toastCreated);
       resetForm(customTermsText);
       setView("overview");

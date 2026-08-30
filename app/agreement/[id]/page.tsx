@@ -190,6 +190,8 @@ export default function AgreementClientPage() {
           loading: "Բեռնում…",
           notConfigured: "Supabase-ը կարգավորված չէ։",
           notFound: "Պայմանագիրը չի գտնվել։",
+          localLinkNotFound:
+            "Այս հղումը հասանելի է միայն ստեղծողի սարքում։ Խնդրեք մատակարարին նոր հղում ուղարկել վահանակից։",
           offer: "Առաջարկ",
           title: "Անվտանգ պայմանագիր",
           subtitle: "Ստուգեք տվյալները ստորագրելուց առաջ։",
@@ -221,6 +223,10 @@ export default function AgreementClientPage() {
             signedSuccess: "Պայմանագիրը ստորագրված է",
             signedSuccessNote: "Մատակարարը ծանուցված է։",
             signedSuccessHint: "Հաշիվ պարտադիր չէ։",
+            signedAndApproved: "Ստորագրված և հաստատված",
+            agreeTerms: "Կարդացել և համաձայն եմ Պայմաններին",
+            agreeTermsRequired: "Ստորագրելուց առաջ համաձայնեք Պայմաններին։",
+            agreeTermsAccepted: "Պայմաններն ընդունված են",
             clientSignature: "Հաճախորդի ստորագրություն",
           signFailed: "Չհաջողվեց ստորագրել պայմանագիրը։ Փորձեք կրկին։",
           signBlocked:
@@ -308,6 +314,8 @@ export default function AgreementClientPage() {
             loading: "Загрузка соглашения…",
             notConfigured: "Supabase не настроен.",
             notFound: "Соглашение не найдено.",
+            localLinkNotFound:
+              "Эта ссылка работает только на устройстве создателя. Попросите исполнителя отправить новую ссылку из панели.",
             offer: "Предложение",
             title: "Сервисное соглашение с защитой",
             subtitle: "Проверьте детали ниже перед принятием.",
@@ -339,6 +347,10 @@ export default function AgreementClientPage() {
             signedSuccess: "Соглашение подписано",
             signedSuccessNote: "Исполнитель уведомлён.",
             signedSuccessHint: "Регистрация не требуется.",
+            signedAndApproved: "Подписано и одобрено",
+            agreeTerms: "Я прочитал(а) и согласен(на) с Условиями",
+            agreeTermsRequired: "Примите Условия перед подписанием.",
+            agreeTermsAccepted: "Условия приняты",
             clientSignature: "Подпись клиента",
             signFailed: "Не удалось подписать. Попробуйте снова.",
             signBlocked:
@@ -425,6 +437,8 @@ export default function AgreementClientPage() {
             loading: "Loading agreement...",
             notConfigured: "Supabase is not configured.",
             notFound: "Agreement not found.",
+            localLinkNotFound:
+              "This link only works on the provider's device. Ask them to copy a new link from their dashboard.",
             offer: "Offer",
             title: "Safe Service Agreement",
             subtitle: "Review all details below before accepting this offer.",
@@ -456,6 +470,10 @@ export default function AgreementClientPage() {
             signedSuccess: "Agreement signed",
             signedSuccessNote: "The provider has been notified.",
             signedSuccessHint: "No account required.",
+            signedAndApproved: "Signed & Approved",
+            agreeTerms: "I have read and agree to the Terms and Conditions",
+            agreeTermsRequired: "Please agree to the Terms and Conditions before signing.",
+            agreeTermsAccepted: "Terms accepted",
             clientSignature: "Client signature",
             signFailed: "Failed to sign agreement. Please try again.",
             signBlocked:
@@ -540,6 +558,7 @@ export default function AgreementClientPage() {
   const [agreement, setAgreement] = useState<Agreement | null>(null);
   const [loading, setLoading] = useState(true);
   const [signing, setSigning] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   /** Fatal: not configured / not found (no agreement to show). */
   const [error, setError] = useState("");
   /** Non-fatal: sign actions while agreement is visible. */
@@ -586,8 +605,10 @@ export default function AgreementClientPage() {
     };
 
     if (isLocalAgreementId(id)) {
+      if (await loadFromApi()) return;
       if (loadLocal()) return;
-      setError(tx.notFound);
+      if (isStale()) return;
+      setError(tx.localLinkNotFound);
       setLoading(false);
       return;
     }
@@ -631,6 +652,10 @@ export default function AgreementClientPage() {
       setLoading(false);
     }
   }, [id, supabase, tx.notFound]);
+
+  useEffect(() => {
+    setTermsAccepted(false);
+  }, [id]);
 
   useEffect(() => {
     setLoading(true);
@@ -807,6 +832,10 @@ export default function AgreementClientPage() {
 
   const signAgreement = async () => {
     if (!agreement || signing || agreement.status === "signed" || agreement.status === "completed") return;
+    if (!termsAccepted) {
+      setActionError(tx.agreeTermsRequired);
+      return;
+    }
 
     setSigning(true);
     setActionError("");
@@ -935,7 +964,7 @@ export default function AgreementClientPage() {
       ? tx.phaseAwaitingSign
       : agreement.status === "completed"
         ? tx.phaseCompleted
-        : tx.phaseSigned;
+        : tx.signedAndApproved;
 
   return (
     <main key={routeKey} className="min-h-dvh bg-gradient-to-b from-slate-100 via-[#f8fafc] to-slate-200/90 px-3 py-5 sm:px-4 sm:py-8 md:py-10">
@@ -1062,6 +1091,25 @@ export default function AgreementClientPage() {
             <pre className="mt-4 max-h-[min(24rem,50vh)] overflow-y-auto whitespace-pre-wrap break-words rounded-xl border border-slate-100 bg-slate-50/70 p-4 font-sans text-sm leading-7 text-slate-700 sm:max-h-none sm:overflow-visible sm:p-5">
               {agreement.custom_terms?.trim() || defaultTerms}
             </pre>
+            {agreement.status === "pending" ? (
+              <label className="mt-4 flex cursor-pointer items-start gap-3 rounded-xl border border-slate-200 bg-slate-50/70 p-4 transition hover:border-[#0033A0]/30 hover:bg-slate-50">
+                <input
+                  type="checkbox"
+                  checked={termsAccepted}
+                  onChange={(e) => {
+                    setTermsAccepted(e.target.checked);
+                    if (e.target.checked) setActionError("");
+                  }}
+                  className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300 text-[#0033A0] focus:ring-2 focus:ring-[#0033A0]/30"
+                />
+                <span className="text-sm font-medium leading-relaxed text-slate-700">{tx.agreeTerms}</span>
+              </label>
+            ) : signed ? (
+              <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800">
+                <CheckCircle2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                {tx.agreeTermsAccepted}
+              </div>
+            ) : null}
           </section>
 
           <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm ring-1 ring-slate-900/[0.03] sm:p-6">
@@ -1158,8 +1206,8 @@ export default function AgreementClientPage() {
                 <button
                   type="button"
                   onClick={() => void signAgreement()}
-                  disabled={signing}
-                  className="w-full rounded-xl px-6 py-4 text-base font-black text-slate-900 shadow-lg transition hover:brightness-105 disabled:opacity-60 sm:w-auto sm:min-w-[16rem]"
+                  disabled={signing || !termsAccepted}
+                  className="w-full rounded-xl px-6 py-4 text-base font-black text-slate-900 shadow-lg transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto sm:min-w-[16rem]"
                   style={{ backgroundColor: ORANGE, boxShadow: `0 12px 32px -10px ${ORANGE}cc` }}
                 >
                   {signing ? tx.signing : tx.signAndAccept}
@@ -1175,7 +1223,10 @@ export default function AgreementClientPage() {
                   <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#0033A0] sm:text-[11px]">{tx.clientSignature}</p>
                   <p className="mt-1 text-base font-bold text-slate-900">{agreement.client_name}</p>
                 </div>
-                <CheckCircle2 className="h-6 w-6 text-emerald-600" aria-hidden />
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800">
+                  <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden />
+                  {tx.signedAndApproved}
+                </span>
               </div>
               <div className="bg-gradient-to-b from-slate-50/80 to-white px-4 py-6 sm:px-8 sm:py-8">
                 <div className="relative mx-auto max-w-lg rounded-xl bg-white p-5 shadow-inner ring-1 ring-slate-200/90 sm:p-8">
@@ -1199,7 +1250,7 @@ export default function AgreementClientPage() {
                 <CheckCircle2 className="h-6 w-6 text-emerald-600 sm:h-7 sm:w-7" aria-hidden />
               </div>
               <div className="min-w-0">
-                <p className="text-xl font-black leading-tight text-slate-900 sm:text-2xl">{tx.signedSuccess}</p>
+                <p className="text-xl font-black leading-tight text-slate-900 sm:text-2xl">{tx.signedAndApproved}</p>
                 <p className="mt-2 text-base font-semibold leading-snug text-slate-700">{tx.signedSuccessNote}</p>
                 <p className="mt-2 text-sm text-slate-500">{tx.signedSuccessHint}</p>
               </div>

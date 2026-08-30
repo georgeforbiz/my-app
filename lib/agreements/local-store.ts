@@ -91,3 +91,14 @@ export function updateLocalAgreement(
   writeAll(all);
   return next;
 }
+
+/** After publishing a browser-only agreement to Supabase, swap the local id for the cloud id. */
+export function replaceLocalAgreementId(oldId: string, newId: string): NormalizedAgreement | null {
+  const all = readAll();
+  const index = all.findIndex((a) => a.id === oldId);
+  if (index === -1) return null;
+  const next = withMilestoneStatuses({ ...all[index], id: newId });
+  const rest = all.filter((a) => a.id !== oldId && a.id !== newId);
+  writeAll([next, ...rest]);
+  return next;
+}

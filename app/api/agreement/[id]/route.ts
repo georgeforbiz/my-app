@@ -11,7 +11,7 @@ export async function GET(_request: Request, { params }: { params: { id: string 
 
   const client = getAgreementServerClient();
   if ("error" in client) {
-    return NextResponse.json({ error: "Agreement not found." }, { status: 404 });
+    return NextResponse.json({ error: client.error }, { status: client.status });
   }
 
   const { data, error } = await client.supabase
