@@ -101,8 +101,7 @@ function tryMockLogin(email: string, password: string, setUser: (u: AuthUser) =>
   return { ok: false as const, error: local.error };
 }
 
-async function migrateDeviceAccountToCloud(
-  supabase: NonNullable<ReturnType<typeof getSupabaseBrowser>>,
+async function registerDeviceAccountInCloud(
   email: string,
   password: string,
   mockUser: { full_name?: string; business_name?: string }
@@ -122,33 +121,63 @@ async function migrateDeviceAccountToCloud(
     });
     const payload = (await res.json().catch(() => ({}))) as { error?: string };
 
-    if (!res.ok && res.status !== 409) {
-      return { ok: false, error: payload.error ?? "Could not set up your cloud account." };
+    if (res.ok || res.status === 409) {
+      return { ok: true };
     }
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: email.trim(),
-      password
-    });
-    if (error || !data.session?.user) {
-      if (res.status === 409) {
-        return {
-          ok: false,
-          error:
-            "An account with this email already exists in the cloud. Use Forgot password to set a new password, then sign in again."
-        };
-      }
-      return { ok: false, error: humanizeAuthError(error?.message ?? "Could not sign in after setup.") };
-    }
-
-    mockLogout();
-    return { ok: true };
+    return { ok: false, error: payload.error ?? "Could not set up your cloud account." };
   } catch (err) {
     return {
       ok: false,
       error: humanizeAuthError(err instanceof Error ? err.message : "Could not reach the auth server.")
     };
   }
+}
+
+async function establishSessionFromLoginApi(
+  supabase: NonNullable<ReturnType<typeof getSupabaseBrowser>>,
+  email: string,
+  password: string,
+  setUser: (u: AuthUser) => void
+): Promise<{ ok: true } | { ok: false; error: string; status?: number }> {
+  const res = await fetch("/api/auth/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email: email.trim(), password })
+  });
+  const payload = (await res.json().catch(() => ({}))) as {
+    error?: string;
+    access_token?: string;
+    refresh_token?: string;
+  };
+
+  if (!res.ok) {
+    return {
+      ok: false,
+      error: payload.error ?? "Could not sign in.",
+      status: res.status
+    };
+  }
+
+  if (!payload.access_token || !payload.refresh_token) {
+    return { ok: false, error: "Invalid sign-in response from server.", status: 500 };
+  }
+
+  const { data, error } = await supabase.auth.setSession({
+    access_token: payload.access_token,
+    refresh_token: payload.refresh_token
+  });
+
+  if (error || !data.session?.user) {
+    return {
+      ok: false,
+      error: humanizeAuthError(error?.message ?? "Could not save your session.")
+    };
+  }
+
+  mockLogout();
+  setUser(mapSupabaseUser(data.session.user));
+  return { ok: true };
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -240,6 +269,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: "Sign-in is temporarily unavailable. Please try again in a few minutes." };
     }
 
+    const tryServerLogin = () => establishSessionFromLoginApi(supabase, email, password, setUser);
+
+    if (!isMockAuthAllowed()) {
+      const server = await tryServerLogin();
+      if (server.ok) return {};
+
+      if (server.status === 401) {
+        const deviceUser = mockVerifyCredentials(email, password);
+        if (deviceUser) {
+          const registered = await registerDeviceAccountInCloud(email, password, deviceUser);
+          if (!registered.ok) {
+            return { error: registered.error };
+          }
+          const retry = await tryServerLogin();
+          if (retry.ok) return {};
+          return {
+            error:
+              retry.error ??
+              "An account with this email already exists. Use Forgot password, then sign in again."
+          };
+        }
+      }
+
+      return { error: server.error };
+    }
+
     try {
       const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
 
@@ -250,33 +305,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (error) {
-        const msg = error.message.toLowerCase();
-        const invalidCredentials =
-          msg.includes("invalid login credentials") || msg.includes("invalid email or password");
-
-        if (invalidCredentials) {
-          const deviceUser = mockVerifyCredentials(email, password);
-          if (deviceUser && !isMockAuthAllowed()) {
-            const migrated = await migrateDeviceAccountToCloud(supabase, email, password, deviceUser);
-            if (migrated.ok) {
-              const { data: sessionData } = await supabase.auth.getSession();
-              if (sessionData.session?.user) {
-                setUser(mapSupabaseUser(sessionData.session.user));
-                return {};
-              }
-            } else {
-              return { error: migrated.error };
-            }
-          }
-        }
-
-        if (isMockAuthAllowed()) {
-          const mockAttempt = tryMockLogin(email, password, setUser);
-          if (mockAttempt.ok) return {};
-        }
-
+        const mockAttempt = tryMockLogin(email, password, setUser);
+        if (mockAttempt.ok) return {};
         return { error: humanizeAuthError(error.message) };
       }
+
+      const server = await tryServerLogin();
+      if (server.ok) return {};
 
       const { data: sessionData } = await supabase.auth.getSession();
       if (sessionData.session?.user) {
@@ -284,26 +319,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(mapSupabaseUser(sessionData.session.user));
         return {};
       }
-    } catch (err) {
-      if (isMockAuthAllowed()) {
-        const mockAttempt = tryMockLogin(email, password, setUser);
-        if (mockAttempt.ok) return {};
-      }
-      const message = err instanceof Error ? err.message : "";
-      if (message) return { error: humanizeAuthError(message) };
-    }
 
-    if (isMockAuthAllowed()) {
+      if (!server.ok) return { error: server.error };
+    } catch (err) {
+      const server = await tryServerLogin();
+      if (server.ok) return {};
+
       const mockAttempt = tryMockLogin(email, password, setUser);
       if (mockAttempt.ok) return {};
-      return {
-        error:
-          mockAttempt.error ??
-          "Invalid email or password. Register first if you have not created an account on this device."
-      };
+
+      const message = err instanceof Error ? err.message : "";
+      if (message) return { error: humanizeAuthError(message) };
+      if (!server.ok) return { error: server.error };
     }
 
-    return { error: "Could not sign in. Check your connection and try again." };
+    const mockAttempt = tryMockLogin(email, password, setUser);
+    if (mockAttempt.ok) return {};
+    return {
+      error:
+        mockAttempt.error ??
+        "Invalid email or password. Register first if you have not created an account on this device."
+    };
   }, []);
 
   const resendConfirmation = useCallback(async (email: string) => {
