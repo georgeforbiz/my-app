@@ -10,6 +10,7 @@ import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
 import {
   getLocalAgreement,
   isLocalAgreementId,
+  saveLocalAgreement,
   updateLocalAgreement
 } from "@/lib/agreements/local-store";
 import { formatDateDMY, formatEmbeddedDatesInTerms } from "@/lib/format-date";
@@ -53,6 +54,54 @@ async function postAgreementAction(
     signatureStored?: boolean;
   };
   return { ok: res.ok, status: res.status, ...data };
+}
+
+async function fetchAgreementStatusFromServer(
+  agreementId: string
+): Promise<"pending" | "signed" | "completed" | null> {
+  try {
+    const res = await fetch(`/api/agreement/${encodeURIComponent(agreementId)}`, { cache: "no-store" });
+    if (!res.ok) return null;
+    const payload = (await res.json()) as { agreement?: { status?: string } };
+    const status = payload.agreement?.status;
+    if (status === "signed" || status === "completed" || status === "pending") return status;
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function persistSignedLocally(agreement: Agreement, signature: string | null) {
+  const patch = {
+    status: "signed" as const,
+    ...(signature ? { client_signature: signature } : {})
+  };
+  if (getLocalAgreement(agreement.id)) {
+    updateLocalAgreement(agreement.id, patch);
+    return;
+  }
+  saveLocalAgreement({
+    provider_id: agreement.provider_id,
+    provider_name: agreement.provider_name,
+    full_name: agreement.full_name,
+    business_name: agreement.business_name,
+    provider_full_name: agreement.provider_full_name,
+    provider_business_name: agreement.provider_business_name,
+    client_name: agreement.client_name,
+    project_title: agreement.project_title,
+    service_area: agreement.service_area,
+    custom_terms: agreement.custom_terms,
+    scope_of_work: agreement.scope_of_work,
+    scope_exclusions: agreement.scope_exclusions,
+    estimated_completion_date: agreement.estimated_completion_date,
+    total_price: agreement.total_price,
+    payment_type: agreement.payment_type,
+    milestones: agreement.milestones,
+    payment_status: agreement.payment_status,
+    created_at: agreement.created_at,
+    id: agreement.id,
+    ...patch
+  });
 }
 
 type AgreementStatus = "pending" | "signed" | "completed";
@@ -589,6 +638,26 @@ export default function AgreementClientPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const mergeFetchedAgreement = useCallback((prev: Agreement | null, next: Agreement): Agreement => {
+    const local = getLocalAgreement(next.id) as Agreement | null;
+    const shouldKeepSigned =
+      next.status === "pending" &&
+      (justSignedRef.current || local?.status === "signed" || prev?.status === "signed");
+
+    if (shouldKeepSigned) {
+      return {
+        ...next,
+        status: "signed",
+        client_signature: prev?.client_signature ?? local?.client_signature ?? next.client_signature
+      };
+    }
+
+    if (next.status === "signed" || next.status === "completed") {
+      justSignedRef.current = false;
+    }
+    return next;
+  }, []);
+
   const fetchAgreement = useCallback(async () => {
     if (!id) {
       setLoading(false);
@@ -602,12 +671,7 @@ export default function AgreementClientPage() {
       if (isStale()) return false;
       const local = getLocalAgreement(id) as Agreement | null;
       if (!local) return false;
-      setAgreement((prev) => {
-        if (justSignedRef.current && prev?.status === "signed" && local.status === "pending") {
-          return { ...local, status: "signed", client_signature: prev.client_signature ?? local.client_signature };
-        }
-        return local;
-      });
+      setAgreement((prev) => mergeFetchedAgreement(prev, local));
       setError("");
       setActionError("");
       setLoading(false);
@@ -622,20 +686,7 @@ export default function AgreementClientPage() {
         if (!payload.agreement) return false;
         if (isStale()) return true;
         const next = payload.agreement;
-        setAgreement((prev) => {
-          if (
-            justSignedRef.current &&
-            prev &&
-            prev.status === "signed" &&
-            next.status === "pending"
-          ) {
-            return { ...next, status: "signed" as const, client_signature: prev.client_signature ?? next.client_signature };
-          }
-          if (next.status === "signed" || next.status === "completed") {
-            justSignedRef.current = false;
-          }
-          return next;
-        });
+        setAgreement((prev) => mergeFetchedAgreement(prev, next));
         setError("");
         setActionError("");
         setLoading(false);
@@ -682,15 +733,7 @@ export default function AgreementClientPage() {
 
       if (isStale()) return;
       const next = normalizeAgreementRow(data as Record<string, unknown>) as Agreement;
-      setAgreement((prev) => {
-        if (justSignedRef.current && prev?.status === "signed" && next.status === "pending") {
-          return { ...next, status: "signed", client_signature: prev.client_signature ?? next.client_signature };
-        }
-        if (next.status === "signed" || next.status === "completed") {
-          justSignedRef.current = false;
-        }
-        return next;
-      });
+      setAgreement((prev) => mergeFetchedAgreement(prev, next));
       setError("");
       setActionError("");
       setLoading(false);
@@ -701,7 +744,7 @@ export default function AgreementClientPage() {
       setError(tx.notFound);
       setLoading(false);
     }
-  }, [id, supabase, tx.notFound]);
+  }, [id, supabase, tx.notFound, mergeFetchedAgreement]);
 
   useEffect(() => {
     setTermsAccepted(false);
@@ -917,8 +960,15 @@ export default function AgreementClientPage() {
 
       const res = await postAgreementAction(agreement.id, { signature: signature ?? undefined });
       if (res.ok || res.alreadySigned) {
+        persistSignedLocally(agreement, signature);
         applySignedState(signature);
-        void fetchAgreement();
+        const serverStatus = await fetchAgreementStatusFromServer(agreement.id);
+        if (serverStatus !== "signed" && serverStatus !== "completed") {
+          await tryClientUpdate({
+            status: "signed",
+            client_signature: signature
+          });
+        }
         return;
       }
 
@@ -927,8 +977,8 @@ export default function AgreementClientPage() {
         client_signature: signature
       });
       if (fallback.ok) {
+        persistSignedLocally(agreement, signature);
         applySignedState(signature);
-        void fetchAgreement();
         return;
       }
 

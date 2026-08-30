@@ -24,7 +24,15 @@ export async function GET(_request: Request, { params }: { params: { id: string 
     return NextResponse.json({ error: "Agreement not found." }, { status: 404 });
   }
 
-  return NextResponse.json({
-    agreement: normalizeAgreementRow(data as Record<string, unknown>)
-  });
+  return NextResponse.json(
+    {
+      agreement: normalizeAgreementRow(data as Record<string, unknown>)
+    },
+    {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate",
+        Pragma: "no-cache"
+      }
+    }
+  );
 }

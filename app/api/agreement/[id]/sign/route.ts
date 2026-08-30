@@ -1,6 +1,75 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { recordActivityEvent } from "@/lib/admin/activity";
 import { getAgreementServerClient } from "@/lib/supabase/agreement-server";
+
+type AgreementSignRow = {
+  id: string;
+  status: string;
+  client_signature?: string | null;
+};
+
+async function readAgreementRow(
+  supabase: SupabaseClient,
+  agreementId: string
+): Promise<AgreementSignRow | null> {
+  const { data, error } = await supabase
+    .from("agreements")
+    .select("id,status,client_signature")
+    .eq("id", agreementId)
+    .single();
+
+  if (error || !data) return null;
+  return data as AgreementSignRow;
+}
+
+/** Apply sign update and confirm by re-reading the row (PostgREST `.select()` after update can return 0 rows under RLS). */
+async function persistSignedAgreement(
+  supabase: SupabaseClient,
+  agreementId: string,
+  normalizedSignature: string | null
+): Promise<{ row: AgreementSignRow | null; lastError: string | null }> {
+  const attempts: Array<{ payload: Record<string, unknown>; requirePending: boolean }> = [
+    {
+      payload: {
+        status: "signed",
+        ...(normalizedSignature ? { client_signature: normalizedSignature } : {})
+      },
+      requirePending: true
+    },
+    { payload: { status: "signed" }, requirePending: true },
+    {
+      payload: {
+        status: "signed",
+        ...(normalizedSignature ? { client_signature: normalizedSignature } : {})
+      },
+      requirePending: false
+    },
+    { payload: { status: "signed" }, requirePending: false }
+  ];
+
+  let lastError: string | null = null;
+
+  for (const attempt of attempts) {
+    let query = supabase.from("agreements").update(attempt.payload).eq("id", agreementId);
+    if (attempt.requirePending) {
+      query = query.eq("status", "pending");
+    }
+
+    const { error } = await query;
+    if (error) {
+      lastError = error.message;
+      continue;
+    }
+
+    const verified = await readAgreementRow(supabase, agreementId);
+    if (verified?.status === "signed" || verified?.status === "completed") {
+      return { row: verified, lastError: null };
+    }
+  }
+
+  return { row: null, lastError };
+}
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   const agreementId = params.id;
@@ -14,18 +83,14 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   }
   const { supabase } = client;
 
-  const { data: existing, error: readError } = await supabase
-    .from("agreements")
-    .select("id,status")
-    .eq("id", agreementId)
-    .single();
+  const existing = await readAgreementRow(supabase, agreementId);
 
-  if (readError || !existing) {
-    return NextResponse.json({ error: readError?.message ?? "Agreement not found." }, { status: 404 });
+  if (!existing) {
+    return NextResponse.json({ error: "Agreement not found." }, { status: 404 });
   }
 
   if (existing.status === "signed" || existing.status === "completed") {
-    return NextResponse.json({ ok: true, alreadySigned: true });
+    return NextResponse.json({ ok: true, alreadySigned: true, status: existing.status });
   }
 
   if (existing.status !== "pending") {
@@ -47,51 +112,25 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       ? signature.trim()
       : null;
 
-  const updatePayload: Record<string, unknown> = { status: "signed" };
-  if (normalizedSignature) {
-    updatePayload.client_signature = normalizedSignature;
-  }
+  const { row: updatedRow, lastError } = await persistSignedAgreement(
+    supabase,
+    agreementId,
+    normalizedSignature
+  );
 
-  const runSignUpdate = (payload: Record<string, unknown>) =>
-    supabase
-      .from("agreements")
-      .update(payload)
-      .eq("id", agreementId)
-      .eq("status", "pending")
-      .select("id,status,client_signature");
-
-  let { data: updatedRows, error: statusError } = await runSignUpdate(updatePayload);
-
-  // If signature column/value fails, still mark the agreement signed.
-  if ((statusError || !updatedRows?.length) && normalizedSignature) {
-    ({ data: updatedRows, error: statusError } = await runSignUpdate({ status: "signed" }));
-  }
-
-  // Last resort: update by id only (handles status drift / RLS edge cases).
-  if (!updatedRows?.length && !statusError) {
-    ({ data: updatedRows, error: statusError } = await supabase
-      .from("agreements")
-      .update({ status: "signed" })
-      .eq("id", agreementId)
-      .select("id,status,client_signature"));
-  }
-
-  if (statusError) {
-    return NextResponse.json({ error: statusError.message }, { status: 500 });
-  }
-  if (!updatedRows || updatedRows.length === 0) {
+  if (!updatedRow) {
     return NextResponse.json(
       {
         error:
+          lastError ??
           "Unable to sign this agreement. It may already be signed, or the server could not save the update."
       },
       { status: 403 }
     );
   }
 
-  const updatedRow = updatedRows[0] as { client_signature?: string | null };
   const signatureStored =
-    typeof updatedRow?.client_signature === "string" && updatedRow.client_signature.length > 0;
+    typeof updatedRow.client_signature === "string" && updatedRow.client_signature.length > 0;
 
   await recordActivityEvent(
     {
@@ -105,6 +144,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
 
   return NextResponse.json({
     ok: true,
+    status: updatedRow.status,
     signatureSaved: Boolean(normalizedSignature),
     signatureStored
   });
