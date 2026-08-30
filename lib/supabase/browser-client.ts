@@ -1,8 +1,14 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 let cached: SupabaseClient | null = null;
+let cachedReachable: boolean | null = null;
 let runtimeChecked = false;
 let runtimePromise: Promise<SupabaseClient | null> | null = null;
+
+/** null = not checked yet; false = configured but offline/missing. */
+export function getSupabaseReachable(): boolean | null {
+  return cachedReachable;
+}
 
 function createBrowserClient(url: string, key: string): SupabaseClient | null {
   try {
@@ -31,12 +37,9 @@ export function getSupabaseBrowser(): SupabaseClient | null {
   return null;
 }
 
-/** Loads Supabase config from the server when build-time env vars were missing (e.g. Vercel). */
+/** Loads Supabase config from the server and caches reachability (always once per page load). */
 export async function ensureSupabaseBrowser(): Promise<SupabaseClient | null> {
-  const existing = getSupabaseBrowser();
-  if (existing) return existing;
-
-  if (runtimeChecked) return cached;
+  if (runtimeChecked) return getSupabaseBrowser();
 
   if (!runtimePromise) {
     runtimePromise = (async () => {
@@ -44,19 +47,25 @@ export async function ensureSupabaseBrowser(): Promise<SupabaseClient | null> {
         const res = await fetch("/api/auth/config", { cache: "no-store" });
         const payload = (await res.json().catch(() => ({}))) as {
           configured?: boolean;
+          reachable?: boolean;
           url?: string;
           anonKey?: string;
         };
         if (res.ok && payload.url && payload.anonKey) {
-          cached = createBrowserClient(payload.url, payload.anonKey);
+          if (!cached) {
+            cached = createBrowserClient(payload.url, payload.anonKey);
+          }
+          cachedReachable = payload.reachable ?? false;
+        } else {
+          cachedReachable = false;
         }
       } catch {
-        cached = null;
+        cachedReachable = false;
       } finally {
         runtimeChecked = true;
         runtimePromise = null;
       }
-      return cached;
+      return getSupabaseBrowser();
     })();
   }
 

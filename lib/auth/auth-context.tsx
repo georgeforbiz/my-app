@@ -11,7 +11,7 @@ import {
   type ReactNode
 } from "react";
 import { humanizeAuthError, isAuthNetworkError } from "./humanize-auth-error";
-import { isMockAuthAllowed } from "./mock-auth-allowed";
+import { isLocalDeviceAuthAllowed, isMockAuthAllowed } from "./mock-auth-allowed";
 import { mockGetSession, mockLogin, mockLogout, mockRegister, mockVerifyCredentials } from "./mock-storage";
 import { getSupabaseBrowser, ensureSupabaseBrowser } from "@/lib/supabase/browser-client";
 
@@ -94,6 +94,11 @@ function mapSupabaseUser(u: SupabaseUser): AuthUser {
 
 function isCloudUnavailable(status?: number, error?: string): boolean {
   return status === 503 || isAuthNetworkError(error ?? "");
+}
+
+function restoreLocalSession(): AuthUser | null {
+  const m = mockGetSession();
+  return m ? { ...m, source: "mock" as const } : null;
 }
 
 function tryMockLogin(email: string, password: string, setUser: (u: AuthUser) => void) {
@@ -212,16 +217,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (cancelled) return;
 
       if (!supabase) {
-        setUser(() => {
-          if (!isMockAuthAllowed()) return null;
-          const m = mockGetSession();
-          return m ? { ...m, source: "mock" as const } : null;
-        });
+        setUser(() => (isLocalDeviceAuthAllowed() ? restoreLocalSession() : null));
         setLoading(false);
         return;
       }
 
-      if (!isMockAuthAllowed()) {
+      // Only discard device sessions when cloud auth is actually available.
+      if (!isLocalDeviceAuthAllowed()) {
         mockLogout();
       }
 
@@ -234,20 +236,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (session?.user) {
           mockLogout();
           setUser(mapSupabaseUser(session.user));
-        } else if (!isMockAuthAllowed()) {
-          setUser(null);
         } else {
-          const mockSession = mockGetSession();
-          setUser(mockSession ? { ...mockSession, source: "mock" } : null);
+          setUser(isLocalDeviceAuthAllowed() ? restoreLocalSession() : null);
         }
       } catch {
         if (cancelled) return;
-        if (!isMockAuthAllowed()) {
-          setUser(null);
-        } else {
-          const m = mockGetSession();
-          setUser(m ? { ...m, source: "mock" } : null);
-        }
+        setUser(isLocalDeviceAuthAllowed() ? restoreLocalSession() : null);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -260,12 +254,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(mapSupabaseUser(session.user));
           return;
         }
-        if (!isMockAuthAllowed()) {
-          setUser(null);
-          return;
-        }
-        const mockSession = mockGetSession();
-        setUser(mockSession ? { ...mockSession, source: "mock" } : null);
+        setUser(isLocalDeviceAuthAllowed() ? restoreLocalSession() : null);
       });
       subscription = sub;
     })();
@@ -277,6 +266,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = useCallback(async (email: string, password: string) => {
+    await ensureSupabaseBrowser();
+
+    // Cloud is offline — authenticate locally immediately (no slow failed API calls).
+    if (isLocalDeviceAuthAllowed()) {
+      const mockAttempt = tryMockLogin(email, password, setUser);
+      return mockAttempt.ok
+        ? {}
+        : {
+            error:
+              mockAttempt.error ??
+              "Invalid email or password. Register first if you have not created an account on this device."
+          };
+    }
+
     const tryServerLogin = () => establishSessionFromLoginApi(email, password, setUser);
 
     if (!isMockAuthAllowed()) {
@@ -287,11 +290,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const deviceUser = mockVerifyCredentials(email, password);
         if (deviceUser) {
           const registered = await registerDeviceAccountInCloud(email, password, deviceUser);
-          if (!registered.ok) {
+          if (!registered.ok && !isCloudUnavailable(undefined, registered.error)) {
             return { error: registered.error };
           }
           const retry = await tryServerLogin();
           if (retry.ok) return {};
+          const mockAttempt = tryMockLogin(email, password, setUser);
+          if (mockAttempt.ok) return {};
           return {
             error:
               retry.error ??
@@ -308,7 +313,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { error: server.error };
     }
 
-    const supabase = (await ensureSupabaseBrowser()) ?? getSupabaseBrowser();
+    const supabase = getSupabaseBrowser();
     if (!supabase) {
       const mockAttempt = tryMockLogin(email, password, setUser);
       if (mockAttempt.ok) return {};
@@ -387,6 +392,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signUp = useCallback(async (email: string, password: string, metadata?: SignUpMetadata) => {
     const trimmedEmail = email.trim();
+    await ensureSupabaseBrowser();
 
     const finishMock = () => {
       const reg = mockRegister(trimmedEmail, password, {
@@ -400,6 +406,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return {};
     };
 
+    // Cloud is offline — register on this device immediately.
+    if (isLocalDeviceAuthAllowed()) {
+      return finishMock();
+    }
+
     try {
       const res = await fetch("/api/auth/register", {
         method: "POST",
@@ -411,7 +422,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (res.ok || res.status === 409) {
         const session = await establishSessionFromLoginApi(trimmedEmail, password, setUser);
         if (session.ok) return {};
-        if (isCloudUnavailable(session.status, session.error)) {
+        if (isCloudUnavailable(session.status, session.error) || isLocalDeviceAuthAllowed()) {
           return finishMock();
         }
         if (res.ok) {
@@ -441,24 +452,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { error: humanizeAuthError(serverMsg) };
       }
 
-      if (isCloudUnavailable(res.status, serverMsg)) {
+      if (isCloudUnavailable(res.status, serverMsg) || isLocalDeviceAuthAllowed()) {
         return finishMock();
       }
 
       if (payload.error) {
         return { error: humanizeAuthError(serverMsg) };
       }
-    } catch (err) {
-      if (!isMockAuthAllowed()) {
+    } catch {
+      if (isLocalDeviceAuthAllowed()) {
         return finishMock();
       }
     }
 
-    if (!isMockAuthAllowed()) {
-      return { error: "Could not create account. Check your connection and try again." };
+    if (isLocalDeviceAuthAllowed()) {
+      return finishMock();
     }
 
-    return finishMock();
+    return { error: "Could not create account. Check your connection and try again." };
   }, []);
 
   const signOut = useCallback(async () => {
