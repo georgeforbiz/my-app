@@ -13,9 +13,23 @@ import {
   type MutableRefObject
 } from "react";
 import { humanizeAuthError, isAuthNetworkError } from "./humanize-auth-error";
+import {
+  metadataFromProfile,
+  normalizeServiceCategory,
+  profileFromMetadata,
+  type ProviderProfile,
+  type ProviderProfileSettingsInput
+} from "./profile-fields";
 import { clearSigningOut, isSigningOut, markSigningOut, redirectToLoginAfterLogout } from "./constants";
 import { isLocalDeviceAuthAllowed, isMockAuthAllowed } from "./mock-auth-allowed";
-import { mockGetSession, mockLogin, mockLogout, mockRegister, mockVerifyCredentials } from "./mock-storage";
+import {
+  mockGetSession,
+  mockLogin,
+  mockLogout,
+  mockRegister,
+  mockUpdateProfile,
+  mockVerifyCredentials
+} from "./mock-storage";
 import { getSupabaseBrowser, ensureSupabaseBrowser, getSupabaseReachable } from "@/lib/supabase/browser-client";
 
 export type AuthUser = {
@@ -24,6 +38,9 @@ export type AuthUser = {
   source: "supabase" | "mock";
   full_name?: string;
   business_name?: string;
+  phone_number?: string;
+  service_area?: string;
+  service_category?: SignUpMetadata["service_category"];
 };
 export type SignUpMetadata = {
   full_name: string;
@@ -45,37 +62,13 @@ type AuthContextValue = {
     password: string,
     metadata?: SignUpMetadata
   ) => Promise<{ error?: string; needsEmailConfirmation?: boolean }>;
+  updateProfile: (profile: ProviderProfileSettingsInput) => Promise<{ error?: string }>;
   signOut: () => Promise<void>;
   /** Re-read Supabase/mock session after transient auth flicker (e.g. token refresh). */
   revalidateSession: () => Promise<boolean>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
-
-function displayFieldsFromMetadata(meta: Record<string, unknown> | undefined): {
-  full_name?: string;
-  business_name?: string;
-} {
-  const m = meta ?? {};
-  let full_name = String(m.full_name ?? m.fullName ?? "").trim();
-  let business_name = String(m.business_name ?? m.businessName ?? "").trim();
-  if (!full_name && !business_name) {
-    const legacy = String(m.full_name_or_business_name ?? "").trim();
-    if (legacy) {
-      const match = legacy.match(/^(.+?)\s*\((.+)\)\s*$/);
-      if (match) {
-        business_name = match[1].trim();
-        full_name = match[2].trim();
-      } else {
-        full_name = legacy;
-      }
-    }
-  }
-  return {
-    ...(full_name ? { full_name } : {}),
-    ...(business_name ? { business_name } : {})
-  };
-}
 
 /** Prefer business name for “Signed in as” and similar UI. */
 export function authDisplayName(user: AuthUser | null | undefined): string {
@@ -88,12 +81,38 @@ export function authDisplayName(user: AuthUser | null | undefined): string {
   );
 }
 
+function mapMockUser(u: {
+  id: string;
+  email: string;
+  full_name?: string;
+  business_name?: string;
+  phone_number?: string;
+  service_area?: string;
+  service_category?: string;
+}): AuthUser {
+  return {
+    id: u.id,
+    email: u.email,
+    source: "mock",
+    ...(u.full_name ? { full_name: u.full_name } : {}),
+    ...(u.business_name ? { business_name: u.business_name } : {}),
+    ...(u.phone_number ? { phone_number: u.phone_number } : {}),
+    ...(u.service_area ? { service_area: u.service_area } : {}),
+    ...(u.service_category ? { service_category: normalizeServiceCategory(u.service_category) } : {})
+  };
+}
+
 function mapSupabaseUser(u: SupabaseUser): AuthUser {
+  const profile = profileFromMetadata(u.user_metadata as Record<string, unknown> | undefined);
   return {
     id: u.id,
     email: u.email ?? "",
     source: "supabase",
-    ...displayFieldsFromMetadata(u.user_metadata as Record<string, unknown> | undefined)
+    ...(profile.full_name ? { full_name: profile.full_name } : {}),
+    ...(profile.business_name ? { business_name: profile.business_name } : {}),
+    ...(profile.phone_number ? { phone_number: profile.phone_number } : {}),
+    ...(profile.service_area ? { service_area: profile.service_area } : {}),
+    service_category: profile.service_category
   };
 }
 
@@ -103,7 +122,7 @@ function isCloudUnavailable(status?: number, error?: string): boolean {
 
 function restoreLocalSession(): AuthUser | null {
   const m = mockGetSession();
-  return m ? { ...m, source: "mock" as const } : null;
+  return m ? mapMockUser(m) : null;
 }
 
 function tryMockLogin(
@@ -114,7 +133,7 @@ function tryMockLogin(
 ) {
   const local = mockLogin(email, password);
   if (local.user) {
-    setUser({ ...local.user, source: "mock" });
+    setUser(mapMockUser(local.user));
     if (signingOutRef) completeSignIn(signingOutRef);
     return { ok: true as const };
   }
@@ -316,7 +335,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (loading || user || isSigningOut()) return;
     const local = restoreLocalSession();
-    if (local) setUser({ ...local, source: "mock" });
+    if (local) setUser(local);
   }, [loading, user]);
 
   const signIn = useCallback(async (email: string, password: string) => {
@@ -455,13 +474,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const finishMock = () => {
       const reg = mockRegister(trimmedEmail, password, {
         full_name: metadata?.full_name,
-        business_name: metadata?.business_name
+        business_name: metadata?.business_name,
+        phone_number: metadata?.phone_number,
+        service_area: metadata?.service_area,
+        service_category: metadata?.service_category
       });
       const login = mockLogin(trimmedEmail, password);
       if (reg.error && !login.user) return reg;
       if (login.error) return { error: login.error };
       if (login.user) {
-        setUser({ ...login.user, source: "mock" });
+        setUser(mapMockUser(login.user));
         completeSignIn(signingOutRef);
       }
       return {};
@@ -533,6 +555,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: "Could not create account. Check your connection and try again." };
   }, []);
 
+  const updateProfile = useCallback(
+    async (profile: ProviderProfileSettingsInput): Promise<{ error?: string }> => {
+      if (!user) return { error: "You must be signed in to update your profile." };
+
+      const fullProfile: ProviderProfile = {
+        ...profile,
+        service_category: user.service_category ?? "General Contractor"
+      };
+
+      if (user.source === "mock") {
+        const result = mockUpdateProfile(user.id, fullProfile);
+        if (result.error || !result.user) return { error: result.error ?? "Could not update profile." };
+        setUser(mapMockUser(result.user));
+        return {};
+      }
+
+      const supabase = (await ensureSupabaseBrowser()) ?? getSupabaseBrowser();
+      if (!supabase) return { error: "Profile service is unavailable." };
+
+      try {
+        const { data, error } = await supabase.auth.updateUser({
+          data: metadataFromProfile(fullProfile)
+        });
+        if (error) return { error: humanizeAuthError(error.message) };
+        if (!data.user) return { error: "Could not update profile." };
+        setUser(mapSupabaseUser(data.user));
+        return {};
+      } catch (err) {
+        return {
+          error: humanizeAuthError(err instanceof Error ? err.message : "Could not update profile.")
+        };
+      }
+    },
+    [user]
+  );
+
   const signOut = useCallback(async (): Promise<void> => {
     if (signingOutRef.current) return;
     signingOutRef.current = true;
@@ -560,7 +618,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!supabase) {
       const local = restoreLocalSession();
       if (local) {
-        setUser({ ...local, source: "mock" });
+        setUser(local);
         return true;
       }
       return false;
@@ -591,10 +649,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       resendConfirmation,
       requestPasswordReset,
       signUp,
+      updateProfile,
       signOut,
       revalidateSession
     }),
-    [user, loading, signIn, resendConfirmation, requestPasswordReset, signUp, signOut, revalidateSession]
+    [user, loading, signIn, resendConfirmation, requestPasswordReset, signUp, updateProfile, signOut, revalidateSession]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

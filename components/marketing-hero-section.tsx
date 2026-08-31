@@ -14,7 +14,7 @@ type HeroCopy = ProposalPreviewCopy & {
 };
 
 const heroSubtitleClass =
-  "w-full text-sm font-semibold leading-snug text-white/85 max-md:mx-auto max-md:text-center sm:text-base md:text-left";
+  "w-full max-w-lg text-[1.0625rem] font-semibold leading-relaxed text-white/90 max-md:mx-auto max-md:text-center sm:text-lg md:max-w-xl md:border-l-2 md:border-[#F2A800]/75 md:pl-4 md:text-left md:text-xl";
 
 const heroHeadlineClass =
   "mt-4 w-full min-w-0 text-balance text-pretty font-black tracking-tight text-center text-[2rem] leading-[1.12] sm:mt-5 sm:text-[2.35rem] md:text-left md:text-[2.5rem] md:leading-[1.1] lg:text-[3rem] xl:text-[3.35rem]";

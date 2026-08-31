@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Archive,
@@ -15,6 +16,7 @@ import {
   LayoutDashboard,
   Loader2,
   Plus,
+  Settings,
   Share2,
   Trash2,
   ImageIcon,
@@ -39,7 +41,7 @@ import {
   parseGroupedNumberInput
 } from "@/lib/currency";
 import { FREE_AGREEMENT_LIMIT, readMockPlan, writeMockPlan, type MockPlanId } from "@/lib/subscription/mock";
-import { authDisplayName, useAuth } from "@/lib/auth/auth-context";
+import { authDisplayName, useAuth, type AuthUser } from "@/lib/auth/auth-context";
 import { mockGetSession } from "@/lib/auth/mock-storage";
 import { isSigningOut, redirectToLoginAfterLogout } from "@/lib/auth/constants";
 import { ensureSupabaseBrowser, getSupabaseBrowser, getSupabaseReachable } from "@/lib/supabase/browser-client";
@@ -221,6 +223,7 @@ type Tx = {
   logoProcessing: string;
   uploadLogo: string;
   changeLogo: string;
+  settings: string;
 };
 
 const t: Record<Lang, Tx> = {
@@ -350,7 +353,8 @@ const t: Record<Lang, Tx> = {
     removeLogo: "Remove",
     logoProcessing: "Processing…",
     uploadLogo: "Upload logo",
-    changeLogo: "Change logo"
+    changeLogo: "Change logo",
+    settings: "Settings"
   },
   hy: {
     dashboardTitle: "Մատակարարի վահանակ",
@@ -479,7 +483,8 @@ const t: Record<Lang, Tx> = {
     removeLogo: "Հեռացնել",
     logoProcessing: "Մշակում…",
     uploadLogo: "Բեռնել լոգո",
-    changeLogo: "Փոխել լոգոն"
+    changeLogo: "Փոխել լոգոն",
+    settings: "Կարգավորումներ"
   },
   ru: {
     dashboardTitle: "Кабинет исполнителя",
@@ -608,7 +613,8 @@ const t: Record<Lang, Tx> = {
     removeLogo: "Удалить",
     logoProcessing: "Обработка…",
     uploadLogo: "Загрузить логотип",
-    changeLogo: "Изменить логотип"
+    changeLogo: "Изменить логотип",
+    settings: "Настройки"
   }
 };
 
@@ -684,16 +690,11 @@ function completionYearOptions(): number[] {
   return Array.from({ length: 4 }, (_, i) => start + i);
 }
 
-async function resolveProviderPhoneFromSession(): Promise<string | undefined> {
-  const supabase = getSupabaseBrowser();
-  if (!supabase) return undefined;
-  try {
-    const { data } = await supabase.auth.getUser();
-    const phone = String(data.user?.user_metadata?.phone_number ?? "").trim();
-    return phone || undefined;
-  } catch {
-    return undefined;
-  }
+function profileDefaultsFromUser(user: AuthUser | null | undefined) {
+  return {
+    phone: user?.phone_number?.trim() ?? "",
+    serviceArea: user?.service_area?.trim() ?? ""
+  };
 }
 
 export default function DashboardPage() {
@@ -713,10 +714,10 @@ export default function DashboardPage() {
       setProviderPhone("");
       return;
     }
-    void resolveProviderPhoneFromSession().then((phone) => {
-      setProviderPhone(phone ?? "");
-    });
-  }, [user?.id, supabase]);
+    const defaults = profileDefaultsFromUser(user);
+    setProviderPhone(defaults.phone);
+    setServiceArea((current) => current || defaults.serviceArea);
+  }, [user]);
 
   const [view, setView] = useState<View>("overview");
   const [agreements, setAgreements] = useState<Agreement[]>([]);
@@ -844,6 +845,8 @@ export default function DashboardPage() {
       setLimitModalOpen(true);
       return;
     }
+    const termsTemplate = globalTermsTemplate.trim() || contractTerms.trim() || undefined;
+    resetForm(termsTemplate);
     setView("create");
   };
 
@@ -1208,9 +1211,12 @@ export default function DashboardPage() {
   };
 
   const resetForm = (nextContractTerms?: string) => {
+    const defaults = profileDefaultsFromUser(user);
     setClientName("");
+    setClientPhone("");
     setProjectTitle("");
-    setServiceArea("");
+    setServiceArea(defaults.serviceArea);
+    setProviderPhone(defaults.phone);
     setContractTerms(nextContractTerms ?? "");
     setScopeOfWork("");
     setScopeExclusions("");
@@ -1221,6 +1227,7 @@ export default function DashboardPage() {
     setDeadlineMonth("");
     setDeadlineYear("");
     setTotalPriceInput("");
+    setVatMode("included");
     setPaymentType("single");
     setMilestones([]);
     setError("");
@@ -1806,6 +1813,13 @@ export default function DashboardPage() {
           <p className="truncate text-xs text-blue-100" title={providerDisplayName}>
             {tx.signedInAs}: {providerDisplayName}
           </p>
+          <Link
+            href="/settings"
+            className="flex w-full items-center gap-2 rounded-xl border border-white/20 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-700/40"
+          >
+            <Settings className="h-4 w-4 shrink-0" />
+            {tx.settings}
+          </Link>
           <button
             type="button"
             onClick={() => void signOut()}
@@ -1886,6 +1900,12 @@ export default function DashboardPage() {
                   <p className="min-w-0 truncate text-xs text-slate-600" title={providerDisplayName}>
                     {tx.signedInAs}: {providerDisplayName}
                   </p>
+                  <Link
+                    href="/settings"
+                    className="inline-flex min-h-9 shrink-0 items-center rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700"
+                  >
+                    {tx.settings}
+                  </Link>
                   <button
                     type="button"
                     onClick={() => void signOut()}

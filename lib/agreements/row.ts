@@ -1,7 +1,13 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { formatDateDMY } from "@/lib/format-date";
 import type { VatMode } from "./vat";
-import { normalizeVatMode } from "./vat";
+import {
+  appendPhonesToTerms,
+  resolveClientPhone,
+  resolveProviderPhone,
+  stripPhonesFromTerms
+} from "./phone-metadata";
+import { appendVatModeToTerms, normalizeVatMode, resolveVatMode, stripVatModeFromTerms } from "./vat";
 
 export type PaymentType = "single" | "milestones";
 export type Milestone = { title: string; amount: number; status?: "pending" | "escrow_held" | "released" };
@@ -95,6 +101,7 @@ export function normalizeAgreementRow(row: Record<string, unknown>): NormalizedA
 
   const fullName = String(row.full_name ?? row.provider_full_name ?? "").trim();
   const businessName = String(row.business_name ?? row.provider_business_name ?? "").trim();
+  const rawCustomTerms = String(row.custom_terms ?? "").trim();
 
   return {
     id: String(row.id ?? ""),
@@ -105,17 +112,17 @@ export function normalizeAgreementRow(row: Record<string, unknown>): NormalizedA
     provider_full_name: String(row.provider_full_name ?? "").trim() || undefined,
     provider_business_name: String(row.provider_business_name ?? "").trim() || undefined,
     client_name: String(row.client_name ?? ""),
-    provider_phone: String(row.provider_phone ?? "").trim() || undefined,
-    client_phone: String(row.client_phone ?? "").trim() || undefined,
+    provider_phone: resolveProviderPhone(row.provider_phone, rawCustomTerms),
+    client_phone: resolveClientPhone(row.client_phone, rawCustomTerms),
     project_title,
     service_area: String(row.service_area ?? "").trim(),
-    custom_terms: String(row.custom_terms ?? "").trim(),
+    custom_terms: stripPhonesFromTerms(stripVatModeFromTerms(rawCustomTerms)),
     scope_of_work: String(row.scope_of_work ?? "").trim() || undefined,
     scope_exclusions: String(row.scope_exclusions ?? "").trim() || undefined,
     estimated_completion_date: String(row.estimated_completion_date ?? "").trim() || undefined,
     deadline: String(row.deadline ?? "").trim() || undefined,
     total_price: Number(row.total_price ?? 0),
-    vat_mode: normalizeVatMode(row.vat_mode),
+    vat_mode: resolveVatMode(row.vat_mode, rawCustomTerms),
     payment_type,
     milestones,
     status: (() => {
@@ -246,6 +253,16 @@ export function augmentCustomTermsWithScope(
   return blocks.join("\n\n");
 }
 
+function withAgreementTermsMetadata(
+  customTerms: string,
+  opts: { vatMode: VatMode; providerPhone?: string; clientPhone?: string }
+): string {
+  return appendPhonesToTerms(appendVatModeToTerms(customTerms, opts.vatMode), {
+    providerPhone: opts.providerPhone,
+    clientPhone: opts.clientPhone
+  });
+}
+
 /**
  * Inserts using the modern column set first; if the DB is an older agreements table
  * (no project_title / payment_type / milestones), falls back to legacy columns.
@@ -284,12 +301,22 @@ export async function insertAgreementWithSchemaFallback(
   };
   const logoUrl = params.providerLogoUrl?.trim() || null;
   const logoColumn = logoUrl ? { provider_logo_url: logoUrl } : {};
-  const customTermsWithScope = augmentCustomTermsWithScope(params.customTerms, {
-    scopeOfWork: params.scopeOfWork,
-    scopeExclusions: params.scopeExclusions,
-    estimatedCompletionDate: params.estimatedCompletionDate,
-    deadline: params.deadline
-  });
+  const vatMode = normalizeVatMode(params.vatMode);
+  const termsMetadata = {
+    vatMode,
+    providerPhone: params.providerPhone,
+    clientPhone: params.clientPhone
+  };
+  const customTermsWithScope = withAgreementTermsMetadata(
+    augmentCustomTermsWithScope(params.customTerms, {
+      scopeOfWork: params.scopeOfWork,
+      scopeExclusions: params.scopeExclusions,
+      estimatedCompletionDate: params.estimatedCompletionDate,
+      deadline: params.deadline
+    }),
+    termsMetadata
+  );
+  const customTermsWithVat = withAgreementTermsMetadata(params.customTerms, termsMetadata);
 
   const modernBaseCore = {
     provider_id: params.providerId,
@@ -300,7 +327,7 @@ export async function insertAgreementWithSchemaFallback(
     service_area: params.serviceArea,
     provider_name: params.providerName,
     total_price: params.totalPrice,
-    vat_mode: normalizeVatMode(params.vatMode),
+    vat_mode: vatMode,
     payment_type: params.paymentType,
     milestones:
       params.paymentType === "milestones"
@@ -314,7 +341,7 @@ export async function insertAgreementWithSchemaFallback(
 
   const modernWithScope: Record<string, unknown> = {
     ...modernBaseCore,
-    custom_terms: params.customTerms,
+    custom_terms: customTermsWithVat,
     ...scopeColumns,
     ...logoColumn,
     full_name: params.full_name ?? null,

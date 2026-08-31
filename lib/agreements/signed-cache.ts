@@ -62,12 +62,16 @@ export function mergePreferSigned(
     return {
       ...server,
       status: cached.status === "completed" ? "completed" : "signed",
-      client_signature: server.client_signature ?? cached.client_signature
+      client_signature: server.client_signature ?? cached.client_signature,
+      provider_phone: server.provider_phone ?? cached.provider_phone,
+      client_phone: server.client_phone ?? cached.client_phone
     };
   }
   return {
     ...server,
     client_signature: server.client_signature ?? cached.client_signature,
-    provider_logo_url: server.provider_logo_url ?? cached.provider_logo_url
+    provider_logo_url: server.provider_logo_url ?? cached.provider_logo_url,
+    provider_phone: server.provider_phone ?? cached.provider_phone,
+    client_phone: server.client_phone ?? cached.client_phone
   };
 }
