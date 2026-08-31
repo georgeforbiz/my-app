@@ -14,9 +14,11 @@ export type CreateAgreementApiPayload = {
   scopeOfWork: string;
   scopeExclusions?: string;
   estimatedCompletionDate?: string;
+  deadline?: string;
   totalPrice: number;
   paymentType: PaymentType;
   milestones: { title: string; amount: number }[];
+  providerLogoUrl?: string;
 };
 
 /** Creates an agreement on the server so shared links work for any client. */
@@ -58,12 +60,14 @@ export function localAgreementToApiPayload(local: NormalizedAgreement): CreateAg
     scopeOfWork: local.scope_of_work ?? "",
     scopeExclusions: local.scope_exclusions,
     estimatedCompletionDate: local.estimated_completion_date,
+    deadline: local.deadline,
     totalPrice: Number(local.total_price || 0),
     paymentType: local.payment_type,
     milestones: (local.milestones ?? []).map((m) => ({
       title: m.title,
       amount: Number(m.amount || 0)
-    }))
+    })),
+    providerLogoUrl: local.provider_logo_url
   };
 }
 

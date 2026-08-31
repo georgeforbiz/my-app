@@ -8,12 +8,13 @@ import { FormField } from "@/components/form-field";
 import { VstahShell } from "@/components/vstah-shell";
 import { NAVY, ORANGE } from "@/lib/brand";
 import { useAuth } from "@/lib/auth/auth-context";
+import { clearSigningOut, isSigningOut } from "@/lib/auth/constants";
 import { useLanguage } from "@/lib/i18n/language-context";
 
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { signIn, resendConfirmation, requestPasswordReset, user } = useAuth();
+  const { signIn, resendConfirmation, requestPasswordReset, user, loading } = useAuth();
   const { language } = useLanguage();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -103,8 +104,15 @@ export default function LoginPage() {
           };
 
   useEffect(() => {
-    if (user) router.replace(nextRoute);
-  }, [user, router, nextRoute]);
+    if (loading) return;
+    if (!user) {
+      clearSigningOut();
+      return;
+    }
+    if (isSigningOut()) return;
+    clearSigningOut();
+    router.replace(nextRoute);
+  }, [user, loading, router, nextRoute]);
 
   useEffect(() => {
     router.prefetch(nextRoute);
@@ -127,6 +135,7 @@ export default function LoginPage() {
       setError(res.error);
       return;
     }
+    clearSigningOut();
     router.replace(nextRoute);
   }
 
@@ -252,7 +261,12 @@ export default function LoginPage() {
 
       <p className="mt-6 text-center text-sm text-slate-600">
         {tx.noAccount}{" "}
-        <Link href={`/register?next=${encodeURIComponent(nextRoute)}`} className="font-semibold underline" style={{ color: NAVY }}>
+        <Link
+          href={`/register?next=${encodeURIComponent(nextRoute)}`}
+          prefetch={false}
+          className="font-semibold underline"
+          style={{ color: NAVY }}
+        >
           {tx.register}
         </Link>
       </p>

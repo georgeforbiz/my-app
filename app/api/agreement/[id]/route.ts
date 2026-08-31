@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { normalizeAgreementRow } from "@/lib/agreements/row";
-import { getAgreementServerClient } from "@/lib/supabase/agreement-server";
+import { fetchAgreementById } from "@/lib/agreements/load-server";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -12,25 +11,14 @@ export async function GET(_request: Request, { params }: { params: { id: string 
     return NextResponse.json({ error: "Agreement id is required." }, { status: 400 });
   }
 
-  const client = getAgreementServerClient();
-  if ("error" in client) {
-    return NextResponse.json({ error: client.error }, { status: client.status });
-  }
+  const agreement = await fetchAgreementById(agreementId);
 
-  const { data, error } = await client.supabase
-    .from("agreements")
-    .select("*")
-    .eq("id", agreementId)
-    .single();
-
-  if (error || !data) {
+  if (!agreement) {
     return NextResponse.json({ error: "Agreement not found." }, { status: 404 });
   }
 
   return NextResponse.json(
-    {
-      agreement: normalizeAgreementRow(data as Record<string, unknown>)
-    },
+    { agreement },
     {
       headers: {
         "Cache-Control": "no-store, no-cache, must-revalidate",

@@ -39,4 +39,18 @@ try {
   if (code === undefined || code > 7) throw err;
 }
 
-console.log("Sync complete. If dev is running, save a file or refresh the browser (Ctrl+Shift+R).");
+for (const rel of [
+  "app/(account)/login/page.tsx",
+  "app/(account)/register/page.tsx",
+  "app/dashboard/page.tsx",
+  "app/dashboard/layout.tsx",
+  "middleware.ts"
+]) {
+  try {
+    fs.rmSync(path.join(localRoot, rel), { force: true });
+  } catch {
+    // ok
+  }
+}
+
+console.log("Sync complete. Run npm run dev:restart if the dev server is already running.");

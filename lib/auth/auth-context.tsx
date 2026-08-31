@@ -7,10 +7,13 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
-  type ReactNode
+  type ReactNode,
+  type MutableRefObject
 } from "react";
 import { humanizeAuthError, isAuthNetworkError } from "./humanize-auth-error";
+import { clearSigningOut, isSigningOut, markSigningOut, redirectToLoginAfterLogout } from "./constants";
 import { isLocalDeviceAuthAllowed, isMockAuthAllowed } from "./mock-auth-allowed";
 import { mockGetSession, mockLogin, mockLogout, mockRegister, mockVerifyCredentials } from "./mock-storage";
 import { getSupabaseBrowser, ensureSupabaseBrowser, getSupabaseReachable } from "@/lib/supabase/browser-client";
@@ -43,6 +46,8 @@ type AuthContextValue = {
     metadata?: SignUpMetadata
   ) => Promise<{ error?: string; needsEmailConfirmation?: boolean }>;
   signOut: () => Promise<void>;
+  /** Re-read Supabase/mock session after transient auth flicker (e.g. token refresh). */
+  revalidateSession: () => Promise<boolean>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -101,13 +106,24 @@ function restoreLocalSession(): AuthUser | null {
   return m ? { ...m, source: "mock" as const } : null;
 }
 
-function tryMockLogin(email: string, password: string, setUser: (u: AuthUser) => void) {
+function tryMockLogin(
+  email: string,
+  password: string,
+  setUser: (u: AuthUser) => void,
+  signingOutRef?: MutableRefObject<boolean>
+) {
   const local = mockLogin(email, password);
   if (local.user) {
     setUser({ ...local.user, source: "mock" });
+    if (signingOutRef) completeSignIn(signingOutRef);
     return { ok: true as const };
   }
   return { ok: false as const, error: local.error };
+}
+
+function completeSignIn(signingOutRef: MutableRefObject<boolean>) {
+  signingOutRef.current = false;
+  clearSigningOut();
 }
 
 async function registerDeviceAccountInCloud(
@@ -201,6 +217,7 @@ async function establishSessionFromLoginApi(
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const signingOutRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -234,27 +251,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (cancelled) return;
 
         if (session?.user) {
-          mockLogout();
-          setUser(mapSupabaseUser(session.user));
+          if (isSigningOut()) {
+            try {
+              await supabase.auth.signOut();
+            } catch {
+              // stale session after logout redirect — clear locally
+            }
+            setUser(null);
+          } else {
+            mockLogout();
+            setUser(mapSupabaseUser(session.user));
+          }
         } else {
-          setUser(isLocalDeviceAuthAllowed() ? restoreLocalSession() : null);
+          setUser(isLocalDeviceAuthAllowed() && !isSigningOut() ? restoreLocalSession() : null);
         }
       } catch {
         if (cancelled) return;
-        setUser(isLocalDeviceAuthAllowed() ? restoreLocalSession() : null);
+        setUser(isLocalDeviceAuthAllowed() && !isSigningOut() ? restoreLocalSession() : null);
       } finally {
         if (!cancelled) setLoading(false);
       }
 
       const {
         data: { subscription: sub }
-      } = supabase.auth.onAuthStateChange((_event, session) => {
+      } = supabase.auth.onAuthStateChange((event, session) => {
+        if (signingOutRef.current || isSigningOut()) {
+          if (isSigningOut() && session?.user) {
+            void supabase.auth.signOut().catch(() => {});
+          }
+          if (isSigningOut()) setUser(null);
+          return;
+        }
         if (session?.user) {
           mockLogout();
           setUser(mapSupabaseUser(session.user));
           return;
         }
-        setUser(isLocalDeviceAuthAllowed() ? restoreLocalSession() : null);
+        // Do not clear the user on transient null sessions during token refresh/init.
+        if (event === "SIGNED_OUT") {
+          setUser(isLocalDeviceAuthAllowed() ? restoreLocalSession() : null);
+        }
       });
       subscription = sub;
     })();
@@ -265,12 +301,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  // Pick up mock session if state lags behind storage (e.g. right after login navigation).
+  useEffect(() => {
+    if (loading || user || isSigningOut()) return;
+    const local = restoreLocalSession();
+    if (local) setUser({ ...local, source: "mock" });
+  }, [loading, user]);
+
   const signIn = useCallback(async (email: string, password: string) => {
     await ensureSupabaseBrowser();
 
-    // Cloud is offline — authenticate locally immediately (no slow failed API calls).
+    // Offline / cloud unreachable — mock accounts on this device only.
     if (isLocalDeviceAuthAllowed()) {
-      const mockAttempt = tryMockLogin(email, password, setUser);
+      const mockAttempt = tryMockLogin(email, password, setUser, signingOutRef);
       return mockAttempt.ok
         ? {}
         : {
@@ -295,7 +338,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
           const retry = await tryServerLogin();
           if (retry.ok) return {};
-          const mockAttempt = tryMockLogin(email, password, setUser);
+          const mockAttempt = tryMockLogin(email, password, setUser, signingOutRef);
           if (mockAttempt.ok) return {};
           return {
             error:
@@ -306,7 +349,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (isCloudUnavailable(server.status, server.error)) {
-        const mockAttempt = tryMockLogin(email, password, setUser);
+        const mockAttempt = tryMockLogin(email, password, setUser, signingOutRef);
         if (mockAttempt.ok) return {};
       }
 
@@ -315,7 +358,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const supabase = getSupabaseBrowser();
     if (!supabase) {
-      const mockAttempt = tryMockLogin(email, password, setUser);
+      const mockAttempt = tryMockLogin(email, password, setUser, signingOutRef);
       if (mockAttempt.ok) return {};
       return {
         error:
@@ -334,7 +377,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       if (error) {
-        const mockAttempt = tryMockLogin(email, password, setUser);
+        const mockAttempt = tryMockLogin(email, password, setUser, signingOutRef);
         if (mockAttempt.ok) return {};
         return { error: humanizeAuthError(error.message) };
       }
@@ -354,7 +397,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const server = await tryServerLogin();
       if (server.ok) return {};
 
-      const mockAttempt = tryMockLogin(email, password, setUser);
+      const mockAttempt = tryMockLogin(email, password, setUser, signingOutRef);
       if (mockAttempt.ok) return {};
 
       const message = err instanceof Error ? err.message : "";
@@ -362,7 +405,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!server.ok) return { error: server.error };
     }
 
-    const mockAttempt = tryMockLogin(email, password, setUser);
+    const mockAttempt = tryMockLogin(email, password, setUser, signingOutRef);
     if (mockAttempt.ok) return {};
     return {
       error:
@@ -402,7 +445,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const login = mockLogin(trimmedEmail, password);
       if (reg.error && !login.user) return reg;
       if (login.error) return { error: login.error };
-      if (login.user) setUser({ ...login.user, source: "mock" });
+      if (login.user) {
+        setUser({ ...login.user, source: "mock" });
+        completeSignIn(signingOutRef);
+      }
       return {};
     };
 
@@ -472,29 +518,67 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: "Could not create account. Check your connection and try again." };
   }, []);
 
-  const signOut = useCallback(async () => {
-    // Always clear local mock session first so auth listeners cannot restore it.
+  const signOut = useCallback(async (): Promise<void> => {
+    if (signingOutRef.current) return;
+    signingOutRef.current = true;
+    markSigningOut();
     mockLogout();
     setUser(null);
+    setLoading(false);
 
     const supabase = getSupabaseBrowser();
-    if (!supabase) return;
+    if (supabase) {
+      try {
+        await supabase.auth.signOut();
+      } catch {
+        // redirect anyway — init on login will retry if session persists
+      }
+    }
+
+    redirectToLoginAfterLogout();
+  }, []);
+
+  const revalidateSession = useCallback(async (): Promise<boolean> => {
+    if (signingOutRef.current || isSigningOut()) return false;
+
+    const supabase = getSupabaseBrowser();
+    if (!supabase) {
+      const local = restoreLocalSession();
+      if (local) {
+        setUser({ ...local, source: "mock" });
+        return true;
+      }
+      return false;
+    }
 
     try {
-      await Promise.race([
-        supabase.auth.signOut(),
-        new Promise<void>((resolve) => {
-          window.setTimeout(resolve, 2_000);
-        })
-      ]);
+      const {
+        data: { session }
+      } = await supabase.auth.getSession();
+      if (session?.user) {
+        mockLogout();
+        setUser(mapSupabaseUser(session.user));
+        return true;
+      }
     } catch {
-      // Supabase unreachable — local logout already completed.
+      // fall through
     }
+
+    return false;
   }, []);
 
   const value = useMemo(
-    () => ({ user, loading, signIn, resendConfirmation, requestPasswordReset, signUp, signOut }),
-    [user, loading, signIn, resendConfirmation, requestPasswordReset, signUp, signOut]
+    () => ({
+      user,
+      loading,
+      signIn,
+      resendConfirmation,
+      requestPasswordReset,
+      signUp,
+      signOut,
+      revalidateSession
+    }),
+    [user, loading, signIn, resendConfirmation, requestPasswordReset, signUp, signOut, revalidateSession]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

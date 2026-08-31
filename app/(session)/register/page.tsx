@@ -18,6 +18,7 @@ import { FormField } from "@/components/form-field";
 import { VstahShell } from "@/components/vstah-shell";
 import { NAVY, ORANGE } from "@/lib/brand";
 import { useAuth } from "@/lib/auth/auth-context";
+import { clearSigningOut, isSigningOut } from "@/lib/auth/constants";
 import { useLanguage } from "@/lib/i18n/language-context";
 
 const DEFAULT_SERVICE_CATEGORY = "General Contractor" as const;
@@ -30,7 +31,7 @@ const serviceCategoryLabel = {
 export default function RegisterPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { signUp, user } = useAuth();
+  const { signUp, user, loading } = useAuth();
   const { language } = useLanguage();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -133,8 +134,15 @@ export default function RegisterPage() {
           };
 
   useEffect(() => {
-    if (user) router.replace(nextRoute);
-  }, [user, router, nextRoute]);
+    if (loading) return;
+    if (!user) {
+      clearSigningOut();
+      return;
+    }
+    if (isSigningOut()) return;
+    clearSigningOut();
+    router.replace(nextRoute);
+  }, [user, loading, router, nextRoute]);
 
   useEffect(() => {
     router.prefetch(nextRoute);
@@ -181,7 +189,7 @@ export default function RegisterPage() {
         setInfo(tx.confirmEmail);
         return;
       }
-      // Immediate navigation — skip router.refresh() (extra RSC refetch felt slow).
+      clearSigningOut();
       router.replace(nextRoute);
     } finally {
       setPending(false);

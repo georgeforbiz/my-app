@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { insertAgreementWithSchemaFallback, type PaymentType } from "@/lib/agreements/row";
 import { getAgreementServerClient } from "@/lib/supabase/agreement-server";
 import { isSupabaseReachable } from "@/lib/supabase/health";
+import { readProviderLogoUrl } from "@/lib/agreements/logo-image";
 
 function readString(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
@@ -71,9 +72,11 @@ export async function POST(req: Request) {
     scopeOfWork: readString(body.scopeOfWork),
     scopeExclusions: readString(body.scopeExclusions) || undefined,
     estimatedCompletionDate: readString(body.estimatedCompletionDate) || undefined,
+    deadline: readString(body.deadline) || undefined,
     totalPrice,
     paymentType,
-    milestones: paymentType === "milestones" ? milestones : []
+    milestones: paymentType === "milestones" ? milestones : [],
+    providerLogoUrl: readProviderLogoUrl(body.providerLogoUrl)
   });
 
   if (result.error || !result.id) {

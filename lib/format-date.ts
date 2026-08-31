@@ -18,8 +18,13 @@ export function formatDateDMY(value: string | number | Date): string {
 
 /** Fix legacy contract text that embedded ISO dates in custom terms. */
 export function formatEmbeddedDatesInTerms(terms: string): string {
-  return terms.replace(
-    /(ESTIMATED COMPLETION DATE:\s*)(\d{4}-\d{2}-\d{2})/gi,
-    (_, label: string, iso: string) => `${label}${formatDateDMY(iso)}`
-  );
+  return terms
+    .replace(
+      /(ESTIMATED COMPLETION DATE:\s*)(\d{4}-\d{2}-\d{2})/gi,
+      (_, label: string, iso: string) => `${label}${formatDateDMY(iso)}`
+    )
+    .replace(
+      /(OFFER DEADLINE:\s*)(\d{4}-\d{2}-\d{2})/gi,
+      (_, label: string, iso: string) => `${label}${formatDateDMY(iso)}`
+    );
 }

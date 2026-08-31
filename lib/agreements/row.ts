@@ -22,12 +22,14 @@ export type NormalizedAgreement = {
   scope_of_work?: string;
   scope_exclusions?: string;
   estimated_completion_date?: string;
+  deadline?: string;
   total_price: number;
   payment_type: PaymentType;
   milestones: Milestone[] | null;
   status: AgreementStatus;
   payment_status: "pending" | "escrow_held" | "released";
   client_signature?: string;
+  provider_logo_url?: string;
   created_at: string;
 };
 
@@ -104,6 +106,7 @@ export function normalizeAgreementRow(row: Record<string, unknown>): NormalizedA
     scope_of_work: String(row.scope_of_work ?? "").trim() || undefined,
     scope_exclusions: String(row.scope_exclusions ?? "").trim() || undefined,
     estimated_completion_date: String(row.estimated_completion_date ?? "").trim() || undefined,
+    deadline: String(row.deadline ?? "").trim() || undefined,
     total_price: Number(row.total_price ?? 0),
     payment_type,
     milestones,
@@ -117,6 +120,7 @@ export function normalizeAgreementRow(row: Record<string, unknown>): NormalizedA
           ? "escrow_held"
           : "pending",
     client_signature: String(row.client_signature ?? "").trim() || undefined,
+    provider_logo_url: String(row.provider_logo_url ?? "").trim() || undefined,
     created_at: String(row.created_at ?? "")
   };
 }
@@ -137,6 +141,7 @@ export function augmentCustomTermsWithScope(
     scopeOfWork: string;
     scopeExclusions?: string;
     estimatedCompletionDate?: string;
+    deadline?: string;
   }
 ): string {
   const blocks: string[] = [];
@@ -152,6 +157,11 @@ export function augmentCustomTermsWithScope(
   const completion = scope.estimatedCompletionDate?.trim();
   if (completion) {
     blocks.push(`ESTIMATED COMPLETION DATE:\n${formatDateDMY(completion) || completion}`);
+  }
+
+  const deadline = scope.deadline?.trim();
+  if (deadline) {
+    blocks.push(`OFFER DEADLINE:\n${formatDateDMY(deadline) || deadline}`);
   }
 
   return blocks.join("\n\n");
@@ -177,20 +187,26 @@ export async function insertAgreementWithSchemaFallback(
     scopeOfWork: string;
     scopeExclusions?: string;
     estimatedCompletionDate?: string;
+    deadline?: string;
     totalPrice: number;
     paymentType: PaymentType;
     milestones: Milestone[];
+    providerLogoUrl?: string | null;
   }
 ): Promise<{ id?: string; error?: string }> {
   const scopeColumns = {
     scope_of_work: params.scopeOfWork.trim(),
     scope_exclusions: params.scopeExclusions?.trim() || null,
-    estimated_completion_date: params.estimatedCompletionDate?.trim() || null
+    estimated_completion_date: params.estimatedCompletionDate?.trim() || null,
+    deadline: params.deadline?.trim() || null
   };
+  const logoUrl = params.providerLogoUrl?.trim() || null;
+  const logoColumn = logoUrl ? { provider_logo_url: logoUrl } : {};
   const customTermsWithScope = augmentCustomTermsWithScope(params.customTerms, {
     scopeOfWork: params.scopeOfWork,
     scopeExclusions: params.scopeExclusions,
-    estimatedCompletionDate: params.estimatedCompletionDate
+    estimatedCompletionDate: params.estimatedCompletionDate,
+    deadline: params.deadline
   });
 
   const modernBaseCore = {
@@ -213,11 +229,13 @@ export async function insertAgreementWithSchemaFallback(
   const modernBase = {
     ...modernBaseCore,
     custom_terms: params.customTerms,
-    ...scopeColumns
+    ...scopeColumns,
+    ...logoColumn
   };
   const modernBaseWithoutScopeColumns = {
     ...modernBaseCore,
-    custom_terms: customTermsWithScope
+    custom_terms: customTermsWithScope,
+    ...logoColumn
   };
   const namesOnly = {
     full_name: params.full_name ?? null,
@@ -240,7 +258,7 @@ export async function insertAgreementWithSchemaFallback(
   };
   const modernWithCanonicalNamesNoScope = { ...modernBaseWithoutScopeColumns, ...namesOnly };
 
-  const insertCandidates = [
+  const withLogoCandidates = [
     modernWithProviderDetails,
     modernWithCanonicalNames,
     modernBase,
@@ -248,6 +266,30 @@ export async function insertAgreementWithSchemaFallback(
     modernWithCanonicalNamesNoScope,
     modernBaseWithoutScopeColumns
   ];
+
+  const stripLogoColumn = (row: Record<string, unknown>) => {
+    const { provider_logo_url: _removed, ...rest } = row;
+    return rest;
+  };
+
+  const insertCandidates = logoUrl
+    ? [...withLogoCandidates, ...withLogoCandidates.map((candidate) => stripLogoColumn(candidate))]
+    : withLogoCandidates;
+
+  async function patchLogo(agreementId: string) {
+    const logo = params.providerLogoUrl?.trim();
+    if (!logo) return;
+    const { error: patchError } = await supabase
+      .from("agreements")
+      .update({ provider_logo_url: logo })
+      .eq("id", agreementId);
+    if (patchError) {
+      if (!isMissingColumnOrSchemaCacheError(patchError.message)) {
+        console.warn("[vstah] provider_logo_url patch failed:", patchError.message);
+      }
+      return;
+    }
+  }
 
   let modernData: { id?: string } | null = null;
   let modernError: { message?: string } | null = null;
@@ -282,6 +324,7 @@ export async function insertAgreementWithSchemaFallback(
           .eq("id", modernData.id as string);
       }
     }
+    await patchLogo(modernData.id as string);
     return { id: modernData.id as string };
   }
 
@@ -334,6 +377,7 @@ export async function insertAgreementWithSchemaFallback(
           .eq("id", id);
       }
     }
+    await patchLogo(legacyData.id as string);
     return { id: legacyData.id as string };
   }
 

@@ -14,13 +14,16 @@ import {
 export async function ensureSupabaseAccessToken(
   supabase: SupabaseClient
 ): Promise<string | null> {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const existing = sessionData.session?.access_token;
+  if (existing) return existing;
+
   try {
-    await supabase.auth.refreshSession();
+    const { data } = await supabase.auth.refreshSession();
+    return data.session?.access_token ?? null;
   } catch {
-    // refresh optional — getSession may still return a valid token
+    return null;
   }
-  const { data } = await supabase.auth.getSession();
-  return data.session?.access_token ?? null;
 }
 
 export async function verifyAgreementIsPublic(agreementId: string): Promise<boolean> {
@@ -49,9 +52,11 @@ type ShareableDraft = {
   scopeOfWork: string;
   scopeExclusions?: string;
   estimatedCompletionDate?: string;
+  deadline?: string;
   totalPrice: number;
   paymentType: PaymentType;
   milestones: Milestone[];
+  providerLogoUrl?: string | null;
 };
 
 function toApiPayload(draft: ShareableDraft): CreateAgreementApiPayload {
@@ -66,12 +71,14 @@ function toApiPayload(draft: ShareableDraft): CreateAgreementApiPayload {
     scopeOfWork: draft.scopeOfWork,
     scopeExclusions: draft.scopeExclusions,
     estimatedCompletionDate: draft.estimatedCompletionDate,
+    deadline: draft.deadline,
     totalPrice: draft.totalPrice,
     paymentType: draft.paymentType,
     milestones: draft.milestones.map((m) => ({
       title: m.title,
       amount: Number(m.amount || 0)
-    }))
+    })),
+    providerLogoUrl: draft.providerLogoUrl ?? undefined
   };
 }
 
@@ -104,9 +111,11 @@ export async function createShareableAgreement(
         scopeOfWork: draft.scopeOfWork,
         scopeExclusions: draft.scopeExclusions,
         estimatedCompletionDate: draft.estimatedCompletionDate,
+    deadline: draft.deadline,
         totalPrice: draft.totalPrice,
         paymentType: draft.paymentType,
-        milestones: draft.milestones
+        milestones: draft.milestones,
+        providerLogoUrl: draft.providerLogoUrl
       });
     } catch (err) {
       return { error: err instanceof Error ? err.message : "Failed to save agreement." };

@@ -15,9 +15,10 @@ import {
   LayoutDashboard,
   Loader2,
   Plus,
-  Trash2
+  Trash2,
+  ImageIcon
 } from "lucide-react";
-import { AgreementDocumentPreview } from "@/components/agreement-document-preview";
+import { AgreementDocumentView } from "@/components/agreement-document-view";
 import {
   AgreementStatusPill,
   getDerivedAgreementStatus,
@@ -30,8 +31,9 @@ import {
   parseGroupedNumberInput
 } from "@/lib/currency";
 import { FREE_AGREEMENT_LIMIT, readMockPlan, writeMockPlan, type MockPlanId } from "@/lib/subscription/mock";
-import { useRouter } from "next/navigation";
 import { authDisplayName, useAuth } from "@/lib/auth/auth-context";
+import { mockGetSession } from "@/lib/auth/mock-storage";
+import { isSigningOut, redirectToLoginAfterLogout } from "@/lib/auth/constants";
 import { ensureSupabaseBrowser, getSupabaseBrowser, getSupabaseReachable } from "@/lib/supabase/browser-client";
 import { normalizeAgreementRow } from "@/lib/agreements/row";
 import { fetchDashboardAgreementsViaApi, mergeAgreementsById, publishLocalAgreementToCloud } from "@/lib/agreements/create-via-api";
@@ -45,6 +47,7 @@ import {
   saveLocalAgreement
 } from "@/lib/agreements/local-store";
 import { formatDateDMY } from "@/lib/format-date";
+import { readLogoDataUrl, PROVIDER_LOGO_STORAGE_KEY, resolveStoredProviderLogo } from "@/lib/agreements/logo-image";
 import { useLanguage } from "@/lib/i18n/language-context";
 import type { Language } from "@/lib/i18n/locales";
 
@@ -68,11 +71,13 @@ type Agreement = {
   scope_of_work?: string;
   scope_exclusions?: string;
   estimated_completion_date?: string;
+  deadline?: string;
   total_price: number;
   payment_type: PaymentType;
   milestones: Milestone[] | null;
   status: AgreementStatus;
   payment_status: "pending" | "escrow_held" | "released";
+  provider_logo_url?: string;
   created_at: string;
 };
 
@@ -154,6 +159,7 @@ type Tx = {
   scopeExclusions: string;
   scopeExclusionsPlaceholder: string;
   estimatedCompletionDate: string;
+  offerDeadline: string;
   dateDay: string;
   dateMonth: string;
   dateYear: string;
@@ -182,6 +188,12 @@ type Tx = {
   freeLimitUpgrade: string;
   mockTesting: string;
   mockSwitchToFree: string;
+  providerLogo: string;
+  providerLogoHint: string;
+  removeLogo: string;
+  logoProcessing: string;
+  uploadLogo: string;
+  changeLogo: string;
 };
 
 const t: Record<Lang, Tx> = {
@@ -265,6 +277,7 @@ const t: Record<Lang, Tx> = {
     scopeExclusions: "What is NOT Included (Optional)",
     scopeExclusionsPlaceholder: "e.g., material purchases, extra coats, furniture moving",
     estimatedCompletionDate: "Estimated Completion Date",
+    offerDeadline: "Offer deadline (optional)",
     dateDay: "Day",
     dateMonth: "Month",
     dateYear: "Year",
@@ -292,7 +305,13 @@ const t: Record<Lang, Tx> = {
     freeLimitMessage: "Upgrade to Pro for unlimited agreements",
     freeLimitUpgrade: "Upgrade (Mock)",
     mockTesting: "Testing controls",
-    mockSwitchToFree: "Switch to Free (mock)"
+    mockSwitchToFree: "Switch to Free (mock)",
+    providerLogo: "Business logo (optional)",
+    providerLogoHint: "PNG or JPEG — shown at the top of the agreement.",
+    removeLogo: "Remove",
+    logoProcessing: "Processing…",
+    uploadLogo: "Upload logo",
+    changeLogo: "Change logo"
   },
   hy: {
     dashboardTitle: "Մատակարարի վահանակ",
@@ -375,6 +394,7 @@ const t: Record<Lang, Tx> = {
     scopeExclusions: "Ինչը չի ներառվում (ընտրովի)",
     scopeExclusionsPlaceholder: "օր.՝ նյութերի գնում, լրացուցիչ շերտեր",
     estimatedCompletionDate: "Ավարտի մոտավոր ամսաթիվ",
+    offerDeadline: "Առաջարկի վավերականության ժամկետ (ըստ ցանկության)",
     dateDay: "Օր",
     dateMonth: "Ամիս",
     dateYear: "Տարի",
@@ -402,7 +422,13 @@ const t: Record<Lang, Tx> = {
     freeLimitMessage: "Անցեք Պրո փաթեթին՝ անսահմանափակ պայմանագրերի համար",
     freeLimitUpgrade: "Թարմացնել (մոկ)",
     mockTesting: "Փորձարկման կառավարում",
-    mockSwitchToFree: "Անվճար (մոկ)"
+    mockSwitchToFree: "Անվճար (մոկ)",
+    providerLogo: "Բիզնեսի լոգո (ընտրովի)",
+    providerLogoHint: "PNG կամ JPEG — ցուցադրվում է պայմանագրի վերևում։",
+    removeLogo: "Հեռացնել",
+    logoProcessing: "Մշակում…",
+    uploadLogo: "Բեռնել լոգո",
+    changeLogo: "Փոխել լոգոն"
   },
   ru: {
     dashboardTitle: "Кабинет исполнителя",
@@ -485,6 +511,7 @@ const t: Record<Lang, Tx> = {
     scopeExclusions: "Что НЕ включено (необязательно)",
     scopeExclusionsPlaceholder: "напр., закупка материалов, дополнительные слои",
     estimatedCompletionDate: "Ориентировочная дата завершения",
+    offerDeadline: "Срок действия предложения (необязательно)",
     dateDay: "День",
     dateMonth: "Месяц",
     dateYear: "Год",
@@ -512,7 +539,13 @@ const t: Record<Lang, Tx> = {
     freeLimitMessage: "Перейдите на тариф Про для безлимитных соглашений",
     freeLimitUpgrade: "Улучшить (мок)",
     mockTesting: "Тестовые переключатели",
-    mockSwitchToFree: "Вернуть бесплатный (мок)"
+    mockSwitchToFree: "Вернуть бесплатный (мок)",
+    providerLogo: "Логотип (необязательно)",
+    providerLogoHint: "PNG или JPEG — отображается в шапке договора.",
+    removeLogo: "Удалить",
+    logoProcessing: "Обработка…",
+    uploadLogo: "Загрузить логотип",
+    changeLogo: "Изменить логотип"
   }
 };
 
@@ -529,6 +562,17 @@ const formatAgreementNumber = (id: string, createdAt: string) =>
   `AG-${new Date(createdAt).getFullYear()}-${id.slice(0, 8).toUpperCase()}`;
 
 const formatAmount = (value: number) => formatAMD(value, { maxFractionDigits: 2 });
+
+/** Cloud rows can lag schema patches — keep logo from local copy when missing server-side. */
+function mergeDashboardAgreements(local: Agreement[], cloud: Agreement[]): Agreement[] {
+  const localById = new Map(local.map((a) => [a.id, a]));
+  return mergeAgreementsById([local, cloud]).map((row) => {
+    const fromLocal = localById.get(row.id);
+    const provider_logo_url = resolveStoredProviderLogo(row, fromLocal);
+    if (!provider_logo_url || provider_logo_url === row.provider_logo_url) return row;
+    return { ...row, provider_logo_url };
+  });
+}
 
 /** Resolves to null when the network call fails or exceeds `ms`. */
 async function withNetworkTimeout<T>(promise: Promise<T>, ms = 5_000): Promise<T | null> {
@@ -558,8 +602,7 @@ function completionYearOptions(): number[] {
 }
 
 export default function DashboardPage() {
-  const router = useRouter();
-  const { user, loading, signOut } = useAuth();
+  const { user, loading, signOut, revalidateSession } = useAuth();
   const { language: lang, setLanguage: setLang } = useLanguage();
   const [supabase, setSupabase] = useState(() => getSupabaseBrowser());
 
@@ -594,9 +637,16 @@ export default function DashboardPage() {
   const [completionDay, setCompletionDay] = useState("");
   const [completionMonth, setCompletionMonth] = useState("");
   const [completionYear, setCompletionYear] = useState("");
+  const [deadlineDay, setDeadlineDay] = useState("");
+  const [deadlineMonth, setDeadlineMonth] = useState("");
+  const [deadlineYear, setDeadlineYear] = useState("");
   const [totalPriceInput, setTotalPriceInput] = useState("");
   const [paymentType, setPaymentType] = useState<PaymentType>("single");
   const [milestones, setMilestones] = useState<MilestoneDraft[]>([]);
+  const [providerLogoUrl, setProviderLogoUrl] = useState("");
+  const [logoError, setLogoError] = useState("");
+  const [logoUploading, setLogoUploading] = useState(false);
+  const logoInputRef = useRef<HTMLInputElement>(null);
   /** Latest saved agreement body text for this provider — mirrors DB + updates on each successful create. */
   const [globalTermsTemplate, setGlobalTermsTemplate] = useState("");
   /** One-time hydrate of contract terms from the latest agreement (or static boilerplate). */
@@ -610,8 +660,54 @@ export default function DashboardPage() {
   contractTermsRef.current = contractTerms;
 
   useEffect(() => {
-    setMockPlan(readMockPlan());
+    if (!user?.id) {
+      setMockPlan("free");
+      return;
+    }
+    setMockPlan(readMockPlan(user.id));
+  }, [user?.id]);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(PROVIDER_LOGO_STORAGE_KEY);
+      if (saved?.startsWith("data:image/")) setProviderLogoUrl(saved);
+    } catch {
+      // localStorage may be unavailable
+    }
   }, []);
+
+  const handleLogoFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setLogoError("");
+    setLogoUploading(true);
+    try {
+      const { dataUrl, error: logoErr } = await readLogoDataUrl(file);
+      if (logoErr || !dataUrl) {
+        setLogoError(logoErr ?? "Could not use this image.");
+        return;
+      }
+      setProviderLogoUrl(dataUrl);
+      try {
+        localStorage.setItem(PROVIDER_LOGO_STORAGE_KEY, dataUrl);
+      } catch {
+        // ignore quota errors
+      }
+    } finally {
+      setLogoUploading(false);
+    }
+  };
+
+  const removeLogo = () => {
+    setProviderLogoUrl("");
+    setLogoError("");
+    try {
+      localStorage.removeItem(PROVIDER_LOGO_STORAGE_KEY);
+    } catch {
+      // ignore
+    }
+  };
 
   const tx: Tx = t[lang] ?? t.en;
   const isPro = mockPlan === "pro";
@@ -620,14 +716,16 @@ export default function DashboardPage() {
   const freeUsagePct = Math.min(100, (agreementsUsed / FREE_AGREEMENT_LIMIT) * 100);
 
   const upgradeToProMock = () => {
-    writeMockPlan("pro");
+    if (!user?.id) return;
+    writeMockPlan("pro", user.id);
     setMockPlan("pro");
     setLimitModalOpen(false);
     setToast(tx.upgradeNowMock);
   };
 
   const resetToFreeMock = () => {
-    writeMockPlan("free");
+    if (!user?.id) return;
+    writeMockPlan("free", user.id);
     setMockPlan("free");
   };
 
@@ -689,8 +787,25 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    if (!loading && !user) router.replace("/register?next=%2Fdashboard");
-  }, [loading, user, router]);
+    if (loading) return;
+    if (user || isSigningOut()) return;
+    if (mockGetSession()) return;
+
+    let cancelled = false;
+    const tm = window.setTimeout(() => {
+      void (async () => {
+        if (cancelled || mockGetSession()) return;
+        const recovered = await revalidateSession();
+        if (cancelled || recovered) return;
+        redirectToLoginAfterLogout();
+      })();
+    }, 600);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(tm);
+    };
+  }, [loading, user, revalidateSession]);
 
   useEffect(() => {
     if (!toast) return;
@@ -709,6 +824,11 @@ export default function DashboardPage() {
   const estimatedCompletionDate = useMemo(
     () => buildCompletionDate(completionYear, completionMonth, completionDay),
     [completionYear, completionMonth, completionDay]
+  );
+
+  const offerDeadline = useMemo(
+    () => buildCompletionDate(deadlineYear, deadlineMonth, deadlineDay),
+    [deadlineYear, deadlineMonth, deadlineDay]
   );
 
   const milestonesParsed = useMemo(
@@ -780,7 +900,7 @@ export default function DashboardPage() {
       }
 
       if (isStale()) return;
-      setAgreements(mergeAgreementsById([local, cloud]));
+      setAgreements(mergeDashboardAgreements(local, cloud));
     } catch {
       if (isStale()) return;
       setAgreements(local);
@@ -937,6 +1057,9 @@ export default function DashboardPage() {
     setCompletionDay("");
     setCompletionMonth("");
     setCompletionYear("");
+    setDeadlineDay("");
+    setDeadlineMonth("");
+    setDeadlineYear("");
     setTotalPriceInput("");
     setPaymentType("single");
     setMilestones([]);
@@ -955,12 +1078,7 @@ export default function DashboardPage() {
     if (!user || !supabase || user.source === "mock" || getSupabaseReachable() !== true) return fallback;
 
     try {
-      const authData = await withNetworkTimeout(
-        (async () => {
-          await supabase.auth.refreshSession();
-          return supabase.auth.getUser();
-        })()
-      );
+      const authData = await withNetworkTimeout(supabase.auth.getUser());
       if (!authData) return fallback;
 
       const userMetadata = (authData.data.user?.user_metadata ?? {}) as Record<string, unknown>;
@@ -1055,11 +1173,13 @@ export default function DashboardPage() {
       scope_of_work: scopeOfWork.trim() || undefined,
       scope_exclusions: scopeExclusions.trim() || undefined,
       estimated_completion_date: estimatedCompletionDate.trim() || undefined,
+      deadline: offerDeadline.trim() || undefined,
       total_price: totalPrice || 0,
       payment_type: paymentType,
       milestones: paymentType === "milestones" ? milestonesParsed : null,
       status: "pending",
       payment_status: "pending",
+      provider_logo_url: providerLogoUrl.trim() || undefined,
       created_at: new Date().toISOString()
     };
   }, [
@@ -1069,10 +1189,12 @@ export default function DashboardPage() {
     scopeOfWork,
     scopeExclusions,
     estimatedCompletionDate,
+    offerDeadline,
     milestonesParsed,
     paymentType,
     projectTitle,
     providerDisplayName,
+    providerLogoUrl,
     serviceArea,
     totalPrice,
     user?.business_name,
@@ -1083,6 +1205,13 @@ export default function DashboardPage() {
   const openDraftPreview = () => {
     setPreviewAgreement(buildDraftPreviewAgreement());
   };
+
+  /** Draft preview stays in sync with the create form while the modal is open. */
+  const displayedPreview = useMemo((): Agreement | null => {
+    if (!previewAgreement) return null;
+    if (previewAgreement.id === "draft") return buildDraftPreviewAgreement();
+    return agreements.find((a) => a.id === previewAgreement.id) ?? previewAgreement;
+  }, [previewAgreement, buildDraftPreviewAgreement, agreements]);
 
   useEffect(() => {
     if (termsHydratedRef.current || loadingAgreements) return;
@@ -1232,9 +1361,11 @@ export default function DashboardPage() {
         scopeOfWork: scopeOfWork.trim(),
         scopeExclusions: scopeExclusions.trim() || undefined,
         estimatedCompletionDate: estimatedCompletionDate.trim(),
+        deadline: offerDeadline.trim() || undefined,
         totalPrice,
         paymentType,
-        milestones: paymentType === "milestones" ? milestonesParsed : []
+        milestones: paymentType === "milestones" ? milestonesParsed : [],
+        providerLogoUrl: providerLogoUrl.trim() || undefined
       };
 
       let agreementId: string | undefined;
@@ -1266,12 +1397,14 @@ export default function DashboardPage() {
                 scopeOfWork: scopeOfWork.trim(),
                 scopeExclusions: scopeExclusions.trim() || undefined,
                 estimatedCompletionDate: estimatedCompletionDate.trim(),
+                deadline: offerDeadline.trim() || undefined,
                 totalPrice,
                 paymentType,
                 milestones:
                   paymentType === "milestones"
                     ? milestonesParsed.map((m) => ({ title: m.title, amount: m.amount }))
-                    : []
+                    : [],
+                providerLogoUrl: providerLogoUrl.trim() || undefined
               })
             });
             const deviceData = (await deviceRes.json().catch(() => ({}))) as { id?: string };
@@ -1295,6 +1428,7 @@ export default function DashboardPage() {
           scope_of_work: scopeOfWork.trim(),
           scope_exclusions: scopeExclusions.trim() || undefined,
           estimated_completion_date: estimatedCompletionDate.trim(),
+          deadline: offerDeadline.trim() || undefined,
           total_price: totalPrice,
           payment_type: paymentType,
           milestones:
@@ -1302,7 +1436,8 @@ export default function DashboardPage() {
               ? milestonesParsed.map((m) => ({ ...m, status: "pending" as const }))
               : null,
           status: "pending",
-          payment_status: "pending"
+          payment_status: "pending",
+          provider_logo_url: providerLogoUrl.trim() || undefined
         });
         agreementId = local.id;
       }
@@ -1320,6 +1455,7 @@ export default function DashboardPage() {
         scope_of_work: scopeOfWork.trim(),
         scope_exclusions: scopeExclusions.trim() || undefined,
         estimated_completion_date: estimatedCompletionDate.trim(),
+        deadline: offerDeadline.trim() || undefined,
         total_price: totalPrice,
         payment_type: paymentType,
         milestones:
@@ -1328,6 +1464,7 @@ export default function DashboardPage() {
             : null,
         status: "pending",
         payment_status: "pending",
+        provider_logo_url: providerLogoUrl.trim() || undefined,
         created_at: new Date().toISOString()
       };
       setAgreements((prev) => mergeAgreementsById([[createdRow], prev]));
@@ -1407,7 +1544,21 @@ export default function DashboardPage() {
     });
   }, [archived, historySearch, statusText.completed, statusText.signed, statusText.paid]);
 
-  if (loading || !user) return <div className="min-h-dvh bg-[#F9FAFB] p-6">Loading dashboard...</div>;
+  if (!loading && !user && !isSigningOut()) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-[#F9FAFB] p-6 text-sm text-slate-600">
+        Redirecting…
+      </div>
+    );
+  }
+
+  if (loading || !user) {
+    return (
+      <div className="flex min-h-dvh items-center justify-center bg-[#F9FAFB] p-6 text-sm text-slate-600">
+        Loading dashboard…
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 flex overflow-hidden bg-[#F9FAFB] text-slate-900">
@@ -1435,7 +1586,7 @@ export default function DashboardPage() {
           </p>
           <button
             type="button"
-            onClick={() => void signOut().then(() => router.replace("/login?next=%2Fdashboard"))}
+            onClick={() => void signOut()}
             className="w-full rounded-xl bg-white px-3 py-2 text-sm font-bold text-[#0033A0]"
           >
             {tx.logout}
@@ -1515,7 +1666,7 @@ export default function DashboardPage() {
                   </p>
                   <button
                     type="button"
-                    onClick={() => void signOut().then(() => router.replace("/login?next=%2Fdashboard"))}
+                    onClick={() => void signOut()}
                     className="inline-flex min-h-9 shrink-0 items-center rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700"
                   >
                     {tx.logout}
@@ -1648,6 +1799,54 @@ export default function DashboardPage() {
             {view === "create" ? (
               <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
                 <h3 className="text-lg font-extrabold">{tx.createSafeAgreement}</h3>
+
+                <div className="mt-5 rounded-xl border border-dashed border-slate-300 bg-slate-50/80 p-4">
+                  <p className="text-sm font-semibold text-slate-700">{tx.providerLogo}</p>
+                  <p className="mt-0.5 text-xs text-slate-500">{tx.providerLogoHint}</p>
+                  <div className="mt-3 flex flex-wrap items-center gap-3">
+                    {providerLogoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={providerLogoUrl}
+                        alt=""
+                        className="h-14 w-auto max-w-[180px] rounded-lg border border-slate-200 bg-white object-contain p-1"
+                      />
+                    ) : (
+                      <div className="flex h-14 w-14 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-400">
+                        <ImageIcon className="h-6 w-6" aria-hidden />
+                      </div>
+                    )}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <input
+                        ref={logoInputRef}
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        className="sr-only"
+                        onChange={(e) => void handleLogoFile(e)}
+                      />
+                      <button
+                        type="button"
+                        disabled={logoUploading}
+                        onClick={() => logoInputRef.current?.click()}
+                        className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"
+                      >
+                        {logoUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImageIcon className="h-4 w-4" />}
+                        {logoUploading ? tx.logoProcessing : providerLogoUrl ? tx.changeLogo : tx.uploadLogo}
+                      </button>
+                      {providerLogoUrl ? (
+                        <button
+                          type="button"
+                          onClick={removeLogo}
+                          className="rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50"
+                        >
+                          {tx.removeLogo}
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                  {logoError ? <p className="mt-2 text-sm font-semibold text-red-700">{logoError}</p> : null}
+                </div>
+
                 <div className="mt-5 grid gap-4 md:grid-cols-2">
                   <label className="text-sm font-semibold text-slate-700">
                     {tx.clientName}
@@ -1758,6 +1957,65 @@ export default function DashboardPage() {
                           <option value="">—</option>
                           {completionYearOptions().map((year) => (
                             <option key={year} value={String(year)}>
+                              {year}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                  </div>
+                  <div className="md:col-span-2">
+                    <p className="text-sm font-semibold text-slate-700">{tx.offerDeadline}</p>
+                    <div className="mt-1 grid grid-cols-3 gap-3 sm:max-w-lg">
+                      <label className="min-w-0 text-xs font-medium text-slate-500">
+                        {tx.dateDay}
+                        <select
+                          value={deadlineDay}
+                          onChange={(e) => setDeadlineDay(e.target.value)}
+                          className={selectFieldClass}
+                          aria-label={tx.dateDay}
+                        >
+                          <option value="">—</option>
+                          {Array.from({ length: 31 }, (_, i) => {
+                            const day = String(i + 1).padStart(2, "0");
+                            return (
+                              <option key={`deadline-day-${day}`} value={day}>
+                                {day}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </label>
+                      <label className="min-w-0 text-xs font-medium text-slate-500">
+                        {tx.dateMonth}
+                        <select
+                          value={deadlineMonth}
+                          onChange={(e) => setDeadlineMonth(e.target.value)}
+                          className={selectFieldClass}
+                          aria-label={tx.dateMonth}
+                        >
+                          <option value="">—</option>
+                          {Array.from({ length: 12 }, (_, i) => {
+                            const month = String(i + 1).padStart(2, "0");
+                            return (
+                              <option key={`deadline-month-${month}`} value={month}>
+                                {month}
+                              </option>
+                            );
+                          })}
+                        </select>
+                      </label>
+                      <label className="min-w-0 text-xs font-medium text-slate-500">
+                        {tx.dateYear}
+                        <select
+                          value={deadlineYear}
+                          onChange={(e) => setDeadlineYear(e.target.value)}
+                          className={selectFieldClass}
+                          aria-label={tx.dateYear}
+                        >
+                          <option value="">—</option>
+                          {completionYearOptions().map((year) => (
+                            <option key={`deadline-year-${year}`} value={String(year)}>
                               {year}
                             </option>
                           ))}
@@ -2069,21 +2327,27 @@ export default function DashboardPage() {
         </div>
       ) : null}
 
-      {previewAgreement ? (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-3 sm:p-4">
-          <div className="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-slate-100 shadow-xl">
-            <div className="flex-1 overflow-y-auto p-3 sm:p-4">
-              <AgreementDocumentPreview
-                agreement={previewAgreement}
+      {displayedPreview ? (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-900/50 p-2 sm:p-4">
+          <div className="flex max-h-[94vh] w-full max-w-[min(100%,56rem)] flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-b from-slate-100 via-[#f8fafc] to-slate-200/90 shadow-xl">
+            <div className="flex-1 overflow-y-auto p-2 sm:p-4">
+              <AgreementDocumentView
+                key={
+                  displayedPreview.id === "draft"
+                    ? `draft-${displayedPreview.provider_logo_url?.length ?? 0}-${displayedPreview.client_name}-${displayedPreview.project_title}`
+                    : displayedPreview.id
+                }
+                agreement={displayedPreview}
                 lang={lang}
-                draft={previewAgreement.id === "draft"}
+                draft={displayedPreview.id === "draft"}
+                embedded
               />
             </div>
             <div className="flex flex-wrap gap-2 border-t border-slate-200 bg-white p-4">
-              {previewAgreement.id !== "draft" ? (
+              {displayedPreview.id !== "draft" ? (
                 <button
                   type="button"
-                  onClick={() => openAgreementLink(previewAgreement.id)}
+                  onClick={() => openAgreementLink(displayedPreview.id)}
                   className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-800 hover:bg-slate-50"
                 >
                   <ExternalLink className="h-4 w-4" />

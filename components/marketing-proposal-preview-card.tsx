@@ -7,6 +7,7 @@ export type ProposalPreviewCopy = {
   projectId: string;
   projectTitle: string;
   heroProposalStatus: string;
+  heroProposalLabel: string;
   heroMilestonesLabel: string;
   stage1Name: string;
   stage1Amount: string;
@@ -98,7 +99,7 @@ export function MarketingProposalPreviewCard({ t }: { t: ProposalPreviewCopy }) 
 
               <div className="bg-slate-50 font-sans">
                 <div className="border-b border-slate-100 bg-white px-4 py-3 sm:px-[18px]">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">Proposal</p>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">{t.heroProposalLabel}</p>
                   <h3 className="mt-1 text-[13px] font-bold leading-snug text-slate-900">
                     {t.projectId}
                     <span className="font-semibold text-slate-400"> · </span>
