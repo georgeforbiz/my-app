@@ -5,11 +5,30 @@ import {
   createAgreementViaApi,
   type CreateAgreementApiPayload
 } from "./create-via-api";
-import {
-  insertAgreementWithSchemaFallback,
-  type PaymentType,
-  type Milestone
-} from "./row";
+import { insertAgreementWithSchemaFallback, type PaymentType, type Milestone } from "./row";
+import type { VatMode } from "./vat";
+
+export type ShareableDraft = {
+  providerId: string;
+  providerName: string;
+  full_name?: string | null;
+  business_name?: string | null;
+  clientName: string;
+  projectTitle: string;
+  serviceArea: string;
+  customTerms: string;
+  scopeOfWork: string;
+  scopeExclusions?: string;
+  estimatedCompletionDate?: string;
+  deadline?: string;
+  providerPhone?: string;
+  clientPhone?: string;
+  vatMode?: VatMode;
+  totalPrice: number;
+  paymentType: PaymentType;
+  milestones: Milestone[];
+  providerLogoUrl?: string | null;
+};
 
 export async function ensureSupabaseAccessToken(
   supabase: SupabaseClient
@@ -40,25 +59,6 @@ export async function verifyAgreementIsPublic(agreementId: string): Promise<bool
   }
 }
 
-type ShareableDraft = {
-  providerId: string;
-  providerName: string;
-  full_name?: string | null;
-  business_name?: string | null;
-  clientName: string;
-  projectTitle: string;
-  serviceArea: string;
-  customTerms: string;
-  scopeOfWork: string;
-  scopeExclusions?: string;
-  estimatedCompletionDate?: string;
-  deadline?: string;
-  totalPrice: number;
-  paymentType: PaymentType;
-  milestones: Milestone[];
-  providerLogoUrl?: string | null;
-};
-
 function toApiPayload(draft: ShareableDraft): CreateAgreementApiPayload {
   return {
     clientName: draft.clientName,
@@ -72,6 +72,9 @@ function toApiPayload(draft: ShareableDraft): CreateAgreementApiPayload {
     scopeExclusions: draft.scopeExclusions,
     estimatedCompletionDate: draft.estimatedCompletionDate,
     deadline: draft.deadline,
+    providerPhone: draft.providerPhone,
+    clientPhone: draft.clientPhone,
+    vatMode: draft.vatMode,
     totalPrice: draft.totalPrice,
     paymentType: draft.paymentType,
     milestones: draft.milestones.map((m) => ({
@@ -82,7 +85,35 @@ function toApiPayload(draft: ShareableDraft): CreateAgreementApiPayload {
   };
 }
 
-/** Save to Supabase and confirm the public agreement URL will work for anyone. */
+function draftToInsertParams(draft: ShareableDraft) {
+  return {
+    providerId: draft.providerId,
+    providerName: draft.providerName,
+    full_name: draft.full_name,
+    business_name: draft.business_name,
+    clientName: draft.clientName,
+    projectTitle: draft.projectTitle,
+    serviceArea: draft.serviceArea,
+    customTerms: draft.customTerms,
+    scopeOfWork: draft.scopeOfWork,
+    scopeExclusions: draft.scopeExclusions,
+    estimatedCompletionDate: draft.estimatedCompletionDate,
+    deadline: draft.deadline,
+    providerPhone: draft.providerPhone,
+    clientPhone: draft.clientPhone,
+    vatMode: draft.vatMode,
+    totalPrice: draft.totalPrice,
+    paymentType: draft.paymentType,
+    milestones: draft.milestones,
+    providerLogoUrl: draft.providerLogoUrl
+  };
+}
+
+export function buildCreateAgreementPayload(draft: ShareableDraft): CreateAgreementApiPayload {
+  return toApiPayload(draft);
+}
+
+/** Persist to Supabase: API first, then direct client insert if the API path fails. */
 export async function createShareableAgreement(
   supabase: SupabaseClient,
   draft: ShareableDraft
@@ -92,33 +123,15 @@ export async function createShareableAgreement(
     return { error: "Session expired. Please sign out and sign in again." };
   }
 
-  let result: { id?: string; error?: string } = await createAgreementViaApi(
-    token,
-    toApiPayload(draft)
-  );
+  let result: { id?: string; error?: string } = await createAgreementViaApi(token, toApiPayload(draft));
 
   if (!result.id) {
     try {
-      result = await insertAgreementWithSchemaFallback(supabase, {
-        providerId: draft.providerId,
-        providerName: draft.providerName,
-        full_name: draft.full_name,
-        business_name: draft.business_name,
-        clientName: draft.clientName,
-        projectTitle: draft.projectTitle,
-        serviceArea: draft.serviceArea,
-        customTerms: draft.customTerms,
-        scopeOfWork: draft.scopeOfWork,
-        scopeExclusions: draft.scopeExclusions,
-        estimatedCompletionDate: draft.estimatedCompletionDate,
-    deadline: draft.deadline,
-        totalPrice: draft.totalPrice,
-        paymentType: draft.paymentType,
-        milestones: draft.milestones,
-        providerLogoUrl: draft.providerLogoUrl
-      });
+      result = await insertAgreementWithSchemaFallback(supabase, draftToInsertParams(draft));
     } catch (err) {
-      return { error: err instanceof Error ? err.message : "Failed to save agreement." };
+      return {
+        error: err instanceof Error ? err.message : "Failed to save agreement."
+      };
     }
   }
 
@@ -130,12 +143,6 @@ export async function createShareableAgreement(
     return {
       error: "Agreement was not saved online. Shared links require a cloud account."
     };
-  }
-
-  const verified = await verifyAgreementIsPublic(result.id);
-  if (!verified) {
-    // Row may exist before the public API cache catches up — still return the id for the link popup.
-    return { id: result.id };
   }
 
   return { id: result.id };

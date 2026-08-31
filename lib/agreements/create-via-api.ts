@@ -1,7 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { isLocalAgreementId } from "./local-store";
 import type { PaymentType, NormalizedAgreement } from "./row";
-import { ensureSupabaseAccessToken, verifyAgreementIsPublic } from "./shareable-create";
+import type { VatMode } from "./vat";
+import { ensureSupabaseAccessToken } from "./shareable-create";
 
 export type CreateAgreementApiPayload = {
   clientName: string;
@@ -15,6 +16,9 @@ export type CreateAgreementApiPayload = {
   scopeExclusions?: string;
   estimatedCompletionDate?: string;
   deadline?: string;
+  providerPhone?: string;
+  clientPhone?: string;
+  vatMode?: VatMode;
   totalPrice: number;
   paymentType: PaymentType;
   milestones: { title: string; amount: number }[];
@@ -61,6 +65,9 @@ export function localAgreementToApiPayload(local: NormalizedAgreement): CreateAg
     scopeExclusions: local.scope_exclusions,
     estimatedCompletionDate: local.estimated_completion_date,
     deadline: local.deadline,
+    providerPhone: local.provider_phone,
+    clientPhone: local.client_phone,
+    vatMode: local.vat_mode,
     totalPrice: Number(local.total_price || 0),
     paymentType: local.payment_type,
     milestones: (local.milestones ?? []).map((m) => ({
@@ -95,13 +102,6 @@ export async function publishLocalAgreementToCloud(
 
   if (isLocalAgreementId(result.id)) {
     return { error: "Agreement was not saved online." };
-  }
-
-  const verified = await verifyAgreementIsPublic(result.id);
-  if (!verified) {
-    return {
-      error: "Agreement was saved but the public link is not ready yet. Try again in a moment."
-    };
   }
 
   return { id: result.id };

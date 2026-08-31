@@ -162,7 +162,8 @@ async function registerDeviceAccountInCloud(
 async function establishSessionFromLoginApi(
   email: string,
   password: string,
-  setUser: (u: AuthUser) => void
+  setUser: (u: AuthUser) => void,
+  signingOutRef: MutableRefObject<boolean>
 ): Promise<{ ok: true } | { ok: false; error: string; status?: number }> {
   const res = await fetch("/api/auth/login", {
     method: "POST",
@@ -211,6 +212,7 @@ async function establishSessionFromLoginApi(
 
   mockLogout();
   setUser(mapSupabaseUser(data.session.user));
+  completeSignIn(signingOutRef);
   return { ok: true };
 }
 
@@ -263,11 +265,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setUser(mapSupabaseUser(session.user));
           }
         } else {
-          setUser(isLocalDeviceAuthAllowed() && !isSigningOut() ? restoreLocalSession() : null);
+          setUser((prev) => {
+            if (prev?.source === "supabase") return prev;
+            if (isSigningOut()) return null;
+            return isLocalDeviceAuthAllowed() ? restoreLocalSession() : null;
+          });
         }
       } catch {
         if (cancelled) return;
-        setUser(isLocalDeviceAuthAllowed() && !isSigningOut() ? restoreLocalSession() : null);
+        setUser((prev) => {
+          if (prev?.source === "supabase") return prev;
+          if (isSigningOut()) return null;
+          return isLocalDeviceAuthAllowed() ? restoreLocalSession() : null;
+        });
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -283,6 +293,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
         if (session?.user) {
+          completeSignIn(signingOutRef);
           mockLogout();
           setUser(mapSupabaseUser(session.user));
           return;
@@ -309,6 +320,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [loading, user]);
 
   const signIn = useCallback(async (email: string, password: string) => {
+    signingOutRef.current = false;
+    clearSigningOut();
     await ensureSupabaseBrowser();
 
     // Offline / cloud unreachable — mock accounts on this device only.
@@ -323,7 +336,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           };
     }
 
-    const tryServerLogin = () => establishSessionFromLoginApi(email, password, setUser);
+    const tryServerLogin = () => establishSessionFromLoginApi(email, password, setUser, signingOutRef);
 
     if (!isMockAuthAllowed()) {
       const server = await tryServerLogin();
@@ -373,6 +386,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!error && data.session?.user) {
         mockLogout();
         setUser(mapSupabaseUser(data.session.user));
+        completeSignIn(signingOutRef);
         return {};
       }
 
@@ -389,6 +403,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (sessionData.session?.user) {
         mockLogout();
         setUser(mapSupabaseUser(sessionData.session.user));
+        completeSignIn(signingOutRef);
         return {};
       }
 
@@ -466,7 +481,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const payload = (await res.json().catch(() => ({}))) as { error?: string; code?: string; ok?: boolean };
 
       if (res.ok || res.status === 409) {
-        const session = await establishSessionFromLoginApi(trimmedEmail, password, setUser);
+        const session = await establishSessionFromLoginApi(trimmedEmail, password, setUser, signingOutRef);
         if (session.ok) return {};
         if (isCloudUnavailable(session.status, session.error) || isLocalDeviceAuthAllowed()) {
           return finishMock();
@@ -557,6 +572,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       } = await supabase.auth.getSession();
       if (session?.user) {
         mockLogout();
+        completeSignIn(signingOutRef);
         setUser(mapSupabaseUser(session.user));
         return true;
       }

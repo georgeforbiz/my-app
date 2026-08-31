@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { insertAgreementWithSchemaFallback, type PaymentType } from "@/lib/agreements/row";
+import { normalizeVatMode } from "@/lib/agreements/vat";
 import {
   getAgreementMutationClient,
   getAgreementServerClient,
@@ -84,6 +85,9 @@ export async function POST(request: NextRequest) {
     scopeExclusions: readString(body.scopeExclusions) || undefined,
     estimatedCompletionDate: readString(body.estimatedCompletionDate) || undefined,
     deadline: readString(body.deadline) || undefined,
+    providerPhone: readString(body.providerPhone) || undefined,
+    clientPhone: readString(body.clientPhone) || undefined,
+    vatMode: normalizeVatMode(body.vatMode),
     totalPrice,
     paymentType,
     milestones: paymentType === "milestones" ? milestones : [],

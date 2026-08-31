@@ -4,6 +4,7 @@ export type AgreementDocumentLabels = {
   offer: string;
   title: string;
   subtitle: string;
+  subtitleSigned: string;
   draftBanner: string;
   previewId: string;
   agreementId: string;
@@ -16,10 +17,14 @@ export type AgreementDocumentLabels = {
   clientDetails: string;
   businessName: string;
   providerNameLabel: string;
+  providerPhoneLabel: string;
   serviceAreaLabel: string;
   client: string;
+  clientPhoneLabel: string;
   project: string;
   total: string;
+  vatStatusIncluded: string;
+  vatStatusExempt: string;
   termsAndConditions: string;
   scopeOfWork: string;
   scopeExclusions: string;
@@ -39,6 +44,8 @@ export type AgreementDocumentLabels = {
   agreeTermsAccepted: string;
   previewSignHint: string;
   clientSignature: string;
+  signedSuccessNote: string;
+  signedSuccessHint: string;
 };
 
 const labels: Record<Language, AgreementDocumentLabels> = {
@@ -46,6 +53,7 @@ const labels: Record<Language, AgreementDocumentLabels> = {
     offer: "Offer",
     title: "Safe Service Agreement",
     subtitle: "Review all details below before accepting this offer.",
+    subtitleSigned: "Agreement Officially Executed & Signed",
     draftBanner: "Preview — not yet saved. Share link appears after you create the agreement.",
     previewId: "Draft preview",
     agreementId: "Agreement ID",
@@ -58,10 +66,14 @@ const labels: Record<Language, AgreementDocumentLabels> = {
     clientDetails: "Client Details",
     businessName: "Business Name",
     providerNameLabel: "Provider Name",
+    providerPhoneLabel: "Provider Phone",
     serviceAreaLabel: "Service Area",
     client: "Client",
+    clientPhoneLabel: "Client Phone",
     project: "Project / Service",
     total: "Total Price",
+    vatStatusIncluded: "VAT (20%): Included",
+    vatStatusExempt: "VAT: Exempt",
     termsAndConditions: "Terms and Conditions",
     scopeOfWork: "Scope of Work (Included)",
     scopeExclusions: "What is NOT Included",
@@ -81,12 +93,15 @@ const labels: Record<Language, AgreementDocumentLabels> = {
     singlePaymentLabel: "Full payment",
     agreeTermsAccepted: "Terms accepted",
     previewSignHint: "Client will sign here on the shared agreement link.",
-    clientSignature: "Client signature"
+    clientSignature: "Client signature",
+    signedSuccessNote: "The provider has been notified.",
+    signedSuccessHint: "No account required."
   },
   hy: {
     offer: "Առաջարկ",
-    title: "Անվտանգ պայմանագիր",
+    title: "Անվտանգ ծառայության պայմանագիր",
     subtitle: "Ստուգեք տվյալները ստորագրելուց առաջ։",
+    subtitleSigned: "Պայմանագիրը պաշտոնապես կնքված և ստորագրված է",
     draftBanner: "Նախադիտում — դեռ չի պահպանվել։ Հղումը հասանելի կլինի ստեղծելուց հետո։",
     previewId: "Նախադիտում",
     agreementId: "ID",
@@ -99,10 +114,14 @@ const labels: Record<Language, AgreementDocumentLabels> = {
     clientDetails: "Հաճախորդի տվյալներ",
     businessName: "Բիզնեսի անվանում",
     providerNameLabel: "Մատակարարի անուն",
+    providerPhoneLabel: "Մատակարարի հեռախոս",
     serviceAreaLabel: "Տարածք",
     client: "Հաճախորդ",
+    clientPhoneLabel: "Հաճախորդի հեռախոս",
     project: "Նախագիծ / Ծառայություն",
     total: "Ընդհանուր գին",
+    vatStatusIncluded: "ԱԱՀ (20%): Ներառված է",
+    vatStatusExempt: "ԱԱՀ: Ազատված",
     termsAndConditions: "Պայմաններ",
     scopeOfWork: "Աշխատանքի շրջանակ (ներառված)",
     scopeExclusions: "Ինչը չի ներառվում",
@@ -122,12 +141,15 @@ const labels: Record<Language, AgreementDocumentLabels> = {
     singlePaymentLabel: "Լրիվ վճարում",
     agreeTermsAccepted: "Պայմաններն ընդունված են",
     previewSignHint: "Հաճախորդը կստորագրի այստեղ՝ բացված հղումով։",
-    clientSignature: "Հաճախորդի ստորագրություն"
+    clientSignature: "Հաճախորդի ստորագրություն",
+    signedSuccessNote: "Մատակարարը ծանուցված է։",
+    signedSuccessHint: "Հաշիվ պարտադիր չէ։"
   },
   ru: {
     offer: "Предложение",
-    title: "Сервисное соглашение с защитой",
+    title: "Безопасное сервисное соглашение",
     subtitle: "Проверьте детали ниже перед принятием.",
+    subtitleSigned: "Соглашение официально заключено и подписано",
     draftBanner: "Предпросмотр — ещё не сохранено. Ссылка появится после создания.",
     previewId: "Черновик",
     agreementId: "ID соглашения",
@@ -140,10 +162,14 @@ const labels: Record<Language, AgreementDocumentLabels> = {
     clientDetails: "Клиент",
     businessName: "Название бизнеса",
     providerNameLabel: "Имя исполнителя",
+    providerPhoneLabel: "Телефон исполнителя",
     serviceAreaLabel: "Регион",
     client: "Клиент",
+    clientPhoneLabel: "Телефон клиента",
     project: "Проект / услуга",
     total: "Общая стоимость",
+    vatStatusIncluded: "НДС (20%): Включён",
+    vatStatusExempt: "НДС: Не облагается",
     termsAndConditions: "Условия",
     scopeOfWork: "Объём работ (включено)",
     scopeExclusions: "Что НЕ включено",
@@ -162,7 +188,9 @@ const labels: Record<Language, AgreementDocumentLabels> = {
     singlePaymentLabel: "Полная оплата",
     agreeTermsAccepted: "Условия приняты",
     previewSignHint: "Клиент подпишет здесь по общей ссылке.",
-    clientSignature: "Подпись клиента"
+    clientSignature: "Подпись клиента",
+    signedSuccessNote: "Исполнитель уведомлён.",
+    signedSuccessHint: "Регистрация не требуется."
   }
 };
 

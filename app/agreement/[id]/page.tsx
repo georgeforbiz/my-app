@@ -6,12 +6,16 @@ export const revalidate = 0;
 
 type PageProps = {
   params: { id: string };
+  searchParams?: { download?: string };
 };
 
 /** Preload agreement on the server so shared links render content immediately. */
-export default async function AgreementPage({ params }: PageProps) {
+export default async function AgreementPage({ params, searchParams }: PageProps) {
   const id = params?.id?.trim() ?? "";
   const initialAgreement = id ? await fetchAgreementById(id) : null;
+  const autoDownload = searchParams?.download === "1";
 
-  return <AgreementClientPage agreementId={id} initialAgreement={initialAgreement} />;
+  return (
+    <AgreementClientPage agreementId={id} initialAgreement={initialAgreement} autoDownload={autoDownload} />
+  );
 }

@@ -16,6 +16,7 @@ import {
 } from "@/components/agreement-status-pill";
 import { formatAMD } from "@/lib/currency";
 import { formatDateDMY } from "@/lib/format-date";
+import { hasStoredClientSignature, isSignedWithoutSignature } from "@/lib/agreements/status-rank";
 
 export default function AdminAgreementDetailPage() {
   const params = useParams();
@@ -165,6 +166,7 @@ export default function AdminAgreementDetailPage() {
       : getDerivedAgreementStatus(agreement);
   const milestones = agreement.milestones ?? [];
   const totalPending = pendingIndexes.includes(-1) || hasVerificationPending(agreement.id, -1);
+  const signatureMissing = isSignedWithoutSignature(agreement);
 
   return (
     <>
@@ -189,6 +191,21 @@ export default function AdminAgreementDetailPage() {
           </Link>
         </div>
       </header>
+
+      {signatureMissing ? (
+        <div className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-4 text-sm text-amber-950">
+          <p className="font-black">Client signature missing</p>
+          <p className="mt-1 leading-relaxed">
+            This agreement is marked signed but the signature image was not saved. Send the client their link —
+            they can sign again on the same agreement (no new deal needed). The agreement id stays the same.
+          </p>
+          <p className="mt-2 font-mono text-xs text-amber-900/80">{agreement.id}</p>
+        </div>
+      ) : hasStoredClientSignature(agreement) ? (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-900">
+          Client signature on file
+        </div>
+      ) : null}
 
       {error ? (
         <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800">

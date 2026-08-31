@@ -1,9 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { useSearchParams } from "next/navigation";
-import { CheckCircle2, Loader2, Calendar, Hash, FileText, User, Building2, MapPin, Briefcase, PenLine } from "lucide-react";
+import { CheckCircle2, Loader2, Calendar, Hash, FileText, User, Building2, MapPin, Briefcase, PenLine, Phone } from "lucide-react";
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
@@ -17,11 +16,21 @@ import { formatDateDMY, formatEmbeddedDatesInTerms } from "@/lib/format-date";
 import { useLanguage } from "@/lib/i18n/language-context";
 import { normalizeAgreementRow } from "@/lib/agreements/row";
 import { resolveStoredProviderLogo } from "@/lib/agreements/logo-image";
+import { isSignedOrCompleted, isAgreementSigned, hasStoredClientSignature, hasSignatureDataUrl, isValidSignatureDataUrl, pickAdvancedStatus, statusRank } from "@/lib/agreements/status-rank";
+import { mergePreferSigned, readAgreementCache, readSignedCache, writeAgreementCache, writeSignedCache } from "@/lib/agreements/signed-cache";
 import { NAVY, ORANGE } from "@/lib/brand";
+import { AgreementPaymentTotal } from "@/components/agreement-payment-total";
+import type { VatMode } from "@/lib/agreements/vat";
 
-function agreementFetchUrl(agreementId: string): string {
-  return `/api/agreement/${encodeURIComponent(agreementId)}?_=${Date.now()}`;
+function agreementFetchUrl(agreementId: string, bustCache = false): string {
+  const base = `/api/agreement/${encodeURIComponent(agreementId)}`;
+  return bustCache ? `${base}?_=${Date.now()}` : base;
 }
+
+type AgreementStatusSnapshot = {
+  status: "pending" | "signed" | "completed";
+  client_signature?: string | null;
+};
 
 async function postAgreementAction(
   agreementId: string,
@@ -63,24 +72,50 @@ async function postAgreementAction(
 
 async function fetchAgreementStatusFromServer(
   agreementId: string
-): Promise<"pending" | "signed" | "completed" | null> {
+): Promise<AgreementStatusSnapshot | null> {
   try {
-    const res = await fetch(agreementFetchUrl(agreementId), { cache: "no-store" });
+    const res = await fetch(`/api/agreement/${encodeURIComponent(agreementId)}/status`, {
+      cache: "no-store"
+    });
     if (!res.ok) return null;
-    const payload = (await res.json()) as { agreement?: { status?: string } };
-    const status = payload.agreement?.status;
-    if (status === "signed" || status === "completed" || status === "pending") return status;
+    const payload = (await res.json()) as { status?: string; client_signature?: string | null };
+    const status = payload.status;
+    if (status === "signed" || status === "completed" || status === "pending") {
+      return { status, client_signature: payload.client_signature ?? null };
+    }
     return null;
   } catch {
     return null;
   }
 }
 
+function hasStoredSignature(agreement: { client_signature?: string | null } | null | undefined): boolean {
+  return hasStoredClientSignature(agreement);
+}
+
+async function fetchStoredSignature(agreementId: string): Promise<string | null> {
+  const status = await fetchAgreementStatusFromServer(agreementId);
+  if (hasStoredSignature(status)) return status!.client_signature!;
+
+  try {
+    const res = await fetch(agreementFetchUrl(agreementId, true), { cache: "no-store" });
+    if (!res.ok) return null;
+    const payload = (await res.json()) as { agreement?: Agreement };
+    const sig = payload.agreement?.client_signature;
+    return isValidSignatureDataUrl(sig) ? sig! : null;
+  } catch {
+    return null;
+  }
+}
+
 function persistSignedLocally(agreement: Agreement, signature: string | null) {
+  writeSignedSession(agreement.id);
   const patch = {
     status: "signed" as const,
     ...(signature ? { client_signature: signature } : {})
   };
+  const signed = { ...agreement, ...patch };
+  writeSignedCache(signed);
   if (getLocalAgreement(agreement.id)) {
     updateLocalAgreement(agreement.id, patch);
     return;
@@ -93,6 +128,8 @@ function persistSignedLocally(agreement: Agreement, signature: string | null) {
     provider_full_name: agreement.provider_full_name,
     provider_business_name: agreement.provider_business_name,
     client_name: agreement.client_name,
+    provider_phone: agreement.provider_phone,
+    client_phone: agreement.client_phone,
     project_title: agreement.project_title,
     service_area: agreement.service_area,
     custom_terms: agreement.custom_terms,
@@ -121,6 +158,8 @@ type Agreement = {
   full_name?: string;
   business_name?: string;
   client_name: string;
+  provider_phone?: string;
+  client_phone?: string;
   project_title: string;
   service_area: string;
   custom_terms: string;
@@ -129,6 +168,7 @@ type Agreement = {
   estimated_completion_date?: string;
   deadline?: string;
   total_price: number;
+  vat_mode?: VatMode;
   payment_type: "single" | "milestones";
   milestones: { title: string; amount: number; status?: "pending" | "escrow_held" | "released" }[] | null;
   status: AgreementStatus;
@@ -139,6 +179,28 @@ type Agreement = {
 };
 
 const money = (v: number) => v.toLocaleString("en-US", { maximumFractionDigits: 2 });
+
+function signedSessionKey(agreementId: string) {
+  return `vstah_agreement_signed:${agreementId}`;
+}
+
+function readSignedSession(agreementId: string): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    return sessionStorage.getItem(signedSessionKey(agreementId)) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function writeSignedSession(agreementId: string) {
+  if (typeof window === "undefined") return;
+  try {
+    sessionStorage.setItem(signedSessionKey(agreementId), "1");
+  } catch {
+    // Private mode / disabled storage.
+  }
+}
 
 function looksLikeUuid(s: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(s.trim());
@@ -236,12 +298,16 @@ function MetaCard({
 type AgreementClientPageProps = {
   agreementId: string;
   initialAgreement: Agreement | null;
+  autoDownload?: boolean;
 };
 
-export default function AgreementClientPage({ agreementId, initialAgreement }: AgreementClientPageProps) {
-  const searchParams = useSearchParams();
+export default function AgreementClientPage({
+  agreementId,
+  initialAgreement,
+  autoDownload = false
+}: AgreementClientPageProps) {
   const id = agreementId;
-  const shouldAutoDownload = searchParams.get("download") === "1";
+  const shouldAutoDownload = autoDownload;
   /** Remount when navigating between agreement IDs so state and effects match the URL. */
   const routeKey = typeof id === "string" && id.length > 0 ? id : "pending";
   const supabase = getSupabaseBrowser();
@@ -250,15 +316,21 @@ export default function AgreementClientPage({ agreementId, initialAgreement }: A
     language === "hy"
       ? {
           loading: "Բեռնում…",
+          checkingStatus: "Կարգավիճակի ստուգում…",
           notConfigured: "Supabase-ը կարգավորված չէ։",
           notFound: "Պայմանագիրը չի գտնվել։",
           localLinkNotFound:
             "Այս հղումը առցանց չի պահվել և աշխատում էր միայն մատակարարի browser-ում։ Խնդրեք նոր հղում վահանակից։",
           localLinkTitle: "Հղումը հնարավոր չէ ուղարկել",
           offer: "Առաջարկ",
-          title: "Անվտանգ պայմանագիր",
+          title: "Անվտանգ ծառայության պայմանագիր",
           subtitle: "Ստուգեք տվյալները ստորագրելուց առաջ։",
+          subtitleSigned: "Պայմանագիրը պաշտոնապես կնքված և ստորագրված է",
           client: "Հաճախորդ",
+          clientPhoneLabel: "Հաճախորդի հեռախոս",
+          providerPhoneLabel: "Մատակարարի հեռախոս",
+          vatStatusIncluded: "ԱԱՀ (20%): Ներառված է",
+          vatStatusExempt: "ԱԱՀ: Ազատված",
           project: "Նախագիծ / Ծառայություն",
           total: "Ընդհանուր գին",
           status: "Կարգավիճակ",
@@ -289,6 +361,7 @@ export default function AgreementClientPage({ agreementId, initialAgreement }: A
             signedAndApproved: "Ստորագրված և հաստատված",
             agreeTerms: "Կարդացել և համաձայն եմ Պայմաններին",
             agreeTermsRequired: "Ստորագրելուց առաջ համաձայնեք Պայմաններին։",
+            signatureRequired: "Ստորագրեք ստորագրության դաշտում, ապա սեղմեք «Ստորագրել և ընդունել»։",
             agreeTermsAccepted: "Պայմաններն ընդունված են",
             clientSignature: "Հաճախորդի ստորագրություն",
           signFailed: "Չհաջողվեց ստորագրել պայմանագիրը։ Փորձեք կրկին։",
@@ -376,15 +449,21 @@ export default function AgreementClientPage({ agreementId, initialAgreement }: A
       : language === "ru"
         ? {
             loading: "Загрузка соглашения…",
+            checkingStatus: "Проверка статуса…",
             notConfigured: "Supabase не настроен.",
             notFound: "Соглашение не найдено.",
             localLinkNotFound:
               "Ссылка не была сохранена в облаке и работала только в браузере исполнителя. Попросите новую ссылку из панели.",
             localLinkTitle: "Ссылка не для отправки",
             offer: "Предложение",
-            title: "Сервисное соглашение с защитой",
+            title: "Безопасное сервисное соглашение",
             subtitle: "Проверьте детали ниже перед принятием.",
+            subtitleSigned: "Соглашение официально заключено и подписано",
             client: "Клиент",
+            clientPhoneLabel: "Телефон клиента",
+            providerPhoneLabel: "Телефон исполнителя",
+            vatStatusIncluded: "НДС (20%): Включён",
+            vatStatusExempt: "НДС: Не облагается",
             project: "Проект / услуга",
             total: "Общая стоимость",
             status: "Статус",
@@ -415,6 +494,7 @@ export default function AgreementClientPage({ agreementId, initialAgreement }: A
             signedAndApproved: "Подписано и одобрено",
             agreeTerms: "Я прочитал(а) и согласен(на) с Условиями",
             agreeTermsRequired: "Примите Условия перед подписанием.",
+            signatureRequired: "Поставьте подпись в поле ниже перед принятием.",
             agreeTermsAccepted: "Условия приняты",
             clientSignature: "Подпись клиента",
             signFailed: "Не удалось подписать. Попробуйте снова.",
@@ -501,6 +581,7 @@ export default function AgreementClientPage({ agreementId, initialAgreement }: A
           }
         : {
             loading: "Loading agreement...",
+            checkingStatus: "Checking status…",
             notConfigured: "Supabase is not configured.",
             notFound: "Agreement not found.",
             localLinkNotFound:
@@ -509,7 +590,12 @@ export default function AgreementClientPage({ agreementId, initialAgreement }: A
             offer: "Offer",
             title: "Safe Service Agreement",
             subtitle: "Review all details below before accepting this offer.",
+            subtitleSigned: "Agreement Officially Executed & Signed",
             client: "Client",
+            clientPhoneLabel: "Client Phone",
+            providerPhoneLabel: "Provider Phone",
+            vatStatusIncluded: "VAT (20%): Included",
+            vatStatusExempt: "VAT: Exempt",
             project: "Project / Service",
             total: "Total Price",
             status: "Status",
@@ -540,6 +626,7 @@ export default function AgreementClientPage({ agreementId, initialAgreement }: A
             signedAndApproved: "Signed & Approved",
             agreeTerms: "I have read and agree to the Terms and Conditions",
             agreeTermsRequired: "Please agree to the Terms and Conditions before signing.",
+            signatureRequired: "Please draw your signature in the box below before signing.",
             agreeTermsAccepted: "Terms accepted",
             clientSignature: "Client signature",
             signFailed: "Failed to sign agreement. Please try again.",
@@ -624,7 +711,7 @@ export default function AgreementClientPage({ agreementId, initialAgreement }: A
           };
 
   const [agreement, setAgreement] = useState<Agreement | null>(initialAgreement);
-  const [loading, setLoading] = useState(!initialAgreement);
+  const [loading, setLoading] = useState(() => !initialAgreement);
   const [signing, setSigning] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   /** Fatal: not configured / not found (no agreement to show). */
@@ -635,31 +722,114 @@ export default function AgreementClientPage({ agreementId, initialAgreement }: A
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const signatureWrapRef = useRef<HTMLDivElement | null>(null);
   const drawing = useRef(false);
+  const hasDrawnRef = useRef(false);
   const printableRef = useRef<HTMLDivElement | null>(null);
   const downloadTriggeredRef = useRef(false);
   const fetchSeqRef = useRef(0);
   const justSignedRef = useRef(false);
   const hasDisplayedContentRef = useRef(Boolean(initialAgreement));
+  const agreementRef = useRef(agreement);
+  agreementRef.current = agreement;
 
-  useEffect(() => {
-    if (initialAgreement && initialAgreement.id === agreementId) {
-      setAgreement(initialAgreement);
-      setLoading(false);
-      hasDisplayedContentRef.current = true;
+  useLayoutEffect(() => {
+    if (!id) return;
+
+    if (!initialAgreement) {
+      const cached = readAgreementCache(id) ?? getLocalAgreement(id);
+      if (cached) {
+        setAgreement(cached as Agreement);
+        setLoading(false);
+        hasDisplayedContentRef.current = true;
+      }
+      return;
     }
-  }, [agreementId, initialAgreement]);
+
+    if (isAgreementSigned(initialAgreement)) {
+      const cached = readAgreementCache(id);
+      const merged = (mergePreferSigned(initialAgreement, cached) ?? initialAgreement) as Agreement;
+      const withCachedSignature =
+        !hasStoredClientSignature(merged) &&
+        cached &&
+        hasStoredClientSignature(cached) &&
+        cached.client_signature
+          ? ({ ...merged, client_signature: cached.client_signature } as Agreement)
+          : merged;
+      setAgreement((prev) => {
+        const best = (mergePreferSigned(withCachedSignature, prev) ?? withCachedSignature) as Agreement;
+        if (
+          !hasStoredClientSignature(best) &&
+          prev?.client_signature &&
+          hasStoredClientSignature(prev)
+        ) {
+          return { ...best, client_signature: prev.client_signature };
+        }
+        return best;
+      });
+      writeAgreementCache(withCachedSignature);
+      writeSignedSession(id);
+      return;
+    }
+
+    const cached = readAgreementCache(id);
+    if (cached && isAgreementSigned(cached)) {
+      const upgraded = mergePreferSigned(initialAgreement, cached);
+      if (upgraded) {
+        setAgreement(upgraded as Agreement);
+        writeSignedSession(id);
+        writeAgreementCache(upgraded);
+      }
+      return;
+    }
+
+    // Stale pending cache from create must not block a later signed SSR payload.
+    if (cached && cached.status === "pending") {
+      writeAgreementCache(initialAgreement);
+    }
+  }, [id, initialAgreement]);
+
+  /** Silent poll: SSR said pending but another device may have signed already. */
+  useEffect(() => {
+    if (!id || !initialAgreement || isAgreementSigned(initialAgreement)) return;
+
+    let cancelled = false;
+    void fetchAgreementStatusFromServer(id).then((snapshot) => {
+      if (cancelled || !snapshot || !isAgreementSigned(snapshot)) return;
+      setAgreement((prev) => {
+        const base = prev ?? initialAgreement;
+        if (!base || isAgreementSigned(base)) return prev;
+        const upgraded = {
+          ...base,
+          status: snapshot.status,
+          ...(snapshot.client_signature ? { client_signature: snapshot.client_signature } : {})
+        };
+        writeSignedCache(upgraded);
+        writeAgreementCache(upgraded);
+        writeSignedSession(id);
+        return upgraded;
+      });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id, initialAgreement]);
 
   const applySignedState = (signature: string | null) => {
     justSignedRef.current = true;
-    setAgreement((prev) =>
-      prev
-        ? {
-            ...prev,
-            status: "signed",
-            ...(signature ? { client_signature: signature } : {})
-          }
-        : prev
-    );
+    setAgreement((prev) => {
+      if (!prev) return prev;
+      writeSignedSession(prev.id);
+      const next = {
+        ...prev,
+        status: "signed" as const,
+        ...(signature ? { client_signature: signature } : {})
+      };
+      writeSignedCache(next);
+      writeAgreementCache(next);
+      return next;
+    });
+    hasDisplayedContentRef.current = true;
+    setLoading(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -667,30 +837,52 @@ export default function AgreementClientPage({ agreementId, initialAgreement }: A
     const local = getLocalAgreement(next.id) as Agreement | null;
     const provider_logo_url = resolveStoredProviderLogo(next, prev, local);
     const withLogo = provider_logo_url ? { ...next, provider_logo_url } : next;
-    const shouldKeepSigned =
-      withLogo.status === "pending" &&
-      (justSignedRef.current || local?.status === "signed" || prev?.status === "signed");
 
-    if (shouldKeepSigned) {
-      return {
-        ...withLogo,
-        status: "signed",
-        client_signature: prev?.client_signature ?? local?.client_signature ?? withLogo.client_signature
-      };
+    const prevStatus =
+      prev?.status ??
+      agreementRef.current?.status ??
+      initialAgreement?.status ??
+      (readSignedSession(next.id) || readSignedCache(next.id) ? "signed" : "pending");
+    const localStatus = local?.status ?? "pending";
+    const status = pickAdvancedStatus(pickAdvancedStatus(prevStatus, localStatus), withLogo.status);
+
+    const merged: Agreement = {
+      ...withLogo,
+      status,
+      client_signature: (() => {
+        if (hasStoredClientSignature(withLogo)) return withLogo.client_signature;
+        if (hasStoredClientSignature(prev)) return prev?.client_signature;
+        if (hasStoredClientSignature(local)) return local?.client_signature;
+        if (hasSignatureDataUrl(withLogo.client_signature)) return withLogo.client_signature;
+        return prev?.client_signature ?? local?.client_signature ?? withLogo.client_signature ?? undefined;
+      })()
+    };
+
+    // Never flash back to pending once we know the agreement is signed.
+    if (isAgreementSigned(prev ?? merged) && !isAgreementSigned(merged)) {
+      merged.status = (prev?.status ?? "signed") as AgreementStatus;
+      merged.client_signature = prev?.client_signature ?? merged.client_signature;
+    } else if (statusRank(merged.status) < statusRank(prevStatus)) {
+      merged.status = prevStatus;
+      merged.client_signature = prev?.client_signature ?? merged.client_signature;
     }
 
-    if (withLogo.status === "signed" || withLogo.status === "completed") {
+    if (isAgreementSigned(merged)) {
       justSignedRef.current = false;
-      if (local && local.status !== withLogo.status) {
-        updateLocalAgreement(withLogo.id, {
-          status: withLogo.status,
-          client_signature: withLogo.client_signature ?? local.client_signature,
+      writeSignedSession(merged.id);
+      writeSignedCache(merged);
+      writeAgreementCache(merged);
+      if (local && local.status !== merged.status) {
+        updateLocalAgreement(merged.id, {
+          status: merged.status,
+          client_signature: merged.client_signature ?? local.client_signature,
           ...(provider_logo_url ? { provider_logo_url } : {})
         });
       }
     }
-    return withLogo;
-  }, []);
+
+    return merged;
+  }, [initialAgreement?.status]);
 
   const fetchAgreement = useCallback(async (options?: { background?: boolean }) => {
     if (!id) {
@@ -698,7 +890,8 @@ export default function AgreementClientPage({ agreementId, initialAgreement }: A
       setError(tx.notFound);
       return;
     }
-    if (!options?.background && !hasDisplayedContentRef.current) {
+    const background = options?.background ?? hasDisplayedContentRef.current;
+    if (!background) {
       setLoading(true);
     }
     const seq = ++fetchSeqRef.current;
@@ -709,37 +902,66 @@ export default function AgreementClientPage({ agreementId, initialAgreement }: A
       setLoading(false);
     };
 
+    const applyRemoteAgreement = (next: Agreement) => {
+      if (isStale()) return;
+      setAgreement((prev) => {
+        const merged = mergeFetchedAgreement(prev, next);
+        writeAgreementCache(merged);
+        return merged;
+      });
+      setError("");
+      setActionError("");
+      finishLoad();
+    };
+
     const loadLocal = () => {
       if (isStale()) return false;
       const local = getLocalAgreement(id) as Agreement | null;
       if (!local) return false;
-      setAgreement((prev) => mergeFetchedAgreement(prev, local));
-      setError("");
-      setActionError("");
-      finishLoad();
+      if (
+        !isAgreementSigned(local) &&
+        (readSignedSession(id) ||
+          readSignedCache(id) ||
+          isAgreementSigned(agreementRef.current ?? initialAgreement ?? {}))
+      ) {
+        return false;
+      }
+      applyRemoteAgreement(local);
       return true;
     };
 
-    const loadFromApi = async () => {
+    const fetchFromApi = async (): Promise<Agreement | null> => {
       try {
-        const res = await fetch(agreementFetchUrl(id), { cache: "no-store" });
-        if (!res.ok) return false;
+        const res = await fetch(agreementFetchUrl(id, background), { cache: "no-store" });
+        if (!res.ok) return null;
         const payload = (await res.json()) as { agreement?: Agreement };
-        if (!payload.agreement) return false;
-        if (isStale()) return true;
-        const next = payload.agreement;
-        setAgreement((prev) => mergeFetchedAgreement(prev, next));
-        setError("");
-        setActionError("");
-        finishLoad();
-        return true;
+        return payload.agreement ?? null;
       } catch {
-        return false;
+        return null;
+      }
+    };
+
+    const fetchFromSupabase = async (): Promise<Agreement | null> => {
+      if (!supabase || isLocalAgreementId(id)) return null;
+      try {
+        const { data, error: fetchError } = await supabase
+          .from("agreements")
+          .select("*")
+          .eq("id", id)
+          .single();
+        if (fetchError || !data) return null;
+        return normalizeAgreementRow(data as Record<string, unknown>) as Agreement;
+      } catch {
+        return null;
       }
     };
 
     if (isLocalAgreementId(id)) {
-      if (await loadFromApi()) return;
+      const fromApi = await fetchFromApi();
+      if (fromApi) {
+        applyRemoteAgreement(fromApi);
+        return;
+      }
       if (loadLocal()) return;
       if (isStale()) return;
       setError(tx.localLinkNotFound);
@@ -747,61 +969,74 @@ export default function AgreementClientPage({ agreementId, initialAgreement }: A
       return;
     }
 
-    if (await loadFromApi()) return;
-
-    if (hasDisplayedContentRef.current) return;
-
-    if (!supabase) {
-      if (loadLocal()) return;
-      if (isStale()) return;
-      setError(tx.notFound);
-      setLoading(false);
+    const [fromApi, fromSupabase] = await Promise.all([fetchFromApi(), fetchFromSupabase()]);
+    const remote = fromApi ?? fromSupabase;
+    if (remote) {
+      applyRemoteAgreement(remote);
       return;
     }
 
-    try {
-      const { data, error: fetchError } = await supabase
-        .from("agreements")
-        .select("*")
-        .eq("id", id)
-        .single();
+    if (hasDisplayedContentRef.current) return;
 
-      if (fetchError || !data) {
-        if (await loadFromApi()) return;
-        if (loadLocal()) return;
-        if (isStale()) return;
-        setError(tx.notFound);
-        setLoading(false);
-        return;
-      }
+    if (loadLocal()) return;
 
-      if (isStale()) return;
-      const next = normalizeAgreementRow(data as Record<string, unknown>) as Agreement;
-      setAgreement((prev) => mergeFetchedAgreement(prev, next));
-      setError("");
-      setActionError("");
-      finishLoad();
-    } catch {
-      if (await loadFromApi()) return;
-      if (loadLocal()) return;
-      if (isStale()) return;
-      if (hasDisplayedContentRef.current) return;
-      setError(tx.notFound);
-      setLoading(false);
-    }
-  }, [id, supabase, tx.notFound, mergeFetchedAgreement]);
+    if (isStale()) return;
+    setError(tx.notFound);
+    setLoading(false);
+  }, [id, supabase, tx.notFound, tx.localLinkNotFound, mergeFetchedAgreement, initialAgreement?.status]);
 
   useEffect(() => {
     setTermsAccepted(false);
+    hasDrawnRef.current = false;
   }, [id]);
 
   useEffect(() => {
-    void fetchAgreement({ background: hasDisplayedContentRef.current });
-  }, [fetchAgreement]);
+    if (initialAgreement) return;
+    void fetchAgreement();
+  }, [fetchAgreement, initialAgreement]);
+
+  /** Load signature from API when SSR/cache omitted it (no UI change). */
+  useEffect(() => {
+    if (!id) return;
+    const current = agreementRef.current;
+    if (!current || !isAgreementSigned(current) || hasStoredClientSignature(current)) return;
+
+    let cancelled = false;
+    void fetchStoredSignature(id).then((signature) => {
+      if (cancelled || !signature) return;
+      setAgreement((prev) => {
+        if (!prev || hasStoredClientSignature(prev)) return prev;
+        const next = { ...prev, client_signature: signature };
+        writeAgreementCache(next);
+        return next;
+      });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id, agreement?.id, agreement?.status, agreement?.client_signature]);
 
   useEffect(() => {
+    if (!id) return;
+
     const refresh = () => {
-      if (!id) return;
+      const current = agreementRef.current;
+      if (current && isAgreementSigned(current)) {
+        if (!hasStoredSignature(current)) {
+          void fetchStoredSignature(id).then((signature) => {
+            if (!signature) return;
+            setAgreement((prev) => {
+              if (!prev || hasStoredSignature(prev)) return prev;
+              const next = { ...prev, client_signature: signature };
+              writeAgreementCache(next);
+              return next;
+            });
+          });
+        }
+        return;
+      }
+      if (readSignedSession(id) || readSignedCache(id)) return;
       void fetchAgreement({ background: true });
     };
     const onStorage = (event: StorageEvent) => {
@@ -830,11 +1065,14 @@ export default function AgreementClientPage({ agreementId, initialAgreement }: A
 
   useEffect(() => {
     if (!supabase || !id) return;
+    const current = agreementRef.current;
+    if (current && isAgreementSigned(current)) return;
+    if (readSignedSession(id) || readSignedCache(id)) return;
     const channel = supabase
       .channel(`agreement-public-${id}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "agreements", filter: `id=eq.${id}` }, (payload) => {
         if (payload.new || payload.old) {
-          void fetchAgreement();
+          void fetchAgreement({ background: true });
         }
       })
       .subscribe();
@@ -847,7 +1085,7 @@ export default function AgreementClientPage({ agreementId, initialAgreement }: A
   useEffect(() => {
     const wrap = signatureWrapRef.current;
     const canvas = canvasRef.current;
-    if (!wrap || !canvas || agreement?.status !== "pending") return;
+    if (!wrap || !canvas || !agreement || isAgreementSigned(agreement)) return;
 
     const resize = () => {
       const w = Math.max(280, wrap.clientWidth);
@@ -911,6 +1149,7 @@ export default function AgreementClientPage({ agreementId, initialAgreement }: A
     const { x, y } = pointerPos(e);
     ctx.lineTo(x, y);
     ctx.stroke();
+    hasDrawnRef.current = true;
   };
 
   const stopDraw = (e?: React.PointerEvent<HTMLCanvasElement>) => {
@@ -927,6 +1166,7 @@ export default function AgreementClientPage({ agreementId, initialAgreement }: A
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+    hasDrawnRef.current = false;
   };
 
   const tryClientUpdate = async (
@@ -953,7 +1193,13 @@ export default function AgreementClientPage({ agreementId, initialAgreement }: A
     try {
       ({ data: updatedRows, error: updateError } = await run(payload));
       if ((updateError || !updatedRows?.length) && payload.client_signature) {
-        ({ data: updatedRows, error: updateError } = await run({ status: "signed" }));
+        await run({ client_signature: payload.client_signature });
+        if (payload.status === "signed") {
+          ({ data: updatedRows, error: updateError } = await run({
+            status: "signed",
+            client_signature: payload.client_signature
+          }));
+        }
       }
     } catch {
       return updateLocally();
@@ -981,7 +1227,7 @@ export default function AgreementClientPage({ agreementId, initialAgreement }: A
   };
 
   const signAgreement = async () => {
-    if (!agreement || signing || agreement.status === "signed" || agreement.status === "completed") return;
+    if (!agreement || signing || isAgreementSigned(agreement)) return;
     if (!termsAccepted) {
       setActionError(tx.agreeTermsRequired);
       return;
@@ -991,7 +1237,13 @@ export default function AgreementClientPage({ agreementId, initialAgreement }: A
     setActionError("");
     const drawnSignature = canvasRef.current?.toDataURL("image/png") ?? null;
     const signature =
-      typeof drawnSignature === "string" && drawnSignature.startsWith("data:image/") ? drawnSignature : null;
+      typeof drawnSignature === "string" && isValidSignatureDataUrl(drawnSignature) ? drawnSignature : null;
+
+    if (!hasDrawnRef.current || !signature) {
+      setSigning(false);
+      setActionError(tx.signatureRequired);
+      return;
+    }
 
     try {
       if (isLocalAgreementId(agreement.id)) {
@@ -1007,22 +1259,28 @@ export default function AgreementClientPage({ agreementId, initialAgreement }: A
         return;
       }
 
-      const res = await postAgreementAction(agreement.id, { signature: signature ?? undefined });
-      if (res.ok || res.alreadySigned) {
+      const res = await postAgreementAction(agreement.id, { signature });
+      if (res.ok && res.signatureStored) {
         persistSignedLocally(agreement, signature);
         applySignedState(signature);
-        let serverStatus = await fetchAgreementStatusFromServer(agreement.id);
-        if (serverStatus !== "signed" && serverStatus !== "completed") {
-          await tryClientUpdate({
-            status: "signed",
-            client_signature: signature
-          });
-          serverStatus = await fetchAgreementStatusFromServer(agreement.id);
+        await fetchAgreement({ background: true });
+        return;
+      }
+
+      if (res.ok && !res.signatureStored) {
+        await tryClientUpdate({ status: "signed", client_signature: signature });
+        const snapshot = await fetchAgreementStatusFromServer(agreement.id);
+        if (snapshot && hasStoredClientSignature(snapshot)) {
+          persistSignedLocally(agreement, signature);
+          applySignedState(signature);
+          await fetchAgreement({ background: true });
+          return;
         }
-        if (serverStatus === "signed" || serverStatus === "completed") {
-          justSignedRef.current = false;
-          await fetchAgreement();
-        }
+      }
+
+      if (res.alreadySigned && hasStoredClientSignature({ client_signature: signature })) {
+        persistSignedLocally(agreement, signature);
+        applySignedState(signature);
         return;
       }
 
@@ -1031,10 +1289,13 @@ export default function AgreementClientPage({ agreementId, initialAgreement }: A
         client_signature: signature
       });
       if (fallback.ok) {
-        persistSignedLocally(agreement, signature);
-        applySignedState(signature);
-        await fetchAgreement();
-        return;
+        const snapshot = await fetchAgreementStatusFromServer(agreement.id);
+        if (snapshot && hasStoredClientSignature(snapshot)) {
+          persistSignedLocally(agreement, signature);
+          applySignedState(signature);
+          await fetchAgreement({ background: true });
+          return;
+        }
       }
 
       setActionError(res.error || fallback.error || tx.signBlocked);
@@ -1099,7 +1360,7 @@ export default function AgreementClientPage({ agreementId, initialAgreement }: A
     return () => window.clearTimeout(timerId);
   }, [shouldAutoDownload, loading, agreement, downloadRenderedAgreement]);
 
-  if (loading) {
+  if (loading && !agreement) {
     return (
       <main key={routeKey} className="flex min-h-dvh items-center justify-center bg-gradient-to-b from-slate-100 via-white to-slate-100 px-4">
         <div className="flex flex-col items-center gap-4 rounded-2xl border border-slate-200/80 bg-white px-8 py-10 shadow-lg ring-1 ring-slate-900/5">
@@ -1128,11 +1389,11 @@ export default function AgreementClientPage({ agreementId, initialAgreement }: A
     );
   }
 
-  const signed = agreement.status === "signed" || agreement.status === "completed";
-  const signatureImage =
-    typeof agreement.client_signature === "string" && agreement.client_signature.startsWith("data:image/")
-      ? agreement.client_signature
-      : null;
+  const signed = isAgreementSigned(agreement);
+  const signatureImage = hasSignatureDataUrl(agreement.client_signature)
+    ? agreement.client_signature!
+    : null;
+  const showSignForm = !signed;
   const providerLogo =
     typeof agreement.provider_logo_url === "string" &&
     (agreement.provider_logo_url.startsWith("data:image/") ||
@@ -1158,7 +1419,7 @@ export default function AgreementClientPage({ agreementId, initialAgreement }: A
     );
 
   const phaseLabel =
-    agreement.status === "pending"
+    agreement.status === "pending" && !signed
       ? tx.phaseAwaitingSign
       : agreement.status === "completed"
         ? tx.phaseCompleted
@@ -1168,7 +1429,7 @@ export default function AgreementClientPage({ agreementId, initialAgreement }: A
     <main key={routeKey} className="min-h-dvh bg-gradient-to-b from-slate-100 via-[#f8fafc] to-slate-200/90 px-3 py-5 sm:px-4 sm:py-8 md:py-10">
       <div
         ref={printableRef}
-        className="vstah-animate-in mx-auto w-full min-w-0 max-w-[min(100%,55rem)] overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_20px_50px_-20px_rgba(15,23,42,0.18)] ring-1 ring-slate-900/[0.04]"
+        className="mx-auto w-full min-w-0 max-w-[min(100%,55rem)] overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_20px_50px_-20px_rgba(15,23,42,0.18)] ring-1 ring-slate-900/[0.04]"
       >
         {actionError ? (
           <div role="alert" className="mx-4 mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-800 sm:mx-6 sm:mt-6">
@@ -1182,7 +1443,11 @@ export default function AgreementClientPage({ agreementId, initialAgreement }: A
               <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500 sm:text-xs">{tx.offer}</p>
               <h1 className="mt-2 text-balance text-2xl font-black leading-tight text-[#0033A0] sm:text-3xl">{tx.title}</h1>
               <p className="mt-2 text-base font-bold text-slate-900">{agreement.project_title}</p>
-              <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-600">{tx.subtitle}</p>
+              {signed ? (
+                <p className="mt-2 max-w-xl text-sm font-semibold leading-relaxed text-emerald-800">{tx.subtitleSigned}</p>
+              ) : (
+                <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-600">{tx.subtitle}</p>
+              )}
             </div>
             <div className="flex shrink-0 flex-col items-start gap-3 sm:items-end">
               {providerLogo ? (
@@ -1232,6 +1497,13 @@ export default function AgreementClientPage({ agreementId, initialAgreement }: A
                   </div>
                 </div>
                 <div className="flex gap-3">
+                  <Phone className="mt-0.5 h-4 w-4 shrink-0 text-[#0033A0]/70" aria-hidden />
+                  <div className="min-w-0">
+                    <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{tx.providerPhoneLabel}</dt>
+                    <dd className="mt-0.5 break-words font-semibold leading-snug [overflow-wrap:anywhere]">{agreement.provider_phone?.trim() || "—"}</dd>
+                  </div>
+                </div>
+                <div className="flex gap-3">
                   <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#0033A0]/70" aria-hidden />
                   <div className="min-w-0">
                     <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{tx.serviceAreaLabel}</dt>
@@ -1252,17 +1524,17 @@ export default function AgreementClientPage({ agreementId, initialAgreement }: A
                   </div>
                 </div>
                 <div className="flex gap-3">
+                  <Phone className="mt-0.5 h-4 w-4 shrink-0 text-[#0033A0]/70" aria-hidden />
+                  <div className="min-w-0">
+                    <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{tx.clientPhoneLabel}</dt>
+                    <dd className="mt-0.5 break-words font-semibold leading-snug [overflow-wrap:anywhere]">{agreement.client_phone?.trim() || "—"}</dd>
+                  </div>
+                </div>
+                <div className="flex gap-3">
                   <Briefcase className="mt-0.5 h-4 w-4 shrink-0 text-[#0033A0]/70" aria-hidden />
                   <div className="min-w-0">
                     <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{tx.project}</dt>
                     <dd className="mt-0.5 break-words font-semibold leading-snug [overflow-wrap:anywhere]">{agreement.project_title}</dd>
-                  </div>
-                </div>
-                <div className="flex gap-3">
-                  <FileText className="mt-0.5 h-4 w-4 shrink-0 text-[#0033A0]/70" aria-hidden />
-                  <div className="min-w-0">
-                    <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{tx.total}</dt>
-                    <dd className="mt-0.5 text-base font-black tabular-nums text-[#0033A0]">{money(Number(agreement.total_price))} ֏</dd>
                   </div>
                 </div>
               </dl>
@@ -1367,13 +1639,18 @@ export default function AgreementClientPage({ agreementId, initialAgreement }: A
               ))}
             </ul>
 
-            <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-[#0033A0] to-[#0033A0]/90 px-5 py-4 text-white shadow-md">
-              <span className="text-sm font-semibold text-white/90">{tx.total}</span>
-              <span className="text-xl font-black tabular-nums sm:text-2xl">{money(Number(agreement.total_price || 0))} ֏</span>
-            </div>
+            <AgreementPaymentTotal
+              total={Number(agreement.total_price || 0)}
+              vatMode={agreement.vat_mode}
+              labels={{
+                total: tx.total,
+                vatStatusIncluded: tx.vatStatusIncluded,
+                vatStatusExempt: tx.vatStatusExempt
+              }}
+            />
           </section>
 
-          {agreement.status === "pending" ? (
+          {showSignForm ? (
             <section className="rounded-2xl border border-[#0033A0]/20 bg-gradient-to-br from-white via-slate-50/50 to-[#0033A0]/[0.03] p-5 shadow-sm ring-1 ring-[#0033A0]/10 sm:p-6">
               <div className="flex items-start gap-3">
                 <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#0033A0] text-white shadow-md">
@@ -1446,12 +1723,10 @@ export default function AgreementClientPage({ agreementId, initialAgreement }: A
               <div className="bg-gradient-to-b from-slate-50/80 to-white px-4 py-6 sm:px-8 sm:py-8">
                 <div className="relative mx-auto max-w-lg rounded-xl bg-white p-5 shadow-inner ring-1 ring-slate-200/90 sm:p-8">
                   <div className="pointer-events-none absolute inset-x-6 bottom-5 border-b border-slate-300/90 sm:inset-x-10 sm:bottom-8" aria-hidden />
-                  <Image
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
                     src={signatureImage}
                     alt={`${agreement.client_name}, ${tx.clientSignature}`}
-                    width={640}
-                    height={180}
-                    unoptimized
                     className="relative z-[1] mx-auto block h-auto max-h-32 w-auto max-w-full object-contain sm:max-h-40"
                   />
                 </div>

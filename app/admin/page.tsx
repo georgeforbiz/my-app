@@ -28,6 +28,13 @@ type Stats = {
   fundsSecured: number;
   completed: number;
   pendingVerification: number;
+  missingSignatures: number;
+  agreementsMissingSignature: Array<{
+    id: string;
+    client_name: string;
+    project_title: string;
+    created_at: string;
+  }>;
   pendingTransfers: PendingTransfer[];
 };
 
@@ -39,6 +46,8 @@ const EMPTY_STATS: Stats = {
   fundsSecured: 0,
   completed: 0,
   pendingVerification: 0,
+  missingSignatures: 0,
+  agreementsMissingSignature: [],
   pendingTransfers: []
 };
 
@@ -70,6 +79,8 @@ function localStats(): Stats {
       (a) => a.status === "completed" || a.payment_status === "released"
     ).length,
     pendingVerification: pendingTransfers.length,
+    missingSignatures: 0,
+    agreementsMissingSignature: [],
     pendingTransfers
   };
 }
@@ -87,12 +98,20 @@ function mergeStats(cloud: Stats, local: Stats): Stats {
     fundsSecured: Math.max(cloud.fundsSecured, local.fundsSecured),
     completed: Math.max(cloud.completed, local.completed),
     pendingVerification: byId.size,
+    missingSignatures: Math.max(cloud.missingSignatures, local.missingSignatures),
+    agreementsMissingSignature:
+      cloud.agreementsMissingSignature.length > 0
+        ? cloud.agreementsMissingSignature
+        : local.agreementsMissingSignature,
     pendingTransfers: [...byId.values()]
   };
 }
 
 export default function AdminOverviewPage() {
   const [stats, setStats] = useState<Stats>(() => localStats());
+  const [missingSignatureDeals, setMissingSignatureDeals] = useState<
+    Stats["agreementsMissingSignature"]
+  >([]);
   const [notice, setNotice] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -122,6 +141,10 @@ export default function AdminOverviewPage() {
           fundsSecured: Number(data.fundsSecured ?? 0),
           completed: Number(data.completed ?? 0),
           pendingVerification: Number(data.pendingVerification ?? 0),
+          missingSignatures: Number(data.missingSignatures ?? 0),
+          agreementsMissingSignature: Array.isArray(data.agreementsMissingSignature)
+            ? data.agreementsMissingSignature
+            : [],
           pendingTransfers: Array.isArray(data.pendingTransfers) ? data.pendingTransfers : []
         };
 
@@ -131,7 +154,9 @@ export default function AdminOverviewPage() {
           cloud.pendingTransfers.length === 0;
 
         if (!res.ok || data.source === "empty" || cloudEmpty) {
-          setStats(mergeStats(cloud, local));
+          const merged = mergeStats(cloud, local);
+          setStats(merged);
+          setMissingSignatureDeals(merged.agreementsMissingSignature);
           setNotice(
             data.warning ||
               data.error ||
@@ -140,7 +165,9 @@ export default function AdminOverviewPage() {
                 : "")
           );
         } else {
-          setStats(mergeStats(cloud, local));
+          const merged = mergeStats(cloud, local);
+          setStats(merged);
+          setMissingSignatureDeals(merged.agreementsMissingSignature);
           setNotice(data.warning ?? "");
         }
       } catch {
@@ -186,6 +213,33 @@ export default function AdminOverviewPage() {
       {notice ? (
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
           {notice}
+        </div>
+      ) : null}
+
+      {missingSignatureDeals.length > 0 ? (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-4 text-sm text-red-950">
+          <p className="font-black">
+            {missingSignatureDeals.length} signed agreement
+            {missingSignatureDeals.length === 1 ? "" : "s"} missing client signature
+          </p>
+          <p className="mt-1 leading-relaxed">
+            Send each client their original link to sign again — the same agreement id is kept.
+          </p>
+          <ul className="mt-3 space-y-2">
+            {missingSignatureDeals.slice(0, 10).map((row) => (
+              <li key={row.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-white/80 px-3 py-2">
+                <span className="font-semibold">
+                  {row.client_name} — {row.project_title}
+                </span>
+                <Link
+                  href={`/admin/agreements/${row.id}`}
+                  className="text-xs font-bold text-[#0033A0] hover:underline"
+                >
+                  Review →
+                </Link>
+              </li>
+            ))}
+          </ul>
         </div>
       ) : null}
 

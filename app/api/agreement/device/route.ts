@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { insertAgreementWithSchemaFallback, type PaymentType } from "@/lib/agreements/row";
+import { normalizeVatMode } from "@/lib/agreements/vat";
 import { getAgreementServerClient } from "@/lib/supabase/agreement-server";
 import { isSupabaseReachable } from "@/lib/supabase/health";
 import { readProviderLogoUrl } from "@/lib/agreements/logo-image";
@@ -73,6 +74,9 @@ export async function POST(req: Request) {
     scopeExclusions: readString(body.scopeExclusions) || undefined,
     estimatedCompletionDate: readString(body.estimatedCompletionDate) || undefined,
     deadline: readString(body.deadline) || undefined,
+    providerPhone: readString(body.providerPhone) || undefined,
+    clientPhone: readString(body.clientPhone) || undefined,
+    vatMode: normalizeVatMode(body.vatMode),
     totalPrice,
     paymentType,
     milestones: paymentType === "milestones" ? milestones : [],

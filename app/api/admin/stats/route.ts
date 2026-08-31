@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/admin/require-admin";
 import { getAdminSupabase } from "@/lib/admin/supabase";
 import { withAdminTimeout } from "@/lib/admin/with-timeout";
+import { isValidSignatureDataUrl } from "@/lib/agreements/status-rank";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,13 @@ const EMPTY = {
   fundsSecured: 0,
   completed: 0,
   pendingVerification: 0,
+  missingSignatures: 0,
+  agreementsMissingSignature: [] as Array<{
+    id: string;
+    client_name: string;
+    project_title: string;
+    created_at: string;
+  }>,
   pendingTransfers: [] as Array<{
     agreement_id: string;
     milestone_index: number;
@@ -73,7 +81,7 @@ export async function GET() {
       supabase.auth.admin.listUsers({ page: 1, perPage: 1000 }),
       supabase
         .from("agreements")
-        .select("id,status,payment_status,created_at,client_name,project_title,total_price"),
+        .select("id,status,payment_status,created_at,client_name,project_title,total_price,client_signature"),
       supabase
         .from("deposit_verifications")
         .select("id,agreement_id,milestone_index,submitted_at")
@@ -98,6 +106,8 @@ export async function GET() {
     client_name?: string;
     project_title?: string;
     total_price?: number;
+    created_at?: string;
+    client_signature?: string | null;
   }>;
   const userCount = usersRes.error ? 0 : usersRes.data.total ?? usersRes.data.users.length;
   const pendingDeps = (pendingRes.error ? [] : pendingRes.data ?? []) as Array<{
@@ -112,6 +122,20 @@ export async function GET() {
   ).length;
   const signed = list.filter((a) => a.status === "signed").length;
   const pending = list.filter((a) => a.status === "pending").length;
+
+  const agreementsMissingSignature = list
+    .filter(
+      (a) =>
+        (a.status === "signed" || a.status === "completed") &&
+        !isValidSignatureDataUrl(a.client_signature)
+    )
+    .map((a) => ({
+      id: a.id,
+      client_name: String(a.client_name ?? ""),
+      project_title: String(a.project_title ?? ""),
+      created_at: String(a.created_at ?? "")
+    }))
+    .slice(0, 50);
 
   const pendingTransfers = pendingDeps
     .map((d) => {
@@ -145,6 +169,8 @@ export async function GET() {
     fundsSecured,
     completed,
     pendingVerification: pendingDeps.length,
+    missingSignatures: agreementsMissingSignature.length,
+    agreementsMissingSignature,
     pendingTransfers,
     source: cloudUnreachable || (userCount === 0 && list.length === 0 && warnings.length > 0) ? "empty" : "supabase",
     ...(warnings.length ? { warning: warnings[0] } : {})

@@ -15,10 +15,18 @@ import {
   LayoutDashboard,
   Loader2,
   Plus,
+  Share2,
   Trash2,
-  ImageIcon
+  ImageIcon,
+  User,
+  Phone,
+  Briefcase,
+  MapPin,
+  CircleDollarSign
 } from "lucide-react";
+import { AgreementShareDialog } from "@/components/agreement-share-dialog";
 import { AgreementDocumentView } from "@/components/agreement-document-view";
+import { FormField } from "@/components/form-field";
 import {
   AgreementStatusPill,
   getDerivedAgreementStatus,
@@ -39,12 +47,16 @@ import { normalizeAgreementRow } from "@/lib/agreements/row";
 import { fetchDashboardAgreementsViaApi, mergeAgreementsById, publishLocalAgreementToCloud } from "@/lib/agreements/create-via-api";
 import { getAgreementPublicUrl, isShareableAgreementId } from "@/lib/agreements/public-url";
 import { createShareableAgreement, ensureSupabaseAccessToken } from "@/lib/agreements/shareable-create";
+import type { VatMode } from "@/lib/agreements/vat";
+import { pickAdvancedStatus, statusRank } from "@/lib/agreements/status-rank";
+import { writeAgreementCache } from "@/lib/agreements/signed-cache";
 import {
   getLocalAgreement,
   isLocalAgreementId,
   listLocalAgreementsForDashboard,
   replaceLocalAgreementId,
-  saveLocalAgreement
+  saveLocalAgreement,
+  updateLocalAgreement
 } from "@/lib/agreements/local-store";
 import { formatDateDMY } from "@/lib/format-date";
 import { readLogoDataUrl, PROVIDER_LOGO_STORAGE_KEY, resolveStoredProviderLogo } from "@/lib/agreements/logo-image";
@@ -65,6 +77,8 @@ type Agreement = {
   full_name?: string;
   business_name?: string;
   client_name: string;
+  provider_phone?: string;
+  client_phone?: string;
   project_title: string;
   service_area: string;
   custom_terms: string;
@@ -73,6 +87,7 @@ type Agreement = {
   estimated_completion_date?: string;
   deadline?: string;
   total_price: number;
+  vat_mode?: VatMode;
   payment_type: PaymentType;
   milestones: Milestone[] | null;
   status: AgreementStatus;
@@ -100,10 +115,23 @@ type Tx = {
   emptyTitle: string;
   emptySubtitle: string;
   clientName: string;
+  clientPhone: string;
+  vatModeIncludes: string;
+  vatModeExempt: string;
+  completeClientPhone: string;
   projectTitle: string;
+  serviceArea: string;
   price: string;
   status: string;
   copyLink: string;
+  share: string;
+  shareTitle: string;
+  shareHint: string;
+  shareVia: string;
+  shareWhatsApp: string;
+  shareTelegram: string;
+  shareViber: string;
+  shareMessage: string;
   viewLink: string;
   download: string;
   searchClientPlaceholder: string;
@@ -164,7 +192,6 @@ type Tx = {
   dateMonth: string;
   dateYear: string;
   completeScopeOfWork: string;
-  completeCompletionDate: string;
   billing: string;
   billingTitle: string;
   currentPlan: string;
@@ -216,10 +243,23 @@ const t: Record<Lang, Tx> = {
     emptyTitle: "Create your first deal to get started",
     emptySubtitle: "You can create a safe agreement and instantly share it with your client.",
     clientName: "Client Name",
+    clientPhone: "Client Phone",
+    vatModeIncludes: "Includes 20% VAT",
+    vatModeExempt: "VAT Exempt",
+    completeClientPhone: "Please enter the client's phone number.",
     projectTitle: "Project Title",
+    serviceArea: "Service Area",
     price: "Amount",
     status: "Status",
     copyLink: "Copy Link",
+    share: "Share",
+    shareTitle: "Share agreement link",
+    shareHint: "Copy the link to paste anywhere, or tap a chat app to send it directly.",
+    shareVia: "Send via chat app",
+    shareWhatsApp: "WhatsApp",
+    shareTelegram: "Telegram",
+    shareViber: "Viber",
+    shareMessage: "Please review and sign our agreement:",
     viewLink: "View Link",
     download: "Download",
     searchClientPlaceholder: "Search by client name...",
@@ -247,7 +287,7 @@ const t: Record<Lang, Tx> = {
     agreementHistory: "Agreement History",
     noHistory: "Signed agreements will appear here.",
     successTitle: "Agreement Created Successfully!",
-    successSubtitle: "Share this public agreement link with your client.",
+    successSubtitle: "Copy the link or send it directly via WhatsApp, Telegram, or Viber.",
     publicLink: "Public Link",
     copyToClipboard: "Copy to Clipboard",
     preview: "Preview",
@@ -276,13 +316,12 @@ const t: Record<Lang, Tx> = {
     scopeOfWorkPlaceholder: "List exact deliverables (e.g., demolition, wiring, finishing, cleanup).",
     scopeExclusions: "What is NOT Included (Optional)",
     scopeExclusionsPlaceholder: "e.g., material purchases, extra coats, furniture moving",
-    estimatedCompletionDate: "Estimated Completion Date",
+    estimatedCompletionDate: "Estimated Completion Date (optional)",
     offerDeadline: "Offer deadline (optional)",
     dateDay: "Day",
     dateMonth: "Month",
     dateYear: "Year",
     completeScopeOfWork: "Please describe the scope of work.",
-    completeCompletionDate: "Please set an estimated completion date.",
     billing: "Billing",
     billingTitle: "Billing & Plan",
     currentPlan: "Current plan",
@@ -332,10 +371,23 @@ const t: Record<Lang, Tx> = {
     emptyTitle: "Սկսեք առաջին գործարքով",
     emptySubtitle: "Ապահով պայմանագիր՝ ուղարկեք հղումը հաճախորդին։",
     clientName: "Հաճախորդի անուն",
+    clientPhone: "Հաճախորդի հեռախոս",
+    vatModeIncludes: "Ներառում է 20% ԱԱՀ",
+    vatModeExempt: "ԱԱՀ-ից ազատ",
+    completeClientPhone: "Մուտքագրեք հաճախորդի հեռախոսահամարը։",
     projectTitle: "Նախագծի վերնագիր",
+    serviceArea: "Տարածք",
     price: "Գումար",
     status: "Կարգավիճակ",
     copyLink: "Պատճենել հղումը",
+    share: "Ուղարկել",
+    shareTitle: "Ուղարկել պայմանագրի հղումը",
+    shareHint: "Պատճենեք հղումը կամ ուղարկեք WhatsApp, Telegram կամ Viber-ով։",
+    shareVia: "Ուղարկել չաթով",
+    shareWhatsApp: "WhatsApp",
+    shareTelegram: "Telegram",
+    shareViber: "Viber",
+    shareMessage: "Խնդրում եմ դիտել և ստորագրել պայմանագիրը՝",
     viewLink: "Բացել հղումը",
     download: "Ներբեռնել",
     searchClientPlaceholder: "Փնտրել ըստ հաճախորդի անվան…",
@@ -363,7 +415,7 @@ const t: Record<Lang, Tx> = {
     agreementHistory: "Պայմանագրերի պատմություն",
     noHistory: "Ստորագրված պայմանագրերը կհայտնվեն այստեղ։",
     successTitle: "Պայմանագիրը պատրաստ է",
-    successSubtitle: "Ուղարկեք հղումը հաճախորդին։",
+    successSubtitle: "Պատճենեք հղումը կամ ուղարկեք WhatsApp, Telegram կամ Viber-ով։",
     publicLink: "Հանրային հղում",
     copyToClipboard: "Պատճենել",
     preview: "Նախադիտում",
@@ -393,13 +445,12 @@ const t: Record<Lang, Tx> = {
     scopeOfWorkPlaceholder: "Նշեք կատարվող աշխատանքները (օր.՝ քանդում, էլեկտրամոնтаж, ավարտ)...",
     scopeExclusions: "Ինչը չի ներառվում (ընտրովի)",
     scopeExclusionsPlaceholder: "օր.՝ նյութերի գնում, լրացուցիչ շերտեր",
-    estimatedCompletionDate: "Ավարտի մոտավոր ամսաթիվ",
+    estimatedCompletionDate: "Ավարտի մոտավոր ամսաթիվ (ըստ ցանկության)",
     offerDeadline: "Առաջարկի վավերականության ժամկետ (ըստ ցանկության)",
     dateDay: "Օր",
     dateMonth: "Ամիս",
     dateYear: "Տարի",
     completeScopeOfWork: "Լրացրեք աշխատանքի շրջանակը։",
-    completeCompletionDate: "Նշեք ավարտի մոտավոր ամսաթիվը։",
     billing: "Վճարում",
     billingTitle: "Փաթեթ և վճարում",
     currentPlan: "Ընթացիկ փաթեթ",
@@ -449,10 +500,23 @@ const t: Record<Lang, Tx> = {
     emptyTitle: "Создайте первое соглашение",
     emptySubtitle: "Создайте защищённое соглашение и сразу отправьте клиенту ссылку.",
     clientName: "Клиент",
+    clientPhone: "Телефон клиента",
+    vatModeIncludes: "Включает 20% НДС",
+    vatModeExempt: "Без НДС",
+    completeClientPhone: "Укажите телефон клиента.",
     projectTitle: "Проект",
+    serviceArea: "Регион",
     price: "Сумма",
     status: "Статус",
     copyLink: "Копировать ссылку",
+    share: "Поделиться",
+    shareTitle: "Поделиться ссылкой на соглашение",
+    shareHint: "Скопируйте ссылку или отправьте через WhatsApp, Telegram или Viber.",
+    shareVia: "Отправить в мессенджер",
+    shareWhatsApp: "WhatsApp",
+    shareTelegram: "Telegram",
+    shareViber: "Viber",
+    shareMessage: "Пожалуйста, ознакомьтесь и подпишите соглашение:",
     viewLink: "Открыть ссылку",
     download: "Скачать",
     searchClientPlaceholder: "Поиск по клиенту…",
@@ -480,7 +544,7 @@ const t: Record<Lang, Tx> = {
     agreementHistory: "История соглашений",
     noHistory: "Здесь появятся подписанные соглашения.",
     successTitle: "Соглашение создано",
-    successSubtitle: "Отправьте клиенту эту публичную ссылку.",
+    successSubtitle: "Скопируйте ссылку или отправьте через WhatsApp, Telegram или Viber.",
     publicLink: "Публичная ссылка",
     copyToClipboard: "Копировать",
     preview: "Предпросмотр",
@@ -510,13 +574,12 @@ const t: Record<Lang, Tx> = {
     scopeOfWorkPlaceholder: "Перечислите работы (напр., демонтаж, электрика, отделка)...",
     scopeExclusions: "Что НЕ включено (необязательно)",
     scopeExclusionsPlaceholder: "напр., закупка материалов, дополнительные слои",
-    estimatedCompletionDate: "Ориентировочная дата завершения",
+    estimatedCompletionDate: "Ориентировочная дата завершения (необязательно)",
     offerDeadline: "Срок действия предложения (необязательно)",
     dateDay: "День",
     dateMonth: "Месяц",
     dateYear: "Год",
     completeScopeOfWork: "Опишите объём работ.",
-    completeCompletionDate: "Укажите ориентировочную дату завершения.",
     billing: "Оплата",
     billingTitle: "Тариф и оплата",
     currentPlan: "Текущий тариф",
@@ -563,15 +626,35 @@ const formatAgreementNumber = (id: string, createdAt: string) =>
 
 const formatAmount = (value: number) => formatAMD(value, { maxFractionDigits: 2 });
 
-/** Cloud rows can lag schema patches — keep logo from local copy when missing server-side. */
+/** Prefer the most advanced lifecycle status; prefer cloud row data when cloud is ahead. */
+function mergeDashboardAgreementRow(local: Agreement | undefined, cloud: Agreement): Agreement {
+  const localStatus = local?.status ?? "pending";
+  const status = pickAdvancedStatus(localStatus, cloud.status);
+  const cloudIsAhead = statusRank(cloud.status) >= statusRank(localStatus);
+  const base = cloudIsAhead || !local ? cloud : local;
+  const provider_logo_url = resolveStoredProviderLogo(base, cloudIsAhead ? local : cloud);
+  const merged: Agreement = {
+    ...base,
+    status,
+    ...(provider_logo_url ? { provider_logo_url } : {})
+  };
+
+  if (local && statusRank(merged.status) > statusRank(local.status)) {
+    updateLocalAgreement(merged.id, {
+      status: merged.status,
+      payment_status: merged.payment_status
+    });
+  }
+
+  return merged;
+}
+
 function mergeDashboardAgreements(local: Agreement[], cloud: Agreement[]): Agreement[] {
   const localById = new Map(local.map((a) => [a.id, a]));
-  return mergeAgreementsById([local, cloud]).map((row) => {
-    const fromLocal = localById.get(row.id);
-    const provider_logo_url = resolveStoredProviderLogo(row, fromLocal);
-    if (!provider_logo_url || provider_logo_url === row.provider_logo_url) return row;
-    return { ...row, provider_logo_url };
-  });
+  const cloudIds = new Set(cloud.map((a) => a.id));
+  const mergedCloud = cloud.map((row) => mergeDashboardAgreementRow(localById.get(row.id), row));
+  const localOnly = local.filter((a) => !cloudIds.has(a.id));
+  return mergeAgreementsById([mergedCloud, localOnly]);
 }
 
 /** Resolves to null when the network call fails or exceeds `ms`. */
@@ -601,6 +684,18 @@ function completionYearOptions(): number[] {
   return Array.from({ length: 4 }, (_, i) => start + i);
 }
 
+async function resolveProviderPhoneFromSession(): Promise<string | undefined> {
+  const supabase = getSupabaseBrowser();
+  if (!supabase) return undefined;
+  try {
+    const { data } = await supabase.auth.getUser();
+    const phone = String(data.user?.user_metadata?.phone_number ?? "").trim();
+    return phone || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export default function DashboardPage() {
   const { user, loading, signOut, revalidateSession } = useAuth();
   const { language: lang, setLanguage: setLang } = useLanguage();
@@ -613,6 +708,16 @@ export default function DashboardPage() {
     });
   }, [supabase]);
 
+  useEffect(() => {
+    if (!user?.id) {
+      setProviderPhone("");
+      return;
+    }
+    void resolveProviderPhoneFromSession().then((phone) => {
+      setProviderPhone(phone ?? "");
+    });
+  }, [user?.id, supabase]);
+
   const [view, setView] = useState<View>("overview");
   const [agreements, setAgreements] = useState<Agreement[]>([]);
   const [loadingAgreements, setLoadingAgreements] = useState(true);
@@ -623,12 +728,15 @@ export default function DashboardPage() {
   const [clientSearch, setClientSearch] = useState("");
   const [historySearch, setHistorySearch] = useState("");
   const [successAgreementId, setSuccessAgreementId] = useState("");
+  const [shareAgreementId, setShareAgreementId] = useState("");
   const [langMenuOpen, setLangMenuOpen] = useState(false);
   const [mockPlan, setMockPlan] = useState<MockPlanId>("free");
   const [limitModalOpen, setLimitModalOpen] = useState(false);
   const [previewAgreement, setPreviewAgreement] = useState<Agreement | null>(null);
 
   const [clientName, setClientName] = useState("");
+  const [clientPhone, setClientPhone] = useState("");
+  const [providerPhone, setProviderPhone] = useState("");
   const [projectTitle, setProjectTitle] = useState("");
   const [serviceArea, setServiceArea] = useState("");
   const [contractTerms, setContractTerms] = useState("");
@@ -641,6 +749,7 @@ export default function DashboardPage() {
   const [deadlineMonth, setDeadlineMonth] = useState("");
   const [deadlineYear, setDeadlineYear] = useState("");
   const [totalPriceInput, setTotalPriceInput] = useState("");
+  const [vatMode, setVatMode] = useState<VatMode>("included");
   const [paymentType, setPaymentType] = useState<PaymentType>("single");
   const [milestones, setMilestones] = useState<MilestoneDraft[]>([]);
   const [providerLogoUrl, setProviderLogoUrl] = useState("");
@@ -655,6 +764,7 @@ export default function DashboardPage() {
   const termsDirtyRef = useRef(false);
   const contractTermsRef = useRef(contractTerms);
   const agreementsFetchSeqRef = useRef(0);
+  const agreementsRefreshTimerRef = useRef<number | null>(null);
   const agreementsRef = useRef(agreements);
   agreementsRef.current = agreements;
   contractTermsRef.current = contractTerms;
@@ -792,18 +902,25 @@ export default function DashboardPage() {
     if (mockGetSession()) return;
 
     let cancelled = false;
-    const tm = window.setTimeout(() => {
-      void (async () => {
-        if (cancelled || mockGetSession()) return;
-        const recovered = await revalidateSession();
-        if (cancelled || recovered) return;
-        redirectToLoginAfterLogout();
-      })();
-    }, 600);
+    let redirectTimer: number | undefined;
+
+    void (async () => {
+      const recovered = await revalidateSession();
+      if (cancelled || recovered) return;
+
+      redirectTimer = window.setTimeout(() => {
+        void (async () => {
+          if (cancelled || mockGetSession()) return;
+          const retry = await revalidateSession();
+          if (cancelled || retry) return;
+          redirectToLoginAfterLogout();
+        })();
+      }, 600);
+    })();
 
     return () => {
       cancelled = true;
-      window.clearTimeout(tm);
+      if (redirectTimer !== undefined) window.clearTimeout(redirectTimer);
     };
   }, [loading, user, revalidateSession]);
 
@@ -862,7 +979,10 @@ export default function DashboardPage() {
       return;
     }
 
-    setLoadingAgreements(true);
+    const isInitialLoad = agreementsRef.current.length === 0;
+    if (isInitialLoad) {
+      setLoadingAgreements(true);
+    }
     let cloud: Agreement[] = [];
 
     try {
@@ -957,13 +1077,19 @@ export default function DashboardPage() {
               const idx = prev.findIndex((a) => a.id === next.id);
               if (idx === -1) return [next, ...prev];
               const copy = [...prev];
-              copy[idx] = next;
+              copy[idx] = mergeDashboardAgreementRow(copy[idx], next);
               return copy;
             });
           }
 
-          // Fallback for strict consistency (ordering/derived totals).
-          void fetchAgreements();
+          // Debounced full refresh when realtime fires (e.g. client signed on shared link).
+          if (agreementsRefreshTimerRef.current !== null) {
+            window.clearTimeout(agreementsRefreshTimerRef.current);
+          }
+          agreementsRefreshTimerRef.current = window.setTimeout(() => {
+            agreementsRefreshTimerRef.current = null;
+            void fetchAgreements();
+          }, 400);
         }
       )
       .subscribe();
@@ -971,6 +1097,18 @@ export default function DashboardPage() {
       void supabase.removeChannel(channel);
     };
   }, [supabase, user?.id, user?.source, fetchAgreements]);
+
+  useEffect(() => {
+    const refresh = () => {
+      if (document.visibilityState === "visible") void fetchAgreements();
+    };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
+    };
+  }, [fetchAgreements]);
 
   const resolvePublicAgreementId = useCallback(
     async (id: string): Promise<{ id: string; error?: string }> => {
@@ -1019,14 +1157,36 @@ export default function DashboardPage() {
   };
 
   const copySuccessModalLink = async (id: string) => {
-    const link = getAgreementPublicUrl(id);
+    const resolved = await resolvePublicAgreementId(id);
+    if (!isShareableAgreementId(resolved.id)) {
+      setToast(resolved.error ?? tx.linkNotPublished);
+      return;
+    }
+    const link = getAgreementPublicUrl(resolved.id);
     try {
       await navigator.clipboard.writeText(link);
-      setCopiedAgreementId(id);
+      setCopiedAgreementId(resolved.id);
     } catch {
       setToast("Could not copy link.");
     }
   };
+
+  const openShareAgreement = async (id: string) => {
+    const resolved = await resolvePublicAgreementId(id);
+    if (!isShareableAgreementId(resolved.id)) {
+      setToast(resolved.error ?? tx.linkNotPublished);
+      return;
+    }
+    setShareAgreementId(resolved.id);
+  };
+
+  const closeShareDialog = () => {
+    setSuccessAgreementId("");
+    setShareAgreementId("");
+    setCopiedAgreementId("");
+  };
+
+  const activeShareAgreementId = successAgreementId || shareAgreementId;
 
   const openAgreementLink = async (id: string) => {
     const resolved = await resolvePublicAgreementId(id);
@@ -1167,6 +1327,8 @@ export default function DashboardPage() {
       full_name: full_name || undefined,
       business_name: business_name || undefined,
       client_name: clientName.trim() || "—",
+      client_phone: clientPhone.trim() || undefined,
+      provider_phone: providerPhone.trim() || undefined,
       project_title: projectTitle.trim() || "—",
       service_area: serviceArea.trim() || "Armenia",
       custom_terms: terms,
@@ -1175,6 +1337,7 @@ export default function DashboardPage() {
       estimated_completion_date: estimatedCompletionDate.trim() || undefined,
       deadline: offerDeadline.trim() || undefined,
       total_price: totalPrice || 0,
+      vat_mode: vatMode,
       payment_type: paymentType,
       milestones: paymentType === "milestones" ? milestonesParsed : null,
       status: "pending",
@@ -1185,6 +1348,7 @@ export default function DashboardPage() {
   }, [
     buildDefaultTerms,
     clientName,
+    clientPhone,
     contractTerms,
     scopeOfWork,
     scopeExclusions,
@@ -1195,8 +1359,10 @@ export default function DashboardPage() {
     projectTitle,
     providerDisplayName,
     providerLogoUrl,
+    providerPhone,
     serviceArea,
     totalPrice,
+    vatMode,
     user?.business_name,
     user?.full_name,
     user?.id
@@ -1306,18 +1472,13 @@ export default function DashboardPage() {
       return;
     }
 
-    if (!clientName.trim() || !projectTitle.trim() || !serviceArea.trim() || totalPrice <= 0) {
+    if (!clientName.trim() || !clientPhone.trim() || !projectTitle.trim() || !serviceArea.trim() || totalPrice <= 0) {
       setError(tx.completeRequired);
       return;
     }
 
     if (!scopeOfWork.trim()) {
       setError(tx.completeScopeOfWork);
-      return;
-    }
-
-    if (!estimatedCompletionDate.trim()) {
-      setError(tx.completeCompletionDate);
       return;
     }
 
@@ -1334,8 +1495,10 @@ export default function DashboardPage() {
 
     setCreating(true);
     try {
-      await ensureSupabaseBrowser();
-      const { full_name, business_name } = await resolveProviderNames();
+      const full_name = user.full_name?.trim() ?? "";
+      const business_name = user.business_name?.trim() ?? "";
+      const resolvedProviderPhone = providerPhone.trim() || undefined;
+      const resolvedClientPhone = clientPhone.trim();
       const providerId = user.id;
       const cloudOnline = getSupabaseReachable() === true && user.source !== "mock";
       const providerName =
@@ -1360,8 +1523,11 @@ export default function DashboardPage() {
         customTerms: customTermsText,
         scopeOfWork: scopeOfWork.trim(),
         scopeExclusions: scopeExclusions.trim() || undefined,
-        estimatedCompletionDate: estimatedCompletionDate.trim(),
+        estimatedCompletionDate: estimatedCompletionDate.trim() || undefined,
         deadline: offerDeadline.trim() || undefined,
+        providerPhone: resolvedProviderPhone,
+        clientPhone: resolvedClientPhone,
+        vatMode,
         totalPrice,
         paymentType,
         milestones: paymentType === "milestones" ? milestonesParsed : [],
@@ -1369,15 +1535,19 @@ export default function DashboardPage() {
       };
 
       let agreementId: string | undefined;
+      let cloudSaveError: string | undefined;
 
       if (cloudOnline) {
         const activeSupabase = supabase ?? getSupabaseBrowser();
         if (activeSupabase) {
-          const cloudToken = await withNetworkTimeout(ensureSupabaseAccessToken(activeSupabase), 5_000);
-          if (cloudToken) {
-            const result = await withNetworkTimeout(createShareableAgreement(activeSupabase, draft), 12_000);
-            if (result?.id) agreementId = result.id;
+          const result = await createShareableAgreement(activeSupabase, draft);
+          if (result.id) {
+            agreementId = result.id;
+          } else {
+            cloudSaveError = result.error;
           }
+        } else {
+          cloudSaveError = tx.cloudSaveFailed;
         }
 
         if (!agreementId) {
@@ -1396,8 +1566,11 @@ export default function DashboardPage() {
                 customTerms: customTermsText,
                 scopeOfWork: scopeOfWork.trim(),
                 scopeExclusions: scopeExclusions.trim() || undefined,
-                estimatedCompletionDate: estimatedCompletionDate.trim(),
+                estimatedCompletionDate: estimatedCompletionDate.trim() || undefined,
                 deadline: offerDeadline.trim() || undefined,
+                providerPhone: resolvedProviderPhone,
+                clientPhone: resolvedClientPhone,
+                vatMode,
                 totalPrice,
                 paymentType,
                 milestones:
@@ -1407,11 +1580,21 @@ export default function DashboardPage() {
                 providerLogoUrl: providerLogoUrl.trim() || undefined
               })
             });
-            const deviceData = (await deviceRes.json().catch(() => ({}))) as { id?: string };
-            if (deviceRes.ok && deviceData.id) agreementId = deviceData.id;
+            const deviceData = (await deviceRes.json().catch(() => ({}))) as { id?: string; error?: string };
+            if (deviceRes.ok && deviceData.id) {
+              agreementId = deviceData.id;
+              cloudSaveError = undefined;
+            } else if (deviceData.error) {
+              cloudSaveError = deviceData.error;
+            }
           } catch {
-            // Fall through to local save.
+            // Keep prior cloudSaveError.
           }
+        }
+
+        if (!agreementId) {
+          setError(cloudSaveError ?? tx.cloudSaveFailed);
+          return;
         }
       }
 
@@ -1427,8 +1610,11 @@ export default function DashboardPage() {
           custom_terms: customTermsText,
           scope_of_work: scopeOfWork.trim(),
           scope_exclusions: scopeExclusions.trim() || undefined,
-          estimated_completion_date: estimatedCompletionDate.trim(),
+          estimated_completion_date: estimatedCompletionDate.trim() || undefined,
           deadline: offerDeadline.trim() || undefined,
+          provider_phone: resolvedProviderPhone,
+          client_phone: resolvedClientPhone,
+          vat_mode: vatMode,
           total_price: totalPrice,
           payment_type: paymentType,
           milestones:
@@ -1454,8 +1640,11 @@ export default function DashboardPage() {
         custom_terms: customTermsText,
         scope_of_work: scopeOfWork.trim(),
         scope_exclusions: scopeExclusions.trim() || undefined,
-        estimated_completion_date: estimatedCompletionDate.trim(),
+        estimated_completion_date: estimatedCompletionDate.trim() || undefined,
         deadline: offerDeadline.trim() || undefined,
+        provider_phone: resolvedProviderPhone,
+        client_phone: resolvedClientPhone,
+        vat_mode: vatMode,
         total_price: totalPrice,
         payment_type: paymentType,
         milestones:
@@ -1468,6 +1657,36 @@ export default function DashboardPage() {
         created_at: new Date().toISOString()
       };
       setAgreements((prev) => mergeAgreementsById([[createdRow], prev]));
+      writeAgreementCache(createdRow);
+      if (!isLocalAgreementId(agreementId)) {
+        saveLocalAgreement({
+          id: agreementId,
+          provider_id: providerId,
+          provider_name: providerName,
+          full_name: full_name || undefined,
+          business_name: business_name || undefined,
+          client_name: draft.clientName,
+          project_title: draft.projectTitle,
+          service_area: draft.serviceArea,
+          custom_terms: customTermsText,
+          scope_of_work: scopeOfWork.trim(),
+          scope_exclusions: scopeExclusions.trim() || undefined,
+          estimated_completion_date: estimatedCompletionDate.trim() || undefined,
+          deadline: offerDeadline.trim() || undefined,
+          provider_phone: resolvedProviderPhone,
+          client_phone: resolvedClientPhone,
+          vat_mode: vatMode,
+          total_price: totalPrice,
+          payment_type: paymentType,
+          milestones:
+            paymentType === "milestones"
+              ? milestonesParsed.map((m) => ({ ...m, status: "pending" as const }))
+              : null,
+          status: "pending",
+          payment_status: "pending",
+          provider_logo_url: providerLogoUrl.trim() || undefined
+        });
+      }
 
       void fetch(`/api/agreement/${encodeURIComponent(agreementId)}/log`, {
         method: "POST",
@@ -1485,15 +1704,18 @@ export default function DashboardPage() {
           .catch(() => {});
       }
 
+      if (cloudOnline && !isShareableAgreementId(agreementId)) {
+        setError(tx.linkNotPublished);
+        return;
+      }
+
       setSuccessAgreementId(agreementId);
       const publicLink = getAgreementPublicUrl(agreementId);
-      try {
-        await navigator.clipboard.writeText(publicLink);
-        setCopiedAgreementId(agreementId);
-      } catch {
-        // Popup still shows the link if clipboard is blocked.
-      }
-      setToast(tx.toastCreated);
+      void navigator.clipboard.writeText(publicLink).then(
+        () => setCopiedAgreementId(agreementId),
+        () => {}
+      );
+      setToast(isLocalAgreementId(agreementId) ? tx.linkLocalWarning : tx.toastCreated);
       resetForm(customTermsText);
       setView("overview");
       void fetchAgreements();
@@ -1738,9 +1960,10 @@ export default function DashboardPage() {
                                   <AgreementStatusPill status={derived} label={statusText[derived]} />
                                 </div>
                               </div>
-                              <div className="mt-3 grid grid-cols-3 gap-2">
+                              <div className="mt-3 grid grid-cols-4 gap-2">
                                 <button type="button" onClick={() => openAgreementLink(item.id)} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.viewLink} title={tx.viewLink}><ExternalLink className="h-4 w-4" /></button>
                                 <button type="button" onClick={() => void copyAgreementLink(item.id)} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.copyLink} title={tx.copyLink}><Copy className="h-4 w-4" /></button>
+                                <button type="button" onClick={() => void openShareAgreement(item.id)} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[#0033A0]/20 bg-[#0033A0]/5 p-2 text-[#0033A0] hover:bg-[#0033A0]/10" aria-label={tx.share} title={tx.share}><Share2 className="h-4 w-4" /></button>
                                 <button type="button" onClick={() => void downloadAgreementPdf(item)} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.download} title={tx.download}><Download className="h-4 w-4" /></button>
                               </div>
                             </article>
@@ -1757,7 +1980,7 @@ export default function DashboardPage() {
                               <th className="px-3 py-2">{tx.price}</th>
                               <th className="px-3 py-2">{tx.status}</th>
                               <th className="px-3 py-2">
-                                <span className="sr-only">{tx.viewLink} / {tx.copyLink} / {tx.download}</span>
+                                <span className="sr-only">{tx.viewLink} / {tx.copyLink} / {tx.share} / {tx.download}</span>
                               </th>
                             </tr>
                           </thead>
@@ -1777,6 +2000,7 @@ export default function DashboardPage() {
                                   <div className="flex items-center gap-2">
                                     <button type="button" onClick={() => openAgreementLink(item.id)} className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.viewLink} title={tx.viewLink}><ExternalLink className="h-4 w-4" /></button>
                                     <button type="button" onClick={() => void copyAgreementLink(item.id)} className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.copyLink} title={tx.copyLink}><Copy className="h-4 w-4" /></button>
+                                    <button type="button" onClick={() => void openShareAgreement(item.id)} className="inline-flex items-center justify-center rounded-lg border border-[#0033A0]/20 bg-[#0033A0]/5 p-2 text-[#0033A0] hover:bg-[#0033A0]/10" aria-label={tx.share} title={tx.share}><Share2 className="h-4 w-4" /></button>
                                     <button type="button" onClick={() => void downloadAgreementPdf(item)} className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.download} title={tx.download}><Download className="h-4 w-4" /></button>
                                   </div>
                                 </td>
@@ -1848,18 +2072,77 @@ export default function DashboardPage() {
                 </div>
 
                 <div className="mt-5 grid gap-4 md:grid-cols-2">
-                  <label className="text-sm font-semibold text-slate-700">
-                    {tx.clientName}
-                    <input
-                      value={clientName}
-                      onChange={(e) => setClientName(e.target.value)}
-                      autoComplete="off"
-                      className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500"
+                  <FormField
+                    id="create-client-name"
+                    label={tx.clientName}
+                    icon={User}
+                    value={clientName}
+                    onChange={(e) => setClientName(e.target.value)}
+                    autoComplete="off"
+                  />
+                  <FormField
+                    id="create-client-phone"
+                    label={tx.clientPhone}
+                    icon={Phone}
+                    value={clientPhone}
+                    onChange={(e) => setClientPhone(e.target.value)}
+                    autoComplete="tel"
+                    inputMode="tel"
+                    required
+                  />
+                  <FormField
+                    id="create-project-title"
+                    label={tx.projectTitle}
+                    icon={Briefcase}
+                    value={projectTitle}
+                    onChange={(e) => setProjectTitle(e.target.value)}
+                    autoComplete="off"
+                  />
+                  <FormField
+                    id="create-service-area"
+                    label={tx.serviceArea}
+                    icon={MapPin}
+                    value={serviceArea}
+                    onChange={(e) => setServiceArea(e.target.value)}
+                    autoComplete="off"
+                  />
+                  <div className="md:col-span-2">
+                    <FormField
+                      id="create-total-price"
+                      label={tx.totalPrice}
+                      icon={CircleDollarSign}
+                      value={totalPriceInput}
+                      onChange={(e) => setTotalPriceInput(formatGroupedNumberInput(e.target.value))}
+                      inputMode="decimal"
                     />
-                  </label>
-                  <label className="text-sm font-semibold text-slate-700">{tx.projectTitle}<input value={projectTitle} onChange={(e) => setProjectTitle(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500" /></label>
-                  <label className="text-sm font-semibold text-slate-700 md:col-span-2">Service Area<input value={serviceArea} onChange={(e) => setServiceArea(e.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500" /></label>
-                  <label className="text-sm font-semibold text-slate-700 md:col-span-2">{tx.totalPrice}<input value={totalPriceInput} onChange={(e) => setTotalPriceInput(formatGroupedNumberInput(e.target.value))} inputMode="decimal" className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500" /></label>
+                    <fieldset className="mt-3">
+                      <legend className="sr-only">{tx.totalPrice}</legend>
+                      <div className="flex flex-col gap-2 sm:flex-row sm:gap-6">
+                        <label className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 transition has-[:checked]:border-[#0033A0] has-[:checked]:bg-[#0033A0]/5 has-[:checked]:text-[#0033A0]">
+                          <input
+                            type="radio"
+                            name="create-vat-mode"
+                            value="included"
+                            checked={vatMode === "included"}
+                            onChange={() => setVatMode("included")}
+                            className="h-4 w-4 shrink-0 border-slate-300 text-[#0033A0] focus:ring-[#0033A0]/30"
+                          />
+                          {tx.vatModeIncludes}
+                        </label>
+                        <label className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 transition has-[:checked]:border-[#0033A0] has-[:checked]:bg-[#0033A0]/5 has-[:checked]:text-[#0033A0]">
+                          <input
+                            type="radio"
+                            name="create-vat-mode"
+                            value="exempt"
+                            checked={vatMode === "exempt"}
+                            onChange={() => setVatMode("exempt")}
+                            className="h-4 w-4 shrink-0 border-slate-300 text-[#0033A0] focus:ring-[#0033A0]/30"
+                          />
+                          {tx.vatModeExempt}
+                        </label>
+                      </div>
+                    </fieldset>
+                  </div>
                   <div className="md:col-span-2">
                     <label className="text-sm font-semibold text-slate-700" htmlFor="contract-terms-create">
                       {tx.contractTerms}
@@ -2134,9 +2417,10 @@ export default function DashboardPage() {
                               </div>
                               <AgreementStatusPill status={historyStatus} label={statusText[historyStatus]} />
                             </div>
-                            <div className="mt-3 grid grid-cols-3 gap-2">
+                            <div className="mt-3 grid grid-cols-4 gap-2">
                               <button type="button" onClick={() => openAgreementLink(item.id)} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.viewLink} title={tx.viewLink}><ExternalLink className="h-4 w-4" /></button>
                               <button type="button" onClick={() => void copyAgreementLink(item.id)} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.copyLink} title={tx.copyLink}><Copy className="h-4 w-4" /></button>
+                              <button type="button" onClick={() => void openShareAgreement(item.id)} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[#0033A0]/20 bg-[#0033A0]/5 p-2 text-[#0033A0] hover:bg-[#0033A0]/10" aria-label={tx.share} title={tx.share}><Share2 className="h-4 w-4" /></button>
                               <button type="button" onClick={() => void downloadAgreementPdf(item)} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.download} title={tx.download}><Download className="h-4 w-4" /></button>
                             </div>
                           </article>
@@ -2156,7 +2440,7 @@ export default function DashboardPage() {
                             <th className="px-3 py-2">{tx.price}</th>
                             <th className="px-3 py-2">{tx.status}</th>
                             <th className="px-3 py-2">
-                              <span className="sr-only">{tx.viewLink} / {tx.copyLink} / {tx.download}</span>
+                              <span className="sr-only">{tx.viewLink} / {tx.copyLink} / {tx.share} / {tx.download}</span>
                             </th>
                           </tr>
                         </thead>
@@ -2182,6 +2466,7 @@ export default function DashboardPage() {
                                 <div className="flex items-center gap-2">
                                   <button type="button" onClick={() => openAgreementLink(item.id)} className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.viewLink} title={tx.viewLink}><ExternalLink className="h-4 w-4" /></button>
                                   <button type="button" onClick={() => void copyAgreementLink(item.id)} className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.copyLink} title={tx.copyLink}><Copy className="h-4 w-4" /></button>
+                                  <button type="button" onClick={() => void openShareAgreement(item.id)} className="inline-flex items-center justify-center rounded-lg border border-[#0033A0]/20 bg-[#0033A0]/5 p-2 text-[#0033A0] hover:bg-[#0033A0]/10" aria-label={tx.share} title={tx.share}><Share2 className="h-4 w-4" /></button>
                                   <button type="button" onClick={() => void downloadAgreementPdf(item)} className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.download} title={tx.download}><Download className="h-4 w-4" /></button>
                                 </div>
                               </td>
@@ -2366,29 +2651,29 @@ export default function DashboardPage() {
         </div>
       ) : null}
 
-      {successAgreementId ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/45 p-4">
-          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-5 shadow-xl">
-            <h3 className="text-xl font-extrabold text-emerald-700">{tx.successTitle}</h3>
-            <p className="mt-1 text-sm text-slate-600">{tx.successSubtitle}</p>
-            <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
-              <p className="text-xs font-semibold text-slate-500">{tx.publicLink}</p>
-              <p className="mt-1 break-all text-sm font-bold text-slate-900">{getAgreementPublicUrl(successAgreementId)}</p>
-            </div>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => openAgreementPreview(successAgreementId)}
-                className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-800 hover:bg-slate-50"
-              >
-                <Eye className="h-4 w-4" />
-                {tx.previewAgreement}
-              </button>
-              <button type="button" onClick={() => void copySuccessModalLink(successAgreementId)} className="inline-flex items-center gap-2 rounded-xl bg-[#F2A800] px-4 py-2 text-sm font-bold text-slate-900"><Copy className="h-4 w-4" />{copiedAgreementId === successAgreementId ? tx.copied : tx.copyToClipboard}</button>
-              <button type="button" onClick={() => setSuccessAgreementId("")} className="ml-auto rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700">{tx.close}</button>
-            </div>
-          </div>
-        </div>
+      {activeShareAgreementId ? (
+        <AgreementShareDialog
+          title={successAgreementId ? tx.successTitle : tx.shareTitle}
+          subtitle={successAgreementId ? tx.successSubtitle : tx.shareHint}
+          url={getAgreementPublicUrl(activeShareAgreementId)}
+          labels={{
+            publicLink: tx.publicLink,
+            shareHint: tx.shareHint,
+            copyToClipboard: tx.copyToClipboard,
+            copied: tx.copied,
+            shareVia: tx.shareVia,
+            shareWhatsApp: tx.shareWhatsApp,
+            shareTelegram: tx.shareTelegram,
+            shareViber: tx.shareViber,
+            shareMessage: tx.shareMessage,
+            close: tx.close,
+            previewAgreement: tx.previewAgreement
+          }}
+          copied={copiedAgreementId === activeShareAgreementId}
+          onCopy={() => void copySuccessModalLink(activeShareAgreementId)}
+          onClose={closeShareDialog}
+          onPreview={() => openAgreementPreview(activeShareAgreementId)}
+        />
       ) : null}
 
       {toast ? <div className="fixed bottom-4 right-4 z-50 rounded-xl bg-slate-900 px-4 py-2 text-sm font-semibold text-white shadow-lg">{toast}</div> : null}

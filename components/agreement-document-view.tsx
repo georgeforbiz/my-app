@@ -9,12 +9,16 @@ import {
   Hash,
   MapPin,
   PenLine,
+  Phone,
   User
 } from "lucide-react";
 import type { Language } from "@/lib/i18n/locales";
 import { formatDateDMY, formatEmbeddedDatesInTerms } from "@/lib/format-date";
-import { NAVY } from "@/lib/brand";
+import { isAgreementSigned } from "@/lib/agreements/status-rank";
 import { getAgreementDocumentLabels } from "@/lib/agreements/document-labels";
+import { NAVY } from "@/lib/brand";
+import { AgreementPaymentTotal } from "@/components/agreement-payment-total";
+import type { VatMode } from "@/lib/agreements/vat";
 
 const money = (v: number) => v.toLocaleString("en-US", { maximumFractionDigits: 2 });
 
@@ -26,6 +30,8 @@ export type AgreementDocumentData = {
   business_name?: string;
   full_name?: string;
   client_name: string;
+  provider_phone?: string;
+  client_phone?: string;
   project_title: string;
   service_area: string;
   custom_terms?: string;
@@ -34,6 +40,7 @@ export type AgreementDocumentData = {
   estimated_completion_date?: string;
   deadline?: string;
   total_price: number;
+  vat_mode?: VatMode;
   payment_type: "single" | "milestones";
   milestones: { title: string; amount: number }[] | null;
   created_at: string;
@@ -148,7 +155,7 @@ export function AgreementDocumentView({
 }) {
   const tx = getAgreementDocumentLabels(lang);
   const isDraft = draft || agreement.id === "draft";
-  const signed = agreement.status === "signed" || agreement.status === "completed";
+  const signed = isAgreementSigned(agreement);
   const providerFields = resolveProviderNameFields(agreement);
   const serviceAreaDisplay = agreement.service_area?.trim() || "Armenia";
   const readableAgreementId = isDraft
@@ -188,7 +195,7 @@ export function AgreementDocumentView({
     );
 
   const card = (
-    <div className="vstah-animate-in mx-auto w-full min-w-0 max-w-[min(100%,55rem)] overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_20px_50px_-20px_rgba(15,23,42,0.18)] ring-1 ring-slate-900/[0.04]">
+    <div className="mx-auto w-full min-w-0 max-w-[min(100%,55rem)] overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_20px_50px_-20px_rgba(15,23,42,0.18)] ring-1 ring-slate-900/[0.04]">
       {isDraft ? (
         <div className="border-b border-amber-200/80 bg-amber-50 px-4 py-3 sm:px-8">
           <p className="text-sm font-semibold text-amber-900">{tx.draftBanner}</p>
@@ -201,7 +208,11 @@ export function AgreementDocumentView({
             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500 sm:text-xs">{tx.offer}</p>
             <h1 className="mt-2 text-balance text-2xl font-black leading-tight text-[#0033A0] sm:text-3xl">{tx.title}</h1>
             <p className="mt-2 text-base font-bold text-slate-900">{agreement.project_title}</p>
-            <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-600">{tx.subtitle}</p>
+            {signed ? (
+              <p className="mt-2 max-w-xl text-sm font-semibold leading-relaxed text-emerald-800">{tx.subtitleSigned}</p>
+            ) : (
+              <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-600">{tx.subtitle}</p>
+            )}
           </div>
           <div className="flex shrink-0 flex-col items-start gap-3 sm:items-end">
             {providerLogo ? (
@@ -255,6 +266,15 @@ export function AgreementDocumentView({
                 </div>
               </div>
               <div className="flex gap-3">
+                <Phone className="mt-0.5 h-4 w-4 shrink-0 text-[#0033A0]/70" aria-hidden />
+                <div className="min-w-0">
+                  <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{tx.providerPhoneLabel}</dt>
+                  <dd className="mt-0.5 break-words font-semibold leading-snug [overflow-wrap:anywhere]">
+                    {agreement.provider_phone?.trim() || "—"}
+                  </dd>
+                </div>
+              </div>
+              <div className="flex gap-3">
                 <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#0033A0]/70" aria-hidden />
                 <div className="min-w-0">
                   <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{tx.serviceAreaLabel}</dt>
@@ -279,20 +299,20 @@ export function AgreementDocumentView({
                 </div>
               </div>
               <div className="flex gap-3">
+                <Phone className="mt-0.5 h-4 w-4 shrink-0 text-[#0033A0]/70" aria-hidden />
+                <div className="min-w-0">
+                  <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{tx.clientPhoneLabel}</dt>
+                  <dd className="mt-0.5 break-words font-semibold leading-snug [overflow-wrap:anywhere]">
+                    {agreement.client_phone?.trim() || "—"}
+                  </dd>
+                </div>
+              </div>
+              <div className="flex gap-3">
                 <Briefcase className="mt-0.5 h-4 w-4 shrink-0 text-[#0033A0]/70" aria-hidden />
                 <div className="min-w-0">
                   <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{tx.project}</dt>
                   <dd className="mt-0.5 break-words font-semibold leading-snug [overflow-wrap:anywhere]">
                     {agreement.project_title}
-                  </dd>
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <FileText className="mt-0.5 h-4 w-4 shrink-0 text-[#0033A0]/70" aria-hidden />
-                <div className="min-w-0">
-                  <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{tx.total}</dt>
-                  <dd className="mt-0.5 text-base font-black tabular-nums text-[#0033A0]">
-                    {money(Number(agreement.total_price))} ֏
                   </dd>
                 </div>
               </div>
@@ -404,10 +424,15 @@ export function AgreementDocumentView({
             ))}
           </ul>
 
-          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-gradient-to-r from-[#0033A0] to-[#0033A0]/90 px-5 py-4 text-white shadow-md">
-            <span className="text-sm font-semibold text-white/90">{tx.total}</span>
-            <span className="text-xl font-black tabular-nums sm:text-2xl">{money(Number(agreement.total_price || 0))} ֏</span>
-          </div>
+          <AgreementPaymentTotal
+            total={Number(agreement.total_price || 0)}
+            vatMode={agreement.vat_mode}
+            labels={{
+              total: tx.total,
+              vatStatusIncluded: tx.vatStatusIncluded,
+              vatStatusExempt: tx.vatStatusExempt
+            }}
+          />
         </section>
 
         {isDraft ? (
@@ -463,6 +488,8 @@ export function AgreementDocumentView({
             </div>
             <div className="min-w-0">
               <p className="text-xl font-black leading-tight text-slate-900 sm:text-2xl">{tx.signedAndApproved}</p>
+              <p className="mt-2 text-base font-semibold leading-snug text-slate-700">{tx.signedSuccessNote}</p>
+              <p className="mt-2 text-sm text-slate-500">{tx.signedSuccessHint}</p>
             </div>
           </div>
         ) : null}

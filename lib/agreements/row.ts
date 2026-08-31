@@ -1,5 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { formatDateDMY } from "@/lib/format-date";
+import type { VatMode } from "./vat";
+import { normalizeVatMode } from "./vat";
 
 export type PaymentType = "single" | "milestones";
 export type Milestone = { title: string; amount: number; status?: "pending" | "escrow_held" | "released" };
@@ -16,6 +18,8 @@ export type NormalizedAgreement = {
   provider_full_name?: string;
   provider_business_name?: string;
   client_name: string;
+  provider_phone?: string;
+  client_phone?: string;
   project_title: string;
   service_area: string;
   custom_terms: string;
@@ -24,6 +28,7 @@ export type NormalizedAgreement = {
   estimated_completion_date?: string;
   deadline?: string;
   total_price: number;
+  vat_mode?: VatMode;
   payment_type: PaymentType;
   milestones: Milestone[] | null;
   status: AgreementStatus;
@@ -100,6 +105,8 @@ export function normalizeAgreementRow(row: Record<string, unknown>): NormalizedA
     provider_full_name: String(row.provider_full_name ?? "").trim() || undefined,
     provider_business_name: String(row.provider_business_name ?? "").trim() || undefined,
     client_name: String(row.client_name ?? ""),
+    provider_phone: String(row.provider_phone ?? "").trim() || undefined,
+    client_phone: String(row.client_phone ?? "").trim() || undefined,
     project_title,
     service_area: String(row.service_area ?? "").trim(),
     custom_terms: String(row.custom_terms ?? "").trim(),
@@ -108,11 +115,16 @@ export function normalizeAgreementRow(row: Record<string, unknown>): NormalizedA
     estimated_completion_date: String(row.estimated_completion_date ?? "").trim() || undefined,
     deadline: String(row.deadline ?? "").trim() || undefined,
     total_price: Number(row.total_price ?? 0),
+    vat_mode: normalizeVatMode(row.vat_mode),
     payment_type,
     milestones,
-    status: (["pending", "signed", "completed"].includes(String(row.status))
-      ? row.status
-      : "pending") as AgreementStatus,
+    status: (() => {
+      const raw = String(row.status ?? "");
+      let status = (["pending", "signed", "completed"].includes(raw) ? raw : "pending") as AgreementStatus;
+      const sig = String(row.client_signature ?? "").trim();
+      if (status === "pending" && sig.startsWith("data:image/")) status = "signed";
+      return status;
+    })(),
     payment_status:
       (String(row.payment_status) === "released" || String(row.payment_status) === "paid")
         ? "released"
@@ -132,6 +144,73 @@ export function isMissingColumnOrSchemaCacheError(message: string | undefined): 
     (m.includes("column") && (m.includes("does not exist") || m.includes("schema cache"))) ||
     (m.includes("could not find") && m.includes("column"))
   );
+}
+
+function extractMissingColumnName(message: string | undefined): string | null {
+  if (!message) return null;
+  const patterns = [
+    /Could not find the '([^']+)' column/i,
+    /column "([^"]+)" (?:of relation )?does not exist/i,
+    /column agreements\.([^\s]+) does not exist/i
+  ];
+  for (const pattern of patterns) {
+    const match = message.match(pattern);
+    if (match?.[1]) return match[1];
+  }
+  return null;
+}
+
+async function insertAgreementRowAdaptive(
+  supabase: SupabaseClient,
+  initial: Record<string, unknown>,
+  params: { full_name?: string | null; business_name?: string | null }
+): Promise<{ id?: string; error?: string; payload?: Record<string, unknown> }> {
+  let payload = { ...initial };
+  const stripped = new Set<string>();
+
+  for (let attempt = 0; attempt < 16; attempt++) {
+    const { data, error } = await supabase.from("agreements").insert(payload).select("id").single();
+    if (!error && data?.id) {
+      return { id: data.id as string, payload };
+    }
+
+    const message = error?.message;
+    if (!isMissingColumnOrSchemaCacheError(message)) {
+      return { error: message ?? "Failed to create agreement." };
+    }
+
+    const missing = extractMissingColumnName(message);
+    if (!missing || !(missing in payload) || stripped.has(missing)) {
+      return { error: message ?? "Failed to create agreement." };
+    }
+
+    stripped.add(missing);
+    const { [missing]: _removed, ...rest } = payload;
+    payload = { ...rest };
+
+    if (missing === "full_name" && params.full_name && !("provider_full_name" in payload)) {
+      payload.provider_full_name = params.full_name;
+    }
+    if (missing === "business_name" && params.business_name && !("provider_business_name" in payload)) {
+      payload.provider_business_name = params.business_name;
+    }
+  }
+
+  return { error: "Failed to create agreement after schema fallbacks." };
+}
+
+function patchLogoInBackground(supabase: SupabaseClient, agreementId: string, logoUrl: string | null | undefined) {
+  const logo = logoUrl?.trim();
+  if (!logo) return;
+  void supabase
+    .from("agreements")
+    .update({ provider_logo_url: logo })
+    .eq("id", agreementId)
+    .then(({ error }) => {
+      if (error && !isMissingColumnOrSchemaCacheError(error.message)) {
+        console.warn("[vstah] provider_logo_url patch failed:", error.message);
+      }
+    });
 }
 
 /** Embeds scope fields in contract text when dedicated DB columns are unavailable. */
@@ -188,6 +267,9 @@ export async function insertAgreementWithSchemaFallback(
     scopeExclusions?: string;
     estimatedCompletionDate?: string;
     deadline?: string;
+    providerPhone?: string;
+    clientPhone?: string;
+    vatMode?: VatMode;
     totalPrice: number;
     paymentType: PaymentType;
     milestones: Milestone[];
@@ -212,10 +294,13 @@ export async function insertAgreementWithSchemaFallback(
   const modernBaseCore = {
     provider_id: params.providerId,
     client_name: params.clientName,
+    provider_phone: params.providerPhone?.trim() || null,
+    client_phone: params.clientPhone?.trim() || null,
     project_title: params.projectTitle,
     service_area: params.serviceArea,
     provider_name: params.providerName,
     total_price: params.totalPrice,
+    vat_mode: normalizeVatMode(params.vatMode),
     payment_type: params.paymentType,
     milestones:
       params.paymentType === "milestones"
@@ -226,110 +311,46 @@ export async function insertAgreementWithSchemaFallback(
         : [],
     status: "pending" as const
   };
-  const modernBase = {
+
+  const modernWithScope: Record<string, unknown> = {
     ...modernBaseCore,
     custom_terms: params.customTerms,
     ...scopeColumns,
-    ...logoColumn
-  };
-  const modernBaseWithoutScopeColumns = {
-    ...modernBaseCore,
-    custom_terms: customTermsWithScope,
-    ...logoColumn
-  };
-  const namesOnly = {
+    ...logoColumn,
     full_name: params.full_name ?? null,
     business_name: params.business_name ?? null
   };
-  const legacyNames = {
-    provider_full_name: params.full_name ?? null,
-    provider_business_name: params.business_name ?? null
-  };
-  const modernWithProviderDetails = {
-    ...modernBase,
-    ...namesOnly,
-    ...legacyNames
-  };
-  const modernWithCanonicalNames = { ...modernBase, ...namesOnly };
-  const modernWithProviderDetailsNoScope = {
-    ...modernBaseWithoutScopeColumns,
-    ...namesOnly,
-    ...legacyNames
-  };
-  const modernWithCanonicalNamesNoScope = { ...modernBaseWithoutScopeColumns, ...namesOnly };
 
-  const withLogoCandidates = [
-    modernWithProviderDetails,
-    modernWithCanonicalNames,
-    modernBase,
-    modernWithProviderDetailsNoScope,
-    modernWithCanonicalNamesNoScope,
-    modernBaseWithoutScopeColumns
-  ];
-
-  const stripLogoColumn = (row: Record<string, unknown>) => {
-    const { provider_logo_url: _removed, ...rest } = row;
-    return rest;
-  };
-
-  const insertCandidates = logoUrl
-    ? [...withLogoCandidates, ...withLogoCandidates.map((candidate) => stripLogoColumn(candidate))]
-    : withLogoCandidates;
-
-  async function patchLogo(agreementId: string) {
-    const logo = params.providerLogoUrl?.trim();
-    if (!logo) return;
-    const { error: patchError } = await supabase
-      .from("agreements")
-      .update({ provider_logo_url: logo })
-      .eq("id", agreementId);
-    if (patchError) {
-      if (!isMissingColumnOrSchemaCacheError(patchError.message)) {
-        console.warn("[vstah] provider_logo_url patch failed:", patchError.message);
-      }
-      return;
+  let modernResult = await insertAgreementRowAdaptive(supabase, modernWithScope, params);
+  if (modernResult.id) {
+    if (!("provider_logo_url" in (modernResult.payload ?? {}))) {
+      patchLogoInBackground(supabase, modernResult.id, logoUrl);
     }
+    return { id: modernResult.id };
   }
 
-  let modernData: { id?: string } | null = null;
-  let modernError: { message?: string } | null = null;
-
-  for (const candidate of insertCandidates) {
-    ({ data: modernData, error: modernError } = await supabase
-      .from("agreements")
-      .insert(candidate)
-      .select("id")
-      .single());
-
-    if (!modernError && modernData?.id) break;
-    if (!isMissingColumnOrSchemaCacheError(modernError?.message)) break;
+  if (modernResult.error && !isMissingColumnOrSchemaCacheError(modernResult.error)) {
+    return { error: modernResult.error };
   }
 
-  if (!modernError && modernData?.id) {
-    if (params.full_name || params.business_name) {
-      const { error: patchError } = await supabase
-        .from("agreements")
-        .update({
-          full_name: params.full_name ?? null,
-          business_name: params.business_name ?? null
-        })
-        .eq("id", modernData.id as string);
-      if (patchError && isMissingColumnOrSchemaCacheError(patchError.message)) {
-        await supabase
-          .from("agreements")
-          .update({
-            provider_full_name: params.full_name ?? null,
-            provider_business_name: params.business_name ?? null
-          })
-          .eq("id", modernData.id as string);
-      }
+  const modernWithoutScopeColumns: Record<string, unknown> = {
+    ...modernBaseCore,
+    custom_terms: customTermsWithScope,
+    ...logoColumn,
+    full_name: params.full_name ?? null,
+    business_name: params.business_name ?? null
+  };
+
+  modernResult = await insertAgreementRowAdaptive(supabase, modernWithoutScopeColumns, params);
+  if (modernResult.id) {
+    if (!("provider_logo_url" in (modernResult.payload ?? {}))) {
+      patchLogoInBackground(supabase, modernResult.id, logoUrl);
     }
-    await patchLogo(modernData.id as string);
-    return { id: modernData.id as string };
+    return { id: modernResult.id };
   }
 
-  if (!isMissingColumnOrSchemaCacheError(modernError?.message)) {
-    return { error: modernError?.message ?? "Failed to create agreement." };
+  if (modernResult.error && !isMissingColumnOrSchemaCacheError(modernResult.error)) {
+    return { error: modernResult.error };
   }
 
   const legacy = {
@@ -358,33 +379,14 @@ export async function insertAgreementWithSchemaFallback(
     .single();
 
   if (!legacyError && legacyData?.id) {
-    if (params.full_name || params.business_name) {
-      const id = legacyData.id as string;
-      const { error: patchError } = await supabase
-        .from("agreements")
-        .update({
-          full_name: params.full_name ?? null,
-          business_name: params.business_name ?? null
-        })
-        .eq("id", id);
-      if (patchError && isMissingColumnOrSchemaCacheError(patchError.message)) {
-        await supabase
-          .from("agreements")
-          .update({
-            provider_full_name: params.full_name ?? null,
-            provider_business_name: params.business_name ?? null
-          })
-          .eq("id", id);
-      }
-    }
-    await patchLogo(legacyData.id as string);
+    patchLogoInBackground(supabase, legacyData.id as string, logoUrl);
     return { id: legacyData.id as string };
   }
 
   return {
     error:
       legacyError?.message ??
-      modernError?.message ??
+      modernResult.error ??
       "Failed to create agreement. Run the SQL migration in Supabase to add project_title and milestones."
   };
 }

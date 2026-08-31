@@ -1,5 +1,5 @@
 /** Dashboard-only mock subscription (no payments). */
-export const FREE_AGREEMENT_LIMIT = 3;
+export const FREE_AGREEMENT_LIMIT = 10;
 
 export type MockPlanId = "free" | "pro";
 

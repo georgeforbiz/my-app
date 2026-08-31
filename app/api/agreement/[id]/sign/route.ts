@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { recordActivityEvent } from "@/lib/admin/activity";
+import { hasStoredClientSignature, isValidSignatureDataUrl } from "@/lib/agreements/status-rank";
 import { getAgreementServerClient } from "@/lib/supabase/agreement-server";
 
 type AgreementSignRow = {
@@ -27,27 +28,16 @@ async function readAgreementRow(
 async function persistSignedAgreement(
   supabase: SupabaseClient,
   agreementId: string,
-  normalizedSignature: string | null
+  normalizedSignature: string
 ): Promise<{ row: AgreementSignRow | null; lastError: string | null }> {
+  const signedPayload = { status: "signed", client_signature: normalizedSignature };
+
   const attempts: Array<{ payload: Record<string, unknown>; requirePending: boolean }> = [
-    {
-      payload: {
-        status: "signed",
-        ...(normalizedSignature ? { client_signature: normalizedSignature } : {})
-      },
-      requirePending: true
-    },
-    { payload: { status: "signed" }, requirePending: true },
-    {
-      payload: {
-        status: "signed",
-        ...(normalizedSignature ? { client_signature: normalizedSignature } : {})
-      },
-      requirePending: false
-    },
-    { payload: { status: "signed" }, requirePending: false }
+    { payload: signedPayload, requirePending: true },
+    { payload: signedPayload, requirePending: false }
   ];
 
+  let updatedRow: AgreementSignRow | null = null;
   let lastError: string | null = null;
 
   for (const attempt of attempts) {
@@ -64,11 +54,36 @@ async function persistSignedAgreement(
 
     const verified = await readAgreementRow(supabase, agreementId);
     if (verified?.status === "signed" || verified?.status === "completed") {
-      return { row: verified, lastError: null };
+      updatedRow = verified;
+      break;
     }
   }
 
-  return { row: null, lastError };
+  if (updatedRow && !hasStoredClientSignature(updatedRow)) {
+    const patched = await patchClientSignature(supabase, agreementId, normalizedSignature);
+    if (patched) updatedRow = patched;
+    else lastError = lastError ?? "Unable to save client signature.";
+  }
+
+  if (!updatedRow || !hasStoredClientSignature(updatedRow)) {
+    return { row: null, lastError: lastError ?? "Unable to save client signature." };
+  }
+
+  return { row: updatedRow, lastError: null };
+}
+
+async function patchClientSignature(
+  supabase: SupabaseClient,
+  agreementId: string,
+  normalizedSignature: string
+): Promise<AgreementSignRow | null> {
+  const { error } = await supabase
+    .from("agreements")
+    .update({ client_signature: normalizedSignature })
+    .eq("id", agreementId);
+
+  if (error) return null;
+  return readAgreementRow(supabase, agreementId);
 }
 
 export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
@@ -89,14 +104,6 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     return NextResponse.json({ error: "Agreement not found." }, { status: 404 });
   }
 
-  if (existing.status === "signed" || existing.status === "completed") {
-    return NextResponse.json({ ok: true, alreadySigned: true, status: existing.status });
-  }
-
-  if (existing.status !== "pending") {
-    return NextResponse.json({ error: "Agreement is not in a signable state." }, { status: 409 });
-  }
-
   let signature: string | null = null;
   try {
     const body = await request.json();
@@ -108,9 +115,42 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   }
 
   const normalizedSignature =
-    typeof signature === "string" && /^data:image\/[a-zA-Z0-9.+-]+;base64,/.test(signature.trim())
+    typeof signature === "string" && isValidSignatureDataUrl(signature.trim())
       ? signature.trim()
       : null;
+
+  if (existing.status === "signed" || existing.status === "completed") {
+    if (normalizedSignature && !hasStoredClientSignature(existing)) {
+      const patched = await patchClientSignature(supabase, agreementId, normalizedSignature);
+      const row = patched ?? existing;
+      const signatureStored = hasStoredClientSignature(row);
+      return NextResponse.json({
+        ok: true,
+        alreadySigned: true,
+        status: row.status,
+        signatureSaved: true,
+        signatureStored
+      });
+    }
+    return NextResponse.json({
+      ok: true,
+      alreadySigned: true,
+      status: existing.status,
+      signatureStored:
+        hasStoredClientSignature(existing)
+    });
+  }
+
+  if (existing.status !== "pending") {
+    return NextResponse.json({ error: "Agreement is not in a signable state." }, { status: 409 });
+  }
+
+  if (!normalizedSignature) {
+    return NextResponse.json(
+      { error: "A drawn signature is required. Please sign in the box before accepting." },
+      { status: 400 }
+    );
+  }
 
   const { row: updatedRow, lastError } = await persistSignedAgreement(
     supabase,
@@ -118,19 +158,16 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     normalizedSignature
   );
 
-  if (!updatedRow) {
+  if (!updatedRow || !hasStoredClientSignature(updatedRow)) {
     return NextResponse.json(
       {
         error:
           lastError ??
-          "Unable to sign this agreement. It may already be signed, or the server could not save the update."
+          "Unable to sign this agreement. The signature could not be saved."
       },
       { status: 403 }
     );
   }
-
-  const signatureStored =
-    typeof updatedRow.client_signature === "string" && updatedRow.client_signature.length > 0;
 
   await recordActivityEvent(
     {
@@ -145,7 +182,7 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
   return NextResponse.json({
     ok: true,
     status: updatedRow.status,
-    signatureSaved: Boolean(normalizedSignature),
-    signatureStored
+    signatureSaved: true,
+    signatureStored: true
   });
 }
