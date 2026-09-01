@@ -914,11 +914,7 @@ export default function Page() {
             feature1: t.feature1,
             feature2: t.feature2,
             feature3: t.feature3,
-            feature4: t.feature4,
-            fundsLabel: t.fundsLabel,
-            lockedNote: t.lockedNote,
-            stage1State: t.stage1State,
-            projectStatus: t.projectStatus
+            feature4: t.feature4
           }}
         />
 

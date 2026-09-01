@@ -1,22 +1,52 @@
 "use client";
 
-import { FileSignature, Layers, MapPin, ShieldCheck } from "lucide-react";
-import { Reveal } from "@/components/reveal";
-import { HERO_BG_GRADIENT } from "@/lib/brand";
 import type { Language } from "@/lib/i18n/locales";
+import { Reveal } from "@/components/reveal";
+import { NAVY, ORANGE } from "@/lib/brand";
 
 type FeatureCopy = {
   feature1: string;
   feature2: string;
   feature3: string;
   feature4: string;
-  fundsLabel: string;
-  lockedNote: string;
-  stage1State: string;
-  projectStatus: string;
 };
 
-const FEATURE_ICONS = [Layers, FileSignature, ShieldCheck, MapPin] as const;
+/** Same size and weight on both lines. */
+const FEATURE_LINE = "block text-lg font-bold leading-tight sm:text-xl";
+
+const SEP_GRADIENT_V = `linear-gradient(180deg, transparent 0%, ${NAVY}33 18%, ${ORANGE} 50%, ${NAVY}33 82%, transparent 100%)`;
+const SEP_GRADIENT_H = `linear-gradient(90deg, transparent 0%, ${NAVY}33 18%, ${ORANGE} 50%, ${NAVY}33 82%, transparent 100%)`;
+
+function SeparatorDiamond() {
+  return (
+    <span
+      className="relative z-10 h-2.5 w-2.5 shrink-0 rotate-45 rounded-[2px]"
+      style={{
+        backgroundColor: ORANGE,
+        boxShadow: `0 0 0 3px #fff, 0 0 0 4px ${ORANGE}44`
+      }}
+      aria-hidden
+    />
+  );
+}
+
+function VerticalSeparator() {
+  return (
+    <div className="relative flex w-10 shrink-0 items-center justify-center self-stretch sm:w-12" aria-hidden>
+      <div className="absolute inset-y-6 left-1/2 w-px -translate-x-1/2" style={{ background: SEP_GRADIENT_V }} />
+      <SeparatorDiamond />
+    </div>
+  );
+}
+
+function HorizontalSeparator() {
+  return (
+    <div className="relative flex h-10 w-full shrink-0 items-center justify-center sm:h-12" aria-hidden>
+      <div className="absolute inset-x-8 top-1/2 h-px -translate-y-1/2 sm:inset-x-12" style={{ background: SEP_GRADIENT_H }} />
+      <SeparatorDiamond />
+    </div>
+  );
+}
 
 function featureLines(text: string, locale: Language): [string, string] {
   const normalized = text.replace(/\.\s*$/, "").trim();
@@ -40,6 +70,17 @@ function featureLines(text: string, locale: Language): [string, string] {
   return [normalized.slice(0, spaceIdx), normalized.slice(spaceIdx + 1)];
 }
 
+function FeatureCell({ line1, line2 }: { line1: string; line2: string }) {
+  return (
+    <div className="flex min-h-[7.5rem] flex-1 items-center justify-center px-4 py-8 text-center sm:min-h-[8rem] sm:px-6 sm:py-10">
+      <p style={{ color: NAVY }}>
+        <span className={FEATURE_LINE}>{line1}</span>
+        <span className={`mt-1.5 ${FEATURE_LINE}`}>{line2}</span>
+      </p>
+    </div>
+  );
+}
+
 export function MarketingFeaturesSection({
   t,
   locale
@@ -47,41 +88,37 @@ export function MarketingFeaturesSection({
   t: FeatureCopy;
   locale: Language;
 }) {
-  const items = [t.feature1, t.feature2, t.feature3, t.feature4];
+  const lines = [t.feature1, t.feature2, t.feature3, t.feature4].map((text) => featureLines(text, locale));
 
   return (
-    <section className="bg-white px-4 py-10 md:py-12">
-      <div className="mx-auto w-full max-w-7xl">
+    <section className="bg-white px-4 py-10 md:py-14">
+      <div className="mx-auto w-full max-w-6xl">
         <Reveal>
-          <div
-            className="overflow-hidden rounded-[1.75rem] p-px shadow-[0_20px_48px_-22px_rgba(15,61,110,0.5)]"
-            style={{ background: HERO_BG_GRADIENT }}
-          >
-            <div className="grid grid-cols-1 gap-px bg-white sm:grid-cols-2 xl:grid-cols-4">
-              {items.map((text, idx) => {
-                const [line1, line2] = featureLines(text, locale);
-                const Icon = FEATURE_ICONS[idx] ?? Layers;
+          <div className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white">
+            {/* Mobile / tablet: 2×2 with cross separators */}
+            <div className="lg:hidden">
+              <div className="flex items-stretch">
+                <FeatureCell line1={lines[0][0]} line2={lines[0][1]} />
+                <VerticalSeparator />
+                <FeatureCell line1={lines[1][0]} line2={lines[1][1]} />
+              </div>
+              <HorizontalSeparator />
+              <div className="flex items-stretch">
+                <FeatureCell line1={lines[2][0]} line2={lines[2][1]} />
+                <VerticalSeparator />
+                <FeatureCell line1={lines[3][0]} line2={lines[3][1]} />
+              </div>
+            </div>
 
-                return (
-                  <div
-                    key={`${locale}-${idx}`}
-                    className="flex min-h-[7.5rem] flex-col items-center justify-center px-7 py-8 text-center sm:min-h-[8.25rem] sm:px-8 sm:py-9 xl:min-h-[8.75rem]"
-                    style={{ background: HERO_BG_GRADIENT }}
-                  >
-                    <span className="mb-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/20 text-white ring-1 ring-white/35">
-                      <Icon className="h-[18px] w-[18px]" strokeWidth={2.5} aria-hidden />
-                    </span>
-                    <p className="w-full max-w-[15rem] leading-tight sm:max-w-[17rem]">
-                      <span className="block text-[17px] font-black tracking-tight text-white sm:text-lg">
-                        {line1}
-                      </span>
-                      <span className="mt-1 block text-[15px] font-medium text-white/85 sm:text-base">
-                        {line2}
-                      </span>
-                    </p>
-                  </div>
-                );
-              })}
+            {/* Desktop: single row */}
+            <div className="hidden items-stretch lg:flex">
+              <FeatureCell line1={lines[0][0]} line2={lines[0][1]} />
+              <VerticalSeparator />
+              <FeatureCell line1={lines[1][0]} line2={lines[1][1]} />
+              <VerticalSeparator />
+              <FeatureCell line1={lines[2][0]} line2={lines[2][1]} />
+              <VerticalSeparator />
+              <FeatureCell line1={lines[3][0]} line2={lines[3][1]} />
             </div>
           </div>
         </Reveal>
