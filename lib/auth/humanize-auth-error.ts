@@ -1,6 +1,22 @@
 /** Maps Supabase GoTrue messages to short, actionable copy for the UI. */
 import { SUPABASE_OFFLINE_MESSAGE } from "@/lib/supabase/health";
 
+export const EMAIL_ALREADY_EXISTS_MESSAGE =
+  "An account with this email already exists. Please log in instead.";
+
+export function isEmailAlreadyRegisteredError(message: string): boolean {
+  const m = message.toLowerCase();
+  return (
+    m.includes("already registered") ||
+    m.includes("already exists") ||
+    m.includes("user already") ||
+    m.includes("email address has already been registered") ||
+    m.includes("user_already_exists") ||
+    (m.includes("duplicate") && m.includes("email")) ||
+    (m.includes("unique") && m.includes("email"))
+  );
+}
+
 export function isAuthNetworkError(message: string): boolean {
   const m = message.toLowerCase();
   return (
@@ -29,6 +45,9 @@ export function humanizeAuthError(message: string): string {
   }
   if (m.includes("invalid login credentials")) {
     return "Incorrect email or password, or your email is not confirmed yet.";
+  }
+  if (isEmailAlreadyRegisteredError(message)) {
+    return EMAIL_ALREADY_EXISTS_MESSAGE;
   }
   if (m.includes("email rate limit") || (m.includes("rate limit") && m.includes("email"))) {
     return (

@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Battery, Check, Clock, Lock, ShieldCheck, Signal, Wifi } from "lucide-react";
+import { Battery, Check, Clock, ShieldCheck, Signal, Sparkles, Wifi } from "lucide-react";
 
 export type ProposalPreviewCopy = {
   projectId: string;
@@ -33,29 +33,23 @@ export function MarketingProposalPreviewCard({ t }: { t: ProposalPreviewCopy }) 
     {
       name: t.stage1Name,
       amount: t.stage1Amount,
-      status: t.heroStage1Status,
       icon: Check,
       accent: "border-l-emerald-500 bg-white ring-emerald-100/80",
-      iconWrap: "bg-emerald-100 text-emerald-600",
-      statusClass: "text-emerald-600"
+      iconWrap: "bg-emerald-100 text-emerald-600"
     },
     {
       name: t.stage2Name,
       amount: t.stage2Amount,
-      status: t.heroStage2Status,
       icon: Clock,
       accent: "border-l-blue-500 bg-white ring-blue-100/80",
-      iconWrap: "bg-blue-100 text-blue-600",
-      statusClass: "text-blue-600"
+      iconWrap: "bg-blue-100 text-blue-600"
     },
     {
       name: t.stage3Name,
       amount: t.stage3Amount,
-      status: t.heroStage3Status,
-      icon: Lock,
-      accent: "border-l-slate-300 bg-white/90 ring-slate-100",
-      iconWrap: "bg-slate-100 text-slate-500",
-      statusClass: "text-slate-500"
+      icon: Sparkles,
+      accent: "border-l-amber-400 bg-white ring-amber-100/80",
+      iconWrap: "bg-[#FEF3C7] text-amber-600"
     }
   ] as const;
 
@@ -111,34 +105,31 @@ export function MarketingProposalPreviewCard({ t }: { t: ProposalPreviewCopy }) 
                   </span>
                 </div>
 
-                <div className="space-y-3 px-4 py-3 sm:px-[18px]">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-500">
+                <div className="space-y-3 px-4 py-3.5 sm:px-[18px]">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
                     {t.heroMilestonesLabel}
                   </p>
-                  <ul className="space-y-2">
+                  <ul className="space-y-2.5">
                     {milestones.map((milestone) => {
                       const Icon = milestone.icon;
                       return (
                         <li
                           key={milestone.name}
-                          className={`flex items-center justify-between gap-2 rounded-lg border-l-[3px] p-2.5 ring-1 ${milestone.accent}`}
+                          className={`flex items-center gap-3 rounded-xl border-l-[3px] px-3 py-2.5 ring-1 ${milestone.accent}`}
                         >
-                          <div className="flex min-w-0 items-center gap-2.5">
-                            <span
-                              className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${milestone.iconWrap}`}
-                            >
-                              <Icon className="h-3 w-3" strokeWidth={2.5} />
-                            </span>
-                            <div className="min-w-0">
-                              <p className="truncate text-[11px] font-semibold leading-tight text-slate-900">
-                                {milestone.name}
-                              </p>
-                              <p className={`text-[10px] font-medium ${milestone.statusClass}`}>{milestone.status}</p>
-                            </div>
-                          </div>
-                          <span className="shrink-0 text-[11px] font-bold tabular-nums text-slate-800">
-                            {milestone.amount}
+                          <span
+                            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${milestone.iconWrap}`}
+                          >
+                            <Icon className="h-3.5 w-3.5" strokeWidth={2.5} />
                           </span>
+                          <div className="flex min-w-0 flex-1 items-center justify-between gap-3">
+                            <p className="min-w-0 text-[11px] font-semibold leading-snug text-slate-900">
+                              {milestone.name}
+                            </p>
+                            <span className="shrink-0 text-[11px] font-bold tabular-nums text-slate-800">
+                              {milestone.amount}
+                            </span>
+                          </div>
                         </li>
                       );
                     })}

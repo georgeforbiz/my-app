@@ -5,6 +5,7 @@ import { Check, Globe, Menu, X } from "lucide-react";
 import { useMemo } from "react";
 import { VstahLogo } from "@/components/vstah-logo";
 import { ORANGE } from "@/lib/brand";
+import { ROUTES } from "@/lib/routes";
 import { useLanguage } from "@/lib/i18n/language-context";
 import type { Language } from "@/lib/i18n/locales";
 
@@ -30,8 +31,8 @@ export function FloatingPillHeader({
   onMobileOpenChange,
   langMenuOpen,
   onLangMenuOpenChange,
-  loginHref = "/login?next=%2Fdashboard",
-  registerHref = "/register?next=%2Fdashboard",
+  loginHref = ROUTES.login,
+  registerHref = ROUTES.register,
   showGuestActions = true,
   authActions,
   mobileMenuFooter

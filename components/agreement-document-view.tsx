@@ -16,6 +16,8 @@ import type { Language } from "@/lib/i18n/locales";
 import { formatDateDMY, formatEmbeddedDatesInTerms } from "@/lib/format-date";
 import { isAgreementSigned } from "@/lib/agreements/status-rank";
 import { getAgreementDocumentLabels } from "@/lib/agreements/document-labels";
+import { withProviderLogoCacheBust } from "@/lib/agreements/logo-image";
+import { useAgreementProviderLogo } from "@/lib/agreements/use-agreement-provider-logo";
 import { NAVY } from "@/lib/brand";
 import { AgreementPaymentTotal } from "@/components/agreement-payment-total";
 import type { VatMode } from "@/lib/agreements/vat";
@@ -46,6 +48,7 @@ export type AgreementDocumentData = {
   created_at: string;
   status?: "pending" | "signed" | "completed";
   client_signature?: string;
+  provider_id?: string;
   provider_logo_url?: string;
 };
 
@@ -145,13 +148,16 @@ export function AgreementDocumentView({
   agreement,
   lang,
   draft = false,
-  embedded = false
+  embedded = false,
+  viewerUserId
 }: {
   agreement: AgreementDocumentData;
   lang: Language;
   draft?: boolean;
   /** When true, skip full-page background wrapper (modal embed). */
   embedded?: boolean;
+  /** Signed-in provider id — enables saved-logo fallback in dashboard preview. */
+  viewerUserId?: string;
 }) {
   const tx = getAgreementDocumentLabels(lang);
   const isDraft = draft || agreement.id === "draft";
@@ -163,13 +169,13 @@ export function AgreementDocumentView({
     : `VSTAH-${new Date(agreement.created_at).getFullYear()}-${agreement.id.split("-")[0].toUpperCase()}`;
   const paymentScheduleRows = buildPaymentScheduleRows(agreement, tx);
   const terms = agreement.custom_terms?.trim() || "";
-  const providerLogo =
-    typeof agreement.provider_logo_url === "string" &&
-    (agreement.provider_logo_url.startsWith("data:image/") ||
-      agreement.provider_logo_url.startsWith("http://") ||
-      agreement.provider_logo_url.startsWith("https://"))
-      ? agreement.provider_logo_url
-      : null;
+  const providerLogo = useAgreementProviderLogo(agreement, viewerUserId) ?? null;
+  const providerLogoSrc =
+    withProviderLogoCacheBust(
+      providerLogo,
+      agreement.provider_id ?? viewerUserId ?? agreement.id,
+      agreement.created_at
+    ) ?? providerLogo;
   const signatureImage =
     typeof agreement.client_signature === "string" && agreement.client_signature.startsWith("data:image/")
       ? agreement.client_signature
@@ -218,7 +224,8 @@ export function AgreementDocumentView({
             {providerLogo ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={providerLogo}
+                key={agreement.id}
+                src={providerLogoSrc ?? providerLogo}
                 alt=""
                 className="h-16 w-auto max-w-[200px] rounded-lg border border-slate-200/80 bg-white object-contain p-1.5 shadow-sm"
               />

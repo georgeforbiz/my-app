@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import { ProviderProfileSettings } from "@/components/provider-profile-settings";
 import { useAuth } from "@/lib/auth/auth-context";
 import { isSigningOut } from "@/lib/auth/constants";
+import { ROUTES, LOGIN_FOR_SETTINGS } from "@/lib/routes";
 import { useLanguage } from "@/lib/i18n/language-context";
 
 export default function SettingsPage() {
@@ -22,7 +23,7 @@ export default function SettingsPage() {
 
   useEffect(() => {
     if (loading || user || isSigningOut()) return;
-    router.replace("/login?next=%2Fsettings");
+    router.replace(LOGIN_FOR_SETTINGS);
   }, [loading, user, router]);
 
   if (loading) {
@@ -41,14 +42,14 @@ export default function SettingsPage() {
         <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 px-4 py-4 md:px-6">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{tx.settings}</p>
-            <Link href="/dashboard" className="text-sm font-semibold text-[#0033A0] hover:underline">
+            <Link href={ROUTES.dashboard} className="text-sm font-semibold text-[#0033A0] hover:underline">
               ← {tx.dashboard}
             </Link>
           </div>
         </div>
       </header>
       <main className="mx-auto max-w-3xl px-4 py-6 md:px-6 md:py-8">
-        <ProviderProfileSettings backHref="/dashboard" />
+        <ProviderProfileSettings backHref={ROUTES.dashboard} />
       </main>
     </div>
   );

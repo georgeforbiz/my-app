@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { FormField } from "@/components/form-field";
 import { useAuth } from "@/lib/auth/auth-context";
 import type { ProviderProfileSettingsInput } from "@/lib/auth/profile-fields";
+import { ROUTES } from "@/lib/routes";
 import { useLanguage } from "@/lib/i18n/language-context";
 
 function profileFromUser(user: ReturnType<typeof useAuth>["user"]): ProviderProfileSettingsInput {
@@ -17,7 +18,7 @@ function profileFromUser(user: ReturnType<typeof useAuth>["user"]): ProviderProf
   };
 }
 
-export function ProviderProfileSettings({ backHref = "/dashboard" }: { backHref?: string }) {
+export function ProviderProfileSettings({ backHref = ROUTES.dashboard }: { backHref?: string }) {
   const { user, loading, updateProfile } = useAuth();
   const { language } = useLanguage();
   const [form, setForm] = useState<ProviderProfileSettingsInput>(() => profileFromUser(null));

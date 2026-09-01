@@ -10,6 +10,7 @@ import { MarketingDisputePreventionSection } from "@/components/marketing-disput
 import { MarketingPricingFaqSection } from "@/components/marketing-pricing-faq-section";
 import { MarketingFooter } from "@/components/marketing-footer";
 import { SITE_BG_GRADIENT } from "@/lib/brand";
+import { ROUTES } from "@/lib/routes";
 import { useState } from "react";
 import { useLanguage } from "@/lib/i18n/language-context";
 import type { Language } from "@/lib/i18n/locales";
@@ -216,10 +217,10 @@ const translations: Record<Locale, TranslationBundle> = {
       "Interactive phone mockup of proposal AM-2841 with milestones and digital signature",
     cardTagline1: "Stop the disputes.",
     cardTagline2: "Start the renovation.",
-    feature1: "Clear Milestones.",
-    feature2: "Instant Signatures.",
-    feature3: "Zero Scope Creep.",
-    feature4: "Built for Armenia.",
+    feature1: "Clear\nMilestones",
+    feature2: "Instant\nSignatures",
+    feature3: "Zero Scope\nCreep",
+    feature4: "Built for\nArmenia",
     painPointsTitle: 'No more "That\'s not what we talked about"',
     painPoints: [
       {
@@ -455,10 +456,10 @@ const translations: Record<Locale, TranslationBundle> = {
 
     cardTagline1: "Վեճերին վերջ։",
     cardTagline2: "Նախագիծը առաջ։",
-    feature1: "Հստակ փուլեր։",
-    feature2: "Ակնթարթային ստորագրություններ։",
-    feature3: "Զրո անվճար հավելյալ աշխատանք։",
-    feature4: "Ստեղծված է Հայաստանի համար։",
+    feature1: "Հստակ\nփուլեր",
+    feature2: "Ակնթարթային\nստորագրություններ",
+    feature3: "Զրո անվճար\nհավելյալ աշխատանք",
+    feature4: "Ստեղծված է\nՀայաստանի համար",
     painPointsTitle: "Այլևս ոչ մի «Մենք սրա մասին չենք պայմանավորվել»",
     painPoints: [
       {
@@ -693,10 +694,10 @@ const translations: Record<Locale, TranslationBundle> = {
       "Интерактивный макет телефона с предложением AM-2841, этапами и цифровой подписью",
     cardTagline1: "Меньше споров.",
     cardTagline2: "Быстрее проект.",
-    feature1: "Четкие этапы.",
-    feature2: "Мгновенные подписи.",
-    feature3: "Нуль бесплатной работы.",
-    feature4: "Создано для Армении.",
+    feature1: "Четкие\nэтапы",
+    feature2: "Мгновенные\nподписи",
+    feature3: "Ноль лишней\nработы",
+    feature4: "Создано для\nАрмении",
     painPointsTitle: "Больше никаких «Мы об этом не договаривались»",
     painPoints: [
       {
@@ -953,7 +954,7 @@ export default function Page() {
           onToggleFaq={(index) => setOpenFaqIndex(openFaqIndex === index ? null : index)}
           pricingPlan={{
             ...t.pricingPlan,
-            href: "/register?next=%2Fdashboard"
+            href: ROUTES.register
           }}
           faqTitle={t.faqTitle}
           faqs={t.faqs}

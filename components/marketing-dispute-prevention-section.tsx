@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Reveal } from "@/components/reveal";
 import { MarketingSectionHeader } from "@/components/marketing-section-header";
+import { ROUTES } from "@/lib/routes";
 
 export type PreventionItem = { title: string; body: string };
 
@@ -32,7 +33,7 @@ export function MarketingDisputePreventionSection({
                   subtitle={preventionBody}
                 />
                 <Link
-                  href="/register?next=%2Fdashboard"
+                  href={ROUTES.register}
                   className="mt-8 inline-flex w-full items-center justify-center bg-[#E30A17] px-5 py-3.5 text-sm font-bold text-white transition hover:bg-[#c40914] sm:mt-10"
                 >
                   {btnProtectProject}

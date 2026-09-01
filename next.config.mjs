@@ -34,11 +34,22 @@ const nextConfig = {
       { source: "/signup", destination: "/register", permanent: false },
       { source: "/sign-up", destination: "/register", permanent: false },
       { source: "/registration", destination: "/register", permanent: false },
+      { source: "/auth/login", destination: "/login", permanent: false },
+      { source: "/auth/register", destination: "/register", permanent: false },
+      { source: "/account/login", destination: "/login", permanent: false },
+      { source: "/account/register", destination: "/register", permanent: false },
+      // Trailing-slash normalization for core app routes.
+      { source: "/login/", destination: "/login", permanent: true },
+      { source: "/register/", destination: "/register", permanent: true },
+      { source: "/dashboard/", destination: "/dashboard", permanent: true },
+      { source: "/settings/", destination: "/settings", permanent: true },
       // Legacy deal links now use the agreement route.
       { source: "/deal/:id", destination: "/agreement/:id", permanent: false },
-      // Common create-deal variants.
-      { source: "/createDeal", destination: "/create-deal", permanent: false },
-      { source: "/create_deal", destination: "/create-deal", permanent: false }
+      // Common create-deal variants → dashboard (create flow lives there).
+      { source: "/create-deal", destination: "/dashboard", permanent: false },
+      { source: "/createDeal", destination: "/dashboard", permanent: false },
+      { source: "/create_deal", destination: "/dashboard", permanent: false },
+      { source: "/protect", destination: "/dashboard", permanent: false }
     ];
   },
   webpack: (config, { dev }) => {

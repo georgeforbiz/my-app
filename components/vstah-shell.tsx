@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { FloatingPillHeader } from "@/components/floating-pill-header";
 import { VstahLogo } from "@/components/vstah-logo";
 import { SITE_BG_GRADIENT } from "@/lib/brand";
+import { ROUTES } from "@/lib/routes";
 import { authDisplayName, useAuthOptional } from "@/lib/auth/auth-context";
 import { useLanguage } from "@/lib/i18n/language-context";
 import type { Language } from "@/lib/i18n/locales";
@@ -155,8 +156,8 @@ export function VstahShell({
           onMobileOpenChange={setMobileOpen}
           langMenuOpen={langMenuOpen}
           onLangMenuOpenChange={setLangMenuOpen}
-          loginHref="/login"
-          registerHref="/register"
+          loginHref={ROUTES.login}
+          registerHref={ROUTES.register}
           showGuestActions={hideAuthControls || !auth?.user}
           authActions={authActions}
           mobileMenuFooter={mobileMenuFooter}

@@ -1,5 +1,7 @@
+import { LOGIN_FOR_DASHBOARD, ROUTES, loginUrl } from "@/lib/routes";
+
 /** Where providers land after signing out of the dashboard. */
-export const LOGIN_AFTER_LOGOUT = "/login?next=%2Fdashboard";
+export const LOGIN_AFTER_LOGOUT = LOGIN_FOR_DASHBOARD;
 
 /** Set while sign-out is in progress so auth guards do not client-navigate to the wrong page. */
 export const SIGNING_OUT_STORAGE_KEY = "vstah_signing_out";
@@ -22,7 +24,11 @@ export function isSigningOut(): boolean {
   return sessionStorage.getItem(SIGNING_OUT_STORAGE_KEY) === "1";
 }
 
-export function redirectToLoginAfterLogout(): void {
+export function redirectToLogin(next: string = ROUTES.dashboard): void {
   if (typeof window === "undefined") return;
-  window.location.replace(LOGIN_AFTER_LOGOUT);
+  window.location.replace(loginUrl(next));
+}
+
+export function redirectToLoginAfterLogout(): void {
+  redirectToLogin(ROUTES.dashboard);
 }

@@ -51,6 +51,37 @@ export function readSignedCache(agreementId: string): NormalizedAgreement | null
 }
 
 /** Merge server payload with local cache — never downgrade signed → pending. */
+/** Drop cached agreement snapshots owned by the departing provider. */
+export function clearAgreementCachesForProvider(providerId: string): void {
+  if (!providerId || typeof window === "undefined") return;
+  const keysToRemove: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key) continue;
+    if (!key.startsWith(CACHE_PREFIX) && !key.startsWith(LEGACY_SIGNED_PREFIX)) continue;
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) {
+        keysToRemove.push(key);
+        continue;
+      }
+      const parsed = JSON.parse(raw) as NormalizedAgreement;
+      if (!parsed?.provider_id || parsed.provider_id === providerId) {
+        keysToRemove.push(key);
+      }
+    } catch {
+      keysToRemove.push(key);
+    }
+  }
+  for (const key of keysToRemove) {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      // ignore
+    }
+  }
+}
+
 export function mergePreferSigned(
   server: NormalizedAgreement | null,
   cached: NormalizedAgreement | null

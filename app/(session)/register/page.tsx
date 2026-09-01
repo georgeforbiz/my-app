@@ -19,6 +19,8 @@ import { VstahShell } from "@/components/vstah-shell";
 import { NAVY, ORANGE } from "@/lib/brand";
 import { useAuth } from "@/lib/auth/auth-context";
 import { clearSigningOut, isSigningOut } from "@/lib/auth/constants";
+import { EMAIL_ALREADY_EXISTS_MESSAGE } from "@/lib/auth/humanize-auth-error";
+import { ROUTES, authPath, sanitizeNextRoute } from "@/lib/routes";
 import { useLanguage } from "@/lib/i18n/language-context";
 
 const DEFAULT_SERVICE_CATEGORY = "General Contractor" as const;
@@ -44,7 +46,7 @@ export default function RegisterPage() {
   const [info, setInfo] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
   const submitLock = useRef(false);
-  const nextRoute = searchParams.get("next") || "/dashboard";
+  const nextRoute = sanitizeNextRoute(searchParams.get("next"));
   const tx =
     language === "hy"
       ? {
@@ -73,7 +75,9 @@ export default function RegisterPage() {
           legalAnd: "և",
           privacyPolicy: "Գաղտնիության քաղաքականությանը",
           showPassword: "Ցուցադրել գաղտնաբառը",
-          hidePassword: "Թաքցնել գաղտնաբառը"
+          hidePassword: "Թաքցնել գաղտնաբառը",
+          emailAlreadyExists:
+            "Այս էլ․ հասցեով հաշիվ արդեն գոյություն ունի։ Խնդրում ենք մուտք գործել։"
         }
       : language === "ru"
         ? {
@@ -102,7 +106,9 @@ export default function RegisterPage() {
             legalAnd: "и",
             privacyPolicy: "Политикой конфиденциальности",
             showPassword: "Показать пароль",
-            hidePassword: "Скрыть пароль"
+            hidePassword: "Скрыть пароль",
+            emailAlreadyExists:
+              "Аккаунт с этим email уже существует. Пожалуйста, войдите в систему."
           }
         : {
             eyebrow: "Account",
@@ -130,7 +136,8 @@ export default function RegisterPage() {
             legalAnd: "and",
             privacyPolicy: "Privacy Policy",
             showPassword: "Show password",
-            hidePassword: "Hide password"
+            hidePassword: "Hide password",
+            emailAlreadyExists: EMAIL_ALREADY_EXISTS_MESSAGE
           };
 
   useEffect(() => {
@@ -182,7 +189,7 @@ export default function RegisterPage() {
         service_area: serviceArea.trim()
       });
       if (res.error) {
-        setError(res.error);
+        setError(res.error === EMAIL_ALREADY_EXISTS_MESSAGE ? tx.emailAlreadyExists : res.error);
         return;
       }
       if (res.needsEmailConfirmation) {
@@ -320,7 +327,7 @@ export default function RegisterPage() {
 
       <p className="mt-6 text-center text-sm text-slate-600">
         {tx.alreadyRegistered}{" "}
-        <Link href={`/login?next=${encodeURIComponent(nextRoute)}`} className="font-semibold underline" style={{ color: NAVY }}>
+        <Link href={authPath(ROUTES.login, nextRoute)} className="font-semibold underline" style={{ color: NAVY }}>
           {tx.login}
         </Link>
       </p>

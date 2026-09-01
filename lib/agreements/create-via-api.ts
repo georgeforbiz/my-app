@@ -110,10 +110,13 @@ export async function publishLocalAgreementToCloud(
 export async function fetchDashboardAgreementsViaApi(
   accessToken: string
 ): Promise<{ agreements?: NormalizedAgreement[]; error?: string }> {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), 8_000);
   try {
     const res = await fetch("/api/dashboard/agreements", {
       headers: { Authorization: `Bearer ${accessToken}` },
-      cache: "no-store"
+      cache: "no-store",
+      signal: controller.signal
     });
     const data = (await res.json().catch(() => ({}))) as {
       agreements?: NormalizedAgreement[];
@@ -124,7 +127,12 @@ export async function fetchDashboardAgreementsViaApi(
     }
     return { agreements: data.agreements ?? [] };
   } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") {
+      return { error: "Loading agreements timed out. Please try again." };
+    }
     return { error: err instanceof Error ? err.message : "Failed to fetch" };
+  } finally {
+    window.clearTimeout(timeoutId);
   }
 }
 

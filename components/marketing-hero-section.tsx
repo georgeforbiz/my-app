@@ -4,6 +4,7 @@ import Link from "next/link";
 import { OutlineLightButton } from "@/components/vstah-button";
 import { MarketingProposalPreviewCard, type ProposalPreviewCopy } from "@/components/marketing-proposal-preview-card";
 import { ORANGE } from "@/lib/brand";
+import { ROUTES } from "@/lib/routes";
 
 type HeroCopy = ProposalPreviewCopy & {
   heroTitleBefore: string;
@@ -64,7 +65,7 @@ export function MarketingHeroSection({
         </p>
         <HeroHeadline before={t.heroTitleBefore} after={t.heroTitleAfter} />
         <div className={buttonsClass}>
-          <Link href="/register?next=%2Fdashboard" className={primaryBtnClass}>
+          <Link href={ROUTES.register} className={primaryBtnClass}>
             {t.btnProtectProject}
           </Link>
           <OutlineLightButton href="/#process" className={secondaryBtnClass}>

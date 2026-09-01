@@ -111,3 +111,11 @@ export function replaceLocalAgreementId(oldId: string, newId: string): Normalize
   writeAll([next, ...rest]);
   return next;
 }
+
+/** Remove all browser-local agreements owned by the departing provider. */
+export function clearLocalAgreementsForProvider(providerId: string): void {
+  if (!providerId || typeof window === "undefined") return;
+  const all = readAll();
+  const next = all.filter((row) => row.provider_id !== providerId);
+  if (next.length !== all.length) writeAll(next);
+}

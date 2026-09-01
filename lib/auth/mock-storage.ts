@@ -59,7 +59,7 @@ export function mockRegister(
 ): { error?: string } {
   const users = readUsers();
   if (users.some((u) => u.email.toLowerCase() === email.toLowerCase())) {
-    return { error: "An account with this email already exists." };
+    return { error: "An account with this email already exists. Please log in instead." };
   }
   const id = crypto.randomUUID();
   const full_name = metadata?.full_name?.trim() || undefined;

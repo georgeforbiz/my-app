@@ -12,7 +12,7 @@ import {
   type ReactNode,
   type MutableRefObject
 } from "react";
-import { humanizeAuthError, isAuthNetworkError } from "./humanize-auth-error";
+import { humanizeAuthError, isAuthNetworkError, EMAIL_ALREADY_EXISTS_MESSAGE, isEmailAlreadyRegisteredError } from "./humanize-auth-error";
 import {
   metadataFromProfile,
   normalizeServiceCategory,
@@ -21,6 +21,8 @@ import {
   type ProviderProfileSettingsInput
 } from "./profile-fields";
 import { clearSigningOut, isSigningOut, markSigningOut, redirectToLoginAfterLogout } from "./constants";
+import { ROUTES } from "@/lib/routes";
+import { purgeBrowserSessionState } from "./clear-user-session";
 import { isLocalDeviceAuthAllowed, isMockAuthAllowed } from "./mock-auth-allowed";
 import {
   mockGetSession,
@@ -462,7 +464,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const supabase = (await ensureSupabaseBrowser()) ?? getSupabaseBrowser();
     if (!supabase) return { error: "Email service is unavailable." };
     const redirectTo =
-      typeof window !== "undefined" ? `${window.location.origin}/login` : undefined;
+      typeof window !== "undefined" ? `${window.location.origin}${ROUTES.login}` : undefined;
     const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
     return error ? { error: humanizeAuthError(error.message) } : {};
   }, []);
@@ -479,8 +481,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         service_area: metadata?.service_area,
         service_category: metadata?.service_category
       });
+      if (reg.error) {
+        if (isEmailAlreadyRegisteredError(reg.error)) {
+          return { error: EMAIL_ALREADY_EXISTS_MESSAGE };
+        }
+        return { error: reg.error };
+      }
       const login = mockLogin(trimmedEmail, password);
-      if (reg.error && !login.user) return reg;
       if (login.error) return { error: login.error };
       if (login.user) {
         setUser(mapMockUser(login.user));
@@ -502,24 +509,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       const payload = (await res.json().catch(() => ({}))) as { error?: string; code?: string; ok?: boolean };
 
-      if (res.ok || res.status === 409) {
+      if (res.status === 409 || isEmailAlreadyRegisteredError(String(payload.error ?? ""))) {
+        return { error: EMAIL_ALREADY_EXISTS_MESSAGE };
+      }
+
+      if (res.ok) {
         const session = await establishSessionFromLoginApi(trimmedEmail, password, setUser, signingOutRef);
         if (session.ok) return {};
         if (isCloudUnavailable(session.status, session.error) || isLocalDeviceAuthAllowed()) {
           return finishMock();
         }
-        if (res.ok) {
-          return {
-            error:
-              session.error ??
-              "Account was created but sign-in failed. Try logging in with your email and password."
-          };
-        }
         return {
           error:
-            payload.error ??
             session.error ??
-            "An account with this email already exists. Please log in."
+            "Account was created but sign-in failed. Try logging in with your email and password."
         };
       }
 
@@ -594,8 +597,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(async (): Promise<void> => {
     if (signingOutRef.current) return;
     signingOutRef.current = true;
+    const departingUserId = user?.id;
     markSigningOut();
-    mockLogout();
+    purgeBrowserSessionState(departingUserId);
     setUser(null);
     setLoading(false);
 
@@ -609,7 +613,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     redirectToLoginAfterLogout();
-  }, []);
+  }, [user]);
 
   const revalidateSession = useCallback(async (): Promise<boolean> => {
     if (signingOutRef.current || isSigningOut()) return false;

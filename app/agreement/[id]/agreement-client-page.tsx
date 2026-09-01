@@ -15,7 +15,8 @@ import {
 import { formatDateDMY, formatEmbeddedDatesInTerms } from "@/lib/format-date";
 import { useLanguage } from "@/lib/i18n/language-context";
 import { normalizeAgreementRow } from "@/lib/agreements/row";
-import { resolveStoredProviderLogo } from "@/lib/agreements/logo-image";
+import { resolveAgreementProviderLogo, resolveStoredProviderLogo, withProviderLogoCacheBust } from "@/lib/agreements/logo-image";
+import { useAgreementProviderLogo } from "@/lib/agreements/use-agreement-provider-logo";
 import { isSignedOrCompleted, isAgreementSigned, hasStoredClientSignature, hasSignatureDataUrl, isValidSignatureDataUrl, pickAdvancedStatus, statusRank } from "@/lib/agreements/status-rank";
 import { mergePreferSigned, readAgreementCache, readSignedCache, writeAgreementCache, writeSignedCache } from "@/lib/agreements/signed-cache";
 import { NAVY, ORANGE } from "@/lib/brand";
@@ -730,6 +731,7 @@ export default function AgreementClientPage({
   const hasDisplayedContentRef = useRef(Boolean(initialAgreement));
   const agreementRef = useRef(agreement);
   agreementRef.current = agreement;
+  const providerLogo = useAgreementProviderLogo(agreement) ?? null;
 
   useLayoutEffect(() => {
     if (!id) return;
@@ -835,7 +837,10 @@ export default function AgreementClientPage({
 
   const mergeFetchedAgreement = useCallback((prev: Agreement | null, next: Agreement): Agreement => {
     const local = getLocalAgreement(next.id) as Agreement | null;
-    const provider_logo_url = resolveStoredProviderLogo(next, prev, local);
+    const rowLogo = resolveStoredProviderLogo(next, prev, local);
+    const provider_logo_url = resolveAgreementProviderLogo(
+      rowLogo ? { ...next, provider_logo_url: rowLogo } : next
+    );
     const withLogo = provider_logo_url ? { ...next, provider_logo_url } : next;
 
     const prevStatus =
@@ -941,21 +946,6 @@ export default function AgreementClientPage({
       }
     };
 
-    const fetchFromSupabase = async (): Promise<Agreement | null> => {
-      if (!supabase || isLocalAgreementId(id)) return null;
-      try {
-        const { data, error: fetchError } = await supabase
-          .from("agreements")
-          .select("*")
-          .eq("id", id)
-          .single();
-        if (fetchError || !data) return null;
-        return normalizeAgreementRow(data as Record<string, unknown>) as Agreement;
-      } catch {
-        return null;
-      }
-    };
-
     if (isLocalAgreementId(id)) {
       const fromApi = await fetchFromApi();
       if (fromApi) {
@@ -969,10 +959,9 @@ export default function AgreementClientPage({
       return;
     }
 
-    const [fromApi, fromSupabase] = await Promise.all([fetchFromApi(), fetchFromSupabase()]);
-    const remote = fromApi ?? fromSupabase;
-    if (remote) {
-      applyRemoteAgreement(remote);
+    const fromApi = await fetchFromApi();
+    if (fromApi) {
+      applyRemoteAgreement(fromApi);
       return;
     }
 
@@ -1174,56 +1163,12 @@ export default function AgreementClientPage({
   ): Promise<{ ok: boolean; error?: string }> => {
     if (!agreement) return { ok: false, error: tx.signBlocked };
 
-    const updateLocally = () => {
-      const next = updateLocalAgreement(agreement.id, payload as Partial<Agreement>);
-      return next ? { ok: true } : { ok: false, error: tx.signBlocked };
-    };
-
-    if (isLocalAgreementId(agreement.id) || !supabase) return updateLocally();
-
-    const run = async (candidatePayload: Record<string, unknown>) =>
-      supabase
-        .from("agreements")
-        .update(candidatePayload)
-        .eq("id", agreement.id)
-        .select("id");
-
-    let updatedRows: { id: unknown }[] | null = null;
-    let updateError: { message?: string } | null = null;
-    try {
-      ({ data: updatedRows, error: updateError } = await run(payload));
-      if ((updateError || !updatedRows?.length) && payload.client_signature) {
-        await run({ client_signature: payload.client_signature });
-        if (payload.status === "signed") {
-          ({ data: updatedRows, error: updateError } = await run({
-            status: "signed",
-            client_signature: payload.client_signature
-          }));
-        }
-      }
-    } catch {
-      return updateLocally();
-    }
-    const paymentStatus = payload.payment_status;
-    if (
-      updateError &&
-      paymentStatus === "released" &&
-      (updateError.message?.toLowerCase().includes("check_payment_status") ||
-        updateError.message?.toLowerCase().includes("payment_status"))
-    ) {
-      // Compatibility for DBs that still use `paid` instead of `released`.
-      try {
-        ({ data: updatedRows, error: updateError } = await run({ ...payload, payment_status: "paid" }));
-      } catch {
-        return updateLocally();
-      }
+    if (!isLocalAgreementId(agreement.id)) {
+      return { ok: false, error: tx.signBlocked };
     }
 
-    if (updateError || !updatedRows?.length) {
-      return { ok: false, error: updateError?.message || tx.signBlocked };
-    }
-
-    return { ok: true };
+    const next = updateLocalAgreement(agreement.id, payload as Partial<Agreement>);
+    return next ? { ok: true } : { ok: false, error: tx.signBlocked };
   };
 
   const signAgreement = async () => {
@@ -1394,13 +1339,12 @@ export default function AgreementClientPage({
     ? agreement.client_signature!
     : null;
   const showSignForm = !signed;
-  const providerLogo =
-    typeof agreement.provider_logo_url === "string" &&
-    (agreement.provider_logo_url.startsWith("data:image/") ||
-      agreement.provider_logo_url.startsWith("http://") ||
-      agreement.provider_logo_url.startsWith("https://"))
-      ? agreement.provider_logo_url
-      : null;
+  const providerLogoSrc =
+    withProviderLogoCacheBust(
+      providerLogo,
+      agreement.provider_id ?? agreement.id,
+      agreement.created_at
+    ) ?? providerLogo;
   const providerFields = resolveProviderNameFields(agreement);
   const serviceAreaDisplay = agreement.service_area?.trim() || "Armenia";
   const readableAgreementId = `VSTAH-${new Date(agreement.created_at).getFullYear()}-${agreement.id.split("-")[0].toUpperCase()}`;
@@ -1453,7 +1397,8 @@ export default function AgreementClientPage({
               {providerLogo ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={providerLogo}
+                  key={agreement.provider_id ?? agreement.id}
+                  src={providerLogoSrc ?? providerLogo}
                   alt=""
                   className="h-16 w-auto max-w-[200px] rounded-lg border border-slate-200/80 bg-white object-contain p-1.5 shadow-sm"
                 />

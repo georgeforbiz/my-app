@@ -9,6 +9,7 @@ import { VstahShell } from "@/components/vstah-shell";
 import { NAVY, ORANGE } from "@/lib/brand";
 import { useAuth } from "@/lib/auth/auth-context";
 import { clearSigningOut, isSigningOut } from "@/lib/auth/constants";
+import { ROUTES, authPath, sanitizeNextRoute } from "@/lib/routes";
 import { useLanguage } from "@/lib/i18n/language-context";
 
 export default function LoginPage() {
@@ -25,7 +26,7 @@ export default function LoginPage() {
   const [pending, setPending] = useState(false);
   const [resendPending, setResendPending] = useState(false);
   const [resetPending, setResetPending] = useState(false);
-  const nextRoute = searchParams.get("next") || "/dashboard";
+  const nextRoute = sanitizeNextRoute(searchParams.get("next"));
   const emailPrefill = searchParams.get("email") || "";
   const tx =
     language === "hy"
@@ -262,7 +263,7 @@ export default function LoginPage() {
       <p className="mt-6 text-center text-sm text-slate-600">
         {tx.noAccount}{" "}
         <Link
-          href={`/register?next=${encodeURIComponent(nextRoute)}`}
+          href={authPath(ROUTES.register, nextRoute)}
           prefetch={false}
           className="font-semibold underline"
           style={{ color: NAVY }}

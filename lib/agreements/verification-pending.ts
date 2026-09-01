@@ -71,6 +71,19 @@ export function clearVerificationPending(agreementId: string) {
   writeStore(store);
 }
 
+export function clearVerificationPendingForAgreementIds(agreementIds: string[]) {
+  if (!agreementIds.length || typeof window === "undefined") return;
+  const store = readStore();
+  let changed = false;
+  for (const agreementId of agreementIds) {
+    if (agreementId in store) {
+      delete store[agreementId];
+      changed = true;
+    }
+  }
+  if (changed) writeStore(store);
+}
+
 export function hasVerificationPending(agreementId: string, index?: number): boolean {
   const indexes = getVerificationPendingIndexes(agreementId);
   if (index === undefined) return indexes.length > 0;

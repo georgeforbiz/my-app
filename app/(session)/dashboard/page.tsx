@@ -43,7 +43,9 @@ import {
 import { FREE_AGREEMENT_LIMIT, readMockPlan, writeMockPlan, type MockPlanId } from "@/lib/subscription/mock";
 import { authDisplayName, useAuth, type AuthUser } from "@/lib/auth/auth-context";
 import { mockGetSession } from "@/lib/auth/mock-storage";
-import { isSigningOut, redirectToLoginAfterLogout } from "@/lib/auth/constants";
+import { isSigningOut, redirectToLogin } from "@/lib/auth/constants";
+import { readHasAgreementsHint, writeHasAgreementsHint } from "@/lib/auth/storage-keys";
+import { ROUTES } from "@/lib/routes";
 import { ensureSupabaseBrowser, getSupabaseBrowser, getSupabaseReachable } from "@/lib/supabase/browser-client";
 import { normalizeAgreementRow } from "@/lib/agreements/row";
 import { fetchDashboardAgreementsViaApi, mergeAgreementsById, publishLocalAgreementToCloud } from "@/lib/agreements/create-via-api";
@@ -61,7 +63,21 @@ import {
   updateLocalAgreement
 } from "@/lib/agreements/local-store";
 import { formatDateDMY } from "@/lib/format-date";
-import { readLogoDataUrl, PROVIDER_LOGO_STORAGE_KEY, resolveStoredProviderLogo } from "@/lib/agreements/logo-image";
+import {
+  readLogoDataUrl,
+  readStoredProviderLogo,
+  readStoredProviderLogoTimestamp,
+  resolveAgreementProviderLogo,
+  resolveEffectiveProviderLogo,
+  resolveProviderLogoForUser,
+  resolveStoredProviderLogo,
+  syncProviderLogoToAccount,
+  clearProviderLogoFromAccount,
+  withProviderLogoCacheBust,
+  writeStoredProviderLogo,
+  clearStoredProviderLogo
+} from "@/lib/agreements/logo-image";
+import { uploadProviderLogoToStorage, deleteProviderLogosFromStorage } from "@/lib/supabase/logo-storage";
 import { useLanguage } from "@/lib/i18n/language-context";
 import type { Language } from "@/lib/i18n/locales";
 
@@ -638,7 +654,11 @@ function mergeDashboardAgreementRow(local: Agreement | undefined, cloud: Agreeme
   const status = pickAdvancedStatus(localStatus, cloud.status);
   const cloudIsAhead = statusRank(cloud.status) >= statusRank(localStatus);
   const base = cloudIsAhead || !local ? cloud : local;
-  const provider_logo_url = resolveStoredProviderLogo(base, cloudIsAhead ? local : cloud);
+  const localScoped = local?.provider_id === cloud.provider_id ? local : undefined;
+  const provider_logo_url =
+    resolveStoredProviderLogo(base, cloudIsAhead ? localScoped : cloud) ||
+    readStoredProviderLogo(base.provider_id) ||
+    undefined;
   const merged: Agreement = {
     ...base,
     status,
@@ -721,7 +741,7 @@ export default function DashboardPage() {
 
   const [view, setView] = useState<View>("overview");
   const [agreements, setAgreements] = useState<Agreement[]>([]);
-  const [loadingAgreements, setLoadingAgreements] = useState(true);
+  const [loadingAgreements, setLoadingAgreements] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState("");
   const [toast, setToast] = useState("");
@@ -754,6 +774,7 @@ export default function DashboardPage() {
   const [paymentType, setPaymentType] = useState<PaymentType>("single");
   const [milestones, setMilestones] = useState<MilestoneDraft[]>([]);
   const [providerLogoUrl, setProviderLogoUrl] = useState("");
+  const [logoRevision, setLogoRevision] = useState(0);
   const [logoError, setLogoError] = useState("");
   const [logoUploading, setLogoUploading] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
@@ -778,14 +799,48 @@ export default function DashboardPage() {
     setMockPlan(readMockPlan(user.id));
   }, [user?.id]);
 
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(PROVIDER_LOGO_STORAGE_KEY);
-      if (saved?.startsWith("data:image/")) setProviderLogoUrl(saved);
-    } catch {
-      // localStorage may be unavailable
+  const hydrateProviderLogo = useCallback(async () => {
+    if (!user?.id) {
+      setProviderLogoUrl("");
+      setLogoRevision(0);
+      return;
     }
-  }, []);
+
+    let meta: Record<string, unknown> | undefined;
+    if (supabase && user.source !== "mock") {
+      const authData = await withNetworkTimeout(supabase.auth.getUser());
+      meta = (authData?.data.user?.user_metadata ?? {}) as Record<string, unknown>;
+    }
+
+    const resolved = resolveProviderLogoForUser(user.id, meta, agreementsRef.current);
+    if (!resolved) return;
+
+    setProviderLogoUrl(resolved);
+    writeStoredProviderLogo(user.id, resolved);
+    setLogoRevision(readStoredProviderLogoTimestamp(user.id));
+  }, [supabase, user?.id, user?.source]);
+
+  useEffect(() => {
+    void hydrateProviderLogo();
+  }, [hydrateProviderLogo]);
+
+  useEffect(() => {
+    if (!user?.id || providerLogoUrl.trim() || loadingAgreements) return;
+    void hydrateProviderLogo();
+  }, [hydrateProviderLogo, loadingAgreements, providerLogoUrl, user?.id]);
+
+  const savedProviderLogoUrl = useMemo(
+    () => resolveEffectiveProviderLogo(providerLogoUrl, user?.id, undefined, agreements),
+    [providerLogoUrl, user?.id, agreements]
+  );
+
+  useEffect(() => {
+    if (view !== "create" || !user?.id || providerLogoUrl.trim()) return;
+    void hydrateProviderLogo();
+  }, [view, user?.id, providerLogoUrl, hydrateProviderLogo]);
+
+  const providerLogoDisplayUrl =
+    withProviderLogoCacheBust(providerLogoUrl, user?.id ?? "", logoRevision) ?? providerLogoUrl;
 
   const handleLogoFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -793,18 +848,48 @@ export default function DashboardPage() {
     if (!file) return;
     setLogoError("");
     setLogoUploading(true);
+
+    const persistLogo = async (url: string) => {
+      setProviderLogoUrl(url);
+      setLogoRevision(Date.now());
+      if (!user?.id) return;
+      writeStoredProviderLogo(user.id, url);
+      if (supabase) {
+        await syncProviderLogoToAccount(supabase, user.id, url);
+      }
+    };
+
     try {
+      if (user?.id && supabase) {
+        const token = await ensureSupabaseAccessToken(supabase);
+        if (token) {
+          const form = new FormData();
+          form.append("file", file);
+          const res = await fetch("/api/user/logo", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+            body: form
+          });
+          const payload = (await res.json().catch(() => ({}))) as { url?: string; error?: string };
+          if (res.ok && payload.url) {
+            await persistLogo(payload.url);
+            return;
+          }
+        }
+
+        const uploaded = await uploadProviderLogoToStorage(supabase, user.id, file);
+        if (uploaded.url) {
+          await persistLogo(uploaded.url);
+          return;
+        }
+      }
+
       const { dataUrl, error: logoErr } = await readLogoDataUrl(file);
       if (logoErr || !dataUrl) {
         setLogoError(logoErr ?? "Could not use this image.");
         return;
       }
-      setProviderLogoUrl(dataUrl);
-      try {
-        localStorage.setItem(PROVIDER_LOGO_STORAGE_KEY, dataUrl);
-      } catch {
-        // ignore quota errors
-      }
+      await persistLogo(dataUrl);
     } finally {
       setLogoUploading(false);
     }
@@ -813,10 +898,14 @@ export default function DashboardPage() {
   const removeLogo = () => {
     setProviderLogoUrl("");
     setLogoError("");
-    try {
-      localStorage.removeItem(PROVIDER_LOGO_STORAGE_KEY);
-    } catch {
-      // ignore
+    setLogoRevision(Date.now());
+    if (user?.id) {
+      if (supabase) {
+        void clearProviderLogoFromAccount(supabase, user.id);
+        void deleteProviderLogosFromStorage(supabase, user.id);
+      } else {
+        clearStoredProviderLogo(user.id);
+      }
     }
   };
 
@@ -916,7 +1005,7 @@ export default function DashboardPage() {
           if (cancelled || mockGetSession()) return;
           const retry = await revalidateSession();
           if (cancelled || retry) return;
-          redirectToLoginAfterLogout();
+          redirectToLogin(ROUTES.dashboard);
         })();
       }, 600);
     })();
@@ -963,78 +1052,94 @@ export default function DashboardPage() {
   const milestonesTotal = useMemo(() => milestonesParsed.reduce((sum, item) => sum + item.amount, 0), [milestonesParsed]);
   const milestonesValid = paymentType === "single" || Math.abs(milestonesTotal - totalPrice) < 0.0001;
 
-  const fetchAgreements = useCallback(async () => {
+  const fetchAgreements = useCallback(async (options?: { background?: boolean }) => {
     const seq = ++agreementsFetchSeqRef.current;
-    const isStale = () => seq !== agreementsFetchSeqRef.current;
+    const isCurrent = () => seq === agreementsFetchSeqRef.current;
+    const background = options?.background === true;
 
     const local = user?.id ? (listLocalAgreementsForDashboard(user.id) as Agreement[]) : [];
     if (!user?.id) {
-      if (isStale()) return;
+      if (!isCurrent()) return;
       setAgreements([]);
       setLoadingAgreements(false);
       return;
     }
 
-    if (!supabase) {
-      if (isStale()) return;
+    if (user.source === "mock" || !supabase) {
+      if (!isCurrent()) return;
       setAgreements(local);
       setLoadingAgreements(false);
+      if (user.id) writeHasAgreementsHint(user.id, local.length > 0);
       return;
     }
 
-    const isInitialLoad = agreementsRef.current.length === 0;
-    if (isInitialLoad) {
+    const expectAgreements =
+      local.length > 0 || agreementsRef.current.length > 0 || readHasAgreementsHint(user.id);
+
+    if (!background && expectAgreements && isCurrent()) {
       setLoadingAgreements(true);
     }
-    let cloud: Agreement[] = [];
+
+    if (isCurrent() && local.length > 0) {
+      setAgreements((prev) => mergeDashboardAgreements(local, prev));
+    }
 
     try {
-      const token = (await supabase.auth.getSession()).data.session?.access_token;
+      const token = await withNetworkTimeout(ensureSupabaseAccessToken(supabase), 5_000);
+      let cloud: Agreement[] = [];
+
       if (token) {
-        const apiResult = await fetchDashboardAgreementsViaApi(token);
-        if (!isStale()) {
-          if (apiResult.agreements) {
-            cloud = apiResult.agreements as Agreement[];
-          } else if (apiResult.error) {
-            setError(apiResult.error);
-          }
+        const apiResult = await withNetworkTimeout(fetchDashboardAgreementsViaApi(token), 8_000);
+        if (Array.isArray(apiResult?.agreements)) {
+          cloud = apiResult.agreements as Agreement[];
+        } else if (apiResult?.error) {
+          setError(apiResult.error);
         }
       }
 
-      if (cloud.length === 0) {
-        const result = await Promise.race([
-          supabase
-            .from("agreements")
-            .select("*")
-            .eq("provider_id", user.id)
-            .order("created_at", { ascending: false }),
-          new Promise<null>((resolve) => {
-            window.setTimeout(() => resolve(null), 8_000);
-          })
-        ]);
-        if (!isStale() && result) {
-          const { data, error: fetchError } = result;
-          if (!fetchError && data) {
-            cloud = data.map((row) => normalizeAgreementRow(row as Record<string, unknown>)) as Agreement[];
-          } else if (fetchError) {
-            setError(fetchError.message);
-          }
-        }
-      }
-
-      if (isStale()) return;
-      setAgreements(mergeDashboardAgreements(local, cloud));
+      if (!isCurrent()) return;
+      const merged = mergeDashboardAgreements(local, cloud);
+      setAgreements(merged);
+      writeHasAgreementsHint(user.id, merged.length > 0);
     } catch {
-      if (isStale()) return;
+      if (!isCurrent()) return;
       setAgreements(local);
+      writeHasAgreementsHint(user.id, local.length > 0);
     } finally {
-      if (!isStale()) setLoadingAgreements(false);
+      if (isCurrent()) setLoadingAgreements(false);
     }
-  }, [supabase, user?.id]);
+  }, [supabase, user?.id, user?.source]);
 
   useEffect(() => {
+    agreementsFetchSeqRef.current += 1;
+    if (!user?.id) {
+      setLoadingAgreements(false);
+      setAgreements([]);
+      return;
+    }
+
+    const local = listLocalAgreementsForDashboard(user.id) as Agreement[];
+    if (local.length > 0) {
+      setAgreements(local);
+    } else {
+      setAgreements([]);
+    }
+
+    const expectAgreements = local.length > 0 || readHasAgreementsHint(user.id);
+    if (expectAgreements && user.source !== "mock" && supabase) {
+      setLoadingAgreements(true);
+    } else if (user.source === "mock" || !supabase) {
+      setLoadingAgreements(false);
+    }
+
     void fetchAgreements();
-  }, [fetchAgreements]);
+
+    const safetyTimer = window.setTimeout(() => setLoadingAgreements(false), 10_000);
+    return () => {
+      agreementsFetchSeqRef.current += 1;
+      window.clearTimeout(safetyTimer);
+    };
+  }, [fetchAgreements, user?.id, supabase, user?.source]);
 
   useEffect(() => {
     if (!supabase || !user?.id) return;
@@ -1055,7 +1160,7 @@ export default function DashboardPage() {
           migrated = true;
         }
       }
-      if (migrated) void fetchAgreements();
+      if (migrated) void fetchAgreements({ background: true });
     })();
   }, [supabase, user?.id, fetchAgreements]);
 
@@ -1091,7 +1196,7 @@ export default function DashboardPage() {
           }
           agreementsRefreshTimerRef.current = window.setTimeout(() => {
             agreementsRefreshTimerRef.current = null;
-            void fetchAgreements();
+            void fetchAgreements({ background: true });
           }, 400);
         }
       )
@@ -1103,7 +1208,9 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const refresh = () => {
-      if (document.visibilityState === "visible") void fetchAgreements();
+      if (document.visibilityState === "visible" && !loadingAgreements) {
+        void fetchAgreements({ background: true });
+      }
     };
     window.addEventListener("focus", refresh);
     document.addEventListener("visibilitychange", refresh);
@@ -1349,7 +1456,7 @@ export default function DashboardPage() {
       milestones: paymentType === "milestones" ? milestonesParsed : null,
       status: "pending",
       payment_status: "pending",
-      provider_logo_url: providerLogoUrl.trim() || undefined,
+      provider_logo_url: savedProviderLogoUrl || undefined,
       created_at: new Date().toISOString()
     };
   }, [
@@ -1365,7 +1472,7 @@ export default function DashboardPage() {
     paymentType,
     projectTitle,
     providerDisplayName,
-    providerLogoUrl,
+    savedProviderLogoUrl,
     providerPhone,
     serviceArea,
     totalPrice,
@@ -1538,7 +1645,7 @@ export default function DashboardPage() {
         totalPrice,
         paymentType,
         milestones: paymentType === "milestones" ? milestonesParsed : [],
-        providerLogoUrl: providerLogoUrl.trim() || undefined
+        providerLogoUrl: savedProviderLogoUrl || undefined
       };
 
       let agreementId: string | undefined;
@@ -1584,7 +1691,7 @@ export default function DashboardPage() {
                   paymentType === "milestones"
                     ? milestonesParsed.map((m) => ({ title: m.title, amount: m.amount }))
                     : [],
-                providerLogoUrl: providerLogoUrl.trim() || undefined
+                providerLogoUrl: savedProviderLogoUrl || undefined
               })
             });
             const deviceData = (await deviceRes.json().catch(() => ({}))) as { id?: string; error?: string };
@@ -1630,7 +1737,7 @@ export default function DashboardPage() {
               : null,
           status: "pending",
           payment_status: "pending",
-          provider_logo_url: providerLogoUrl.trim() || undefined
+          provider_logo_url: savedProviderLogoUrl || undefined
         });
         agreementId = local.id;
       }
@@ -1660,10 +1767,11 @@ export default function DashboardPage() {
             : null,
         status: "pending",
         payment_status: "pending",
-        provider_logo_url: providerLogoUrl.trim() || undefined,
+        provider_logo_url: savedProviderLogoUrl || undefined,
         created_at: new Date().toISOString()
       };
       setAgreements((prev) => mergeAgreementsById([[createdRow], prev]));
+      writeHasAgreementsHint(providerId, true);
       writeAgreementCache(createdRow);
       if (!isLocalAgreementId(agreementId)) {
         saveLocalAgreement({
@@ -1691,7 +1799,7 @@ export default function DashboardPage() {
               : null,
           status: "pending",
           payment_status: "pending",
-          provider_logo_url: providerLogoUrl.trim() || undefined
+          provider_logo_url: savedProviderLogoUrl || undefined
         });
       }
 
@@ -1710,6 +1818,9 @@ export default function DashboardPage() {
           .updateUser({ data: { default_agreement_terms: customTermsText } })
           .catch(() => {});
       }
+      if (savedProviderLogoUrl && user?.id && supabase) {
+        void syncProviderLogoToAccount(supabase, user.id, savedProviderLogoUrl);
+      }
 
       if (cloudOnline && !isShareableAgreementId(agreementId)) {
         setError(tx.linkNotPublished);
@@ -1717,6 +1828,8 @@ export default function DashboardPage() {
       }
 
       setSuccessAgreementId(agreementId);
+      setView("overview");
+
       const publicLink = getAgreementPublicUrl(agreementId);
       void navigator.clipboard.writeText(publicLink).then(
         () => setCopiedAgreementId(agreementId),
@@ -1724,8 +1837,7 @@ export default function DashboardPage() {
       );
       setToast(isLocalAgreementId(agreementId) ? tx.linkLocalWarning : tx.toastCreated);
       resetForm(customTermsText);
-      setView("overview");
-      void fetchAgreements();
+      void fetchAgreements({ background: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create agreement.");
     } finally {
@@ -1814,7 +1926,7 @@ export default function DashboardPage() {
             {tx.signedInAs}: {providerDisplayName}
           </p>
           <Link
-            href="/settings"
+            href={ROUTES.settings}
             className="flex w-full items-center gap-2 rounded-xl border border-white/20 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-700/40"
           >
             <Settings className="h-4 w-4 shrink-0" />
@@ -1901,7 +2013,7 @@ export default function DashboardPage() {
                     {tx.signedInAs}: {providerDisplayName}
                   </p>
                   <Link
-                    href="/settings"
+                    href={ROUTES.settings}
                     className="inline-flex min-h-9 shrink-0 items-center rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700"
                   >
                     {tx.settings}
@@ -2051,7 +2163,8 @@ export default function DashboardPage() {
                     {providerLogoUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img
-                        src={providerLogoUrl}
+                        key={`${user?.id ?? "anon"}-${logoRevision}`}
+                        src={providerLogoDisplayUrl}
                         alt=""
                         className="h-14 w-auto max-w-[180px] rounded-lg border border-slate-200 bg-white object-contain p-1"
                       />
@@ -2646,18 +2759,29 @@ export default function DashboardPage() {
                 lang={lang}
                 draft={displayedPreview.id === "draft"}
                 embedded
+                viewerUserId={user?.id}
               />
             </div>
             <div className="flex flex-wrap gap-2 border-t border-slate-200 bg-white p-4">
               {displayedPreview.id !== "draft" ? (
-                <button
-                  type="button"
-                  onClick={() => openAgreementLink(displayedPreview.id)}
-                  className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-800 hover:bg-slate-50"
-                >
-                  <ExternalLink className="h-4 w-4" />
-                  {tx.openFullPage}
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => void openShareAgreement(displayedPreview.id)}
+                    className="inline-flex items-center gap-2 rounded-xl bg-[#0033A0] px-4 py-2 text-sm font-bold text-white hover:bg-[#002a7a]"
+                  >
+                    <Share2 className="h-4 w-4" />
+                    {tx.share}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => openAgreementLink(displayedPreview.id)}
+                    className="inline-flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-bold text-slate-800 hover:bg-slate-50"
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                    {tx.openFullPage}
+                  </button>
+                </>
               ) : null}
               <button
                 type="button"
