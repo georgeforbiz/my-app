@@ -217,10 +217,10 @@ const translations: Record<Locale, TranslationBundle> = {
       "Interactive phone mockup of proposal AM-2841 with milestones and digital signature",
     cardTagline1: "Stop the disputes.",
     cardTagline2: "Start the renovation.",
-    feature1: "Clear\nMilestones",
-    feature2: "Instant\nSignatures",
-    feature3: "Zero Scope\nCreep",
-    feature4: "Built for\nArmenia",
+    feature1: "Clear Milestones",
+    feature2: "Instant Signatures",
+    feature3: "Zero Scope Creep",
+    feature4: "Built for Armenia",
     painPointsTitle: 'No more "That\'s not what we talked about"',
     painPoints: [
       {
@@ -456,10 +456,10 @@ const translations: Record<Locale, TranslationBundle> = {
 
     cardTagline1: "Վեճերին վերջ։",
     cardTagline2: "Նախագիծը առաջ։",
-    feature1: "Հստակ\nփուլեր",
-    feature2: "Ակնթարթային\nստորագրություններ",
-    feature3: "Զրո անվճար\nհավելյալ աշխատանք",
-    feature4: "Ստեղծված է\nՀայաստանի համար",
+    feature1: "Հստակ փուլեր",
+    feature2: "Ակնթարթային ստորագրություն",
+    feature3: "Զրո լրացուցիչ աշխատանք",
+    feature4: "Ստեղծված Հայաստանի համար",
     painPointsTitle: "Այլևս ոչ մի «Մենք սրա մասին չենք պայմանավորվել»",
     painPoints: [
       {
@@ -694,10 +694,10 @@ const translations: Record<Locale, TranslationBundle> = {
       "Интерактивный макет телефона с предложением AM-2841, этапами и цифровой подписью",
     cardTagline1: "Меньше споров.",
     cardTagline2: "Быстрее проект.",
-    feature1: "Четкие\nэтапы",
-    feature2: "Мгновенные\nподписи",
-    feature3: "Ноль лишней\nработы",
-    feature4: "Создано для\nАрмении",
+    feature1: "Четкие этапы",
+    feature2: "Мгновенные подписи",
+    feature3: "Ноль лишней работы",
+    feature4: "Создано для Армении",
     painPointsTitle: "Больше никаких «Мы об этом не договаривались»",
     painPoints: [
       {
@@ -909,7 +909,6 @@ export default function Page() {
         <MarketingPainPointsGrid title={t.painPointsTitle} items={t.painPoints} />
 
         <MarketingFeaturesSection
-          locale={locale}
           t={{
             feature1: t.feature1,
             feature2: t.feature2,
