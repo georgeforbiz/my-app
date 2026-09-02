@@ -218,7 +218,7 @@ const translations: Record<Locale, TranslationBundle> = {
     cardTagline2: "Start the renovation.",
     feature1: "Clear Milestones",
     feature2: "Instant Signatures",
-    feature3: "Zero Scope Creep",
+    feature3: "No Extra Favors",
     feature4: "Built for Armenia",
     painPointsTitle: 'No more "That\'s not what we talked about"',
     painPoints: [
@@ -265,7 +265,7 @@ const translations: Record<Locale, TranslationBundle> = {
       {
         label: "",
         withoutUs: "Awkward chats when asking for approval",
-        withVstah: "Simple one tap milestone approvals"
+        withVstah: "Clear milestone dates agreed upfront"
       },
       {
         label: "",
@@ -386,10 +386,6 @@ const translations: Record<Locale, TranslationBundle> = {
       {
         q: "Can I lock a proposal so it can't be changed after signing?",
         a: "The exact second the client signs, VSTAH generates a tamper-proof, time-stamped PDF record that is permanently locked for both parties."
-      },
-      {
-        q: "What if I need to prove what was agreed upon in court?",
-        a: "Every signed agreement generates a locked digital record with timestamps, IP addresses, and device metadata, giving you clear, indisputable legal proof."
       }
     ]
   },
@@ -625,10 +621,6 @@ const translations: Record<Locale, TranslationBundle> = {
       {
         q: "Կարո՞ղ եմ ֆիքսել առաջարկը, որպեսզի ստորագրելուց հետո այը հնարավոր չլինի փոխել։",
         a: "Ստորագրության վայրկյանից VSTAH-ը ստեղծում է անփոփոխ, ժամանակային կնիքով PDF, որը կողպված է երկու կողմերի համար։"
-      },
-      {
-        q: "Ի՞նչ անել, եթե ստիպված լինեմ դատարանում ապացուցել պայմանավորվածությունը։",
-        a: "Յուրաքանչյուր ստորագրված պայմանագիր ստեղծում է կողպված թվային գրառում՝ ժամանակային կնիքներով, IP հասցեներով և սարքի տվյալներով, ինչը տալիս է հստակ և անվիճելի իրավական ապացույց։"
       }
     ]
   },
@@ -863,10 +855,6 @@ const translations: Record<Locale, TranslationBundle> = {
       {
         q: "Могу ли я заблокировать предложение, чтобы его нельзя было изменить после подписания?",
         a: "В секунду подписи VSTAH создаёт защищённый от изменений PDF с отметкой времени, навсегда заблокированный для обеих сторон."
-      },
-      {
-        q: "Что делать, если мне придется доказывать договоренности в суде?",
-        a: "Каждое подписанное соглашение создаёт заблокированную цифровую запись с отметками времени, IP-адресами и метаданными устройства — чёткое и неоспоримое юридическое доказательство."
       }
     ]
   }
