@@ -171,7 +171,7 @@ type Agreement = {
   total_price: number;
   vat_mode?: VatMode;
   payment_type: "single" | "milestones";
-  milestones: { title: string; amount: number; status?: "pending" | "escrow_held" | "released" }[] | null;
+  milestones: { title: string; amount: number; status?: "pending" | "escrow_held" | "released"; target_date?: string }[] | null;
   status: AgreementStatus;
   payment_status: "pending" | "escrow_held" | "released";
   client_signature?: string;
@@ -235,6 +235,7 @@ type PaymentScheduleRow = {
   index: number;
   stage: string;
   amount: number;
+  targetDate?: string;
 };
 
 function buildPaymentScheduleRows(
@@ -247,7 +248,8 @@ function buildPaymentScheduleRows(
     return (agreement.milestones ?? []).map((m, i) => ({
       index: i + 1,
       stage: m.title,
-      amount: Number(m.amount || 0)
+      amount: Number(m.amount || 0),
+      targetDate: m.target_date?.trim() || undefined
     }));
   }
 
@@ -339,6 +341,7 @@ export default function AgreementClientPage({
             "Ստորև նշված է վճարման ժամանակացույցը, որը դուք ընդունում եք մեկ ստորագրությամբ։",
           scheduleStage: "Փուլ",
           scheduleAmount: "Գումար",
+          scheduleTargetDate: "Նպատակային ամսաթիվ",
           scheduleStatus: "Կարգավիճակ",
           pendingSignature: "Սպասում է ստորագրության",
           singlePaymentLabel: "Լրիվ վճարում",
@@ -469,6 +472,7 @@ export default function AgreementClientPage({
               "Ниже указан график платежей, который вы принимаете одной подписью.",
             scheduleStage: "Этап",
             scheduleAmount: "Сумма",
+            scheduleTargetDate: "Целевая дата",
             scheduleStatus: "Статус",
             pendingSignature: "Ожидает подписи",
             singlePaymentLabel: "Полная оплата",
@@ -598,6 +602,7 @@ export default function AgreementClientPage({
               "The payment schedule below is accepted in full with your single signature at the bottom.",
             scheduleStage: "Stage",
             scheduleAmount: "Amount",
+            scheduleTargetDate: "Target date",
             scheduleStatus: "Status",
             pendingSignature: "Pending signature",
             singlePaymentLabel: "Full payment",
@@ -1335,6 +1340,7 @@ export default function AgreementClientPage({
   const serviceAreaDisplay = agreement.service_area?.trim() || "Armenia";
   const readableAgreementId = `VSTAH-${new Date(agreement.created_at).getFullYear()}-${agreement.id.split("-")[0].toUpperCase()}`;
   const paymentScheduleRows = buildPaymentScheduleRows(agreement, tx);
+  const showMilestoneTargetDates = paymentScheduleRows.some((row) => Boolean(row.targetDate));
 
   const milestoneStatusBadge = (isSigned: boolean) =>
     isSigned ? (
@@ -1528,6 +1534,9 @@ export default function AgreementClientPage({
                     <th className="px-4 py-3.5">#</th>
                     <th className="px-4 py-3.5">{tx.scheduleStage}</th>
                     <th className="px-4 py-3.5">{tx.scheduleAmount}</th>
+                    {showMilestoneTargetDates ? (
+                      <th className="px-4 py-3.5">{tx.scheduleTargetDate}</th>
+                    ) : null}
                     <th className="px-4 py-3.5">{tx.scheduleStatus}</th>
                   </tr>
                 </thead>
@@ -1537,6 +1546,11 @@ export default function AgreementClientPage({
                       <td className="px-4 py-4 font-semibold text-slate-500">{row.index}</td>
                       <td className="px-4 py-4 font-semibold text-slate-900">{row.stage}</td>
                       <td className="px-4 py-4 tabular-nums text-base font-black text-[#0033A0]">{money(row.amount)} ֏</td>
+                      {showMilestoneTargetDates ? (
+                        <td className="px-4 py-4 text-slate-700">
+                          {row.targetDate ? formatDateDMY(row.targetDate) : "—"}
+                        </td>
+                      ) : null}
                       <td className="px-4 py-4">{milestoneStatusBadge(signed)}</td>
                     </tr>
                   ))}
@@ -1559,6 +1573,12 @@ export default function AgreementClientPage({
                   <div className="space-y-2.5 px-3.5 py-4">
                     <p className="font-semibold leading-snug text-slate-900">{row.stage}</p>
                     <p className="text-xl font-black tabular-nums text-[#0033A0]">{money(row.amount)} ֏</p>
+                    {row.targetDate ? (
+                      <div className="rounded-xl bg-slate-50 px-3 py-2.5 ring-1 ring-slate-100">
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{tx.scheduleTargetDate}</p>
+                        <p className="mt-1 text-sm font-semibold text-slate-800">{formatDateDMY(row.targetDate)}</p>
+                      </div>
+                    ) : null}
                   </div>
                 </li>
               ))}
