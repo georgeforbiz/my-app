@@ -25,6 +25,38 @@ export function hasAgreementsHintStorageKey(userId: string): string {
   return `vstah_has_agreements:${userId}`;
 }
 
+/** Per-user default Contract Terms template for the create-deal form. */
+export function contractTermsStorageKey(userId: string): string {
+  return `vstah_contract_terms:${userId}`;
+}
+
+export function readStoredContractTerms(userId: string | undefined | null): string {
+  if (!userId || typeof window === "undefined") return "";
+  try {
+    return localStorage.getItem(contractTermsStorageKey(userId)) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+export function writeStoredContractTerms(userId: string, terms: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(contractTermsStorageKey(userId), terms);
+  } catch {
+    // quota / private mode
+  }
+}
+
+export function clearStoredContractTerms(userId: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem(contractTermsStorageKey(userId));
+  } catch {
+    // ignore
+  }
+}
+
 export function readHasAgreementsHint(userId: string | undefined | null): boolean {
   if (!userId || typeof window === "undefined") return false;
   try {

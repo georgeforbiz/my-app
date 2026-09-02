@@ -235,14 +235,11 @@ type PaymentScheduleRow = {
   index: number;
   stage: string;
   amount: number;
-  condition: string;
 };
 
 function buildPaymentScheduleRows(
   agreement: Agreement,
   tx: {
-    conditionStage: string;
-    conditionSingle: string;
     singlePaymentLabel: string;
   }
 ): PaymentScheduleRow[] {
@@ -250,8 +247,7 @@ function buildPaymentScheduleRows(
     return (agreement.milestones ?? []).map((m, i) => ({
       index: i + 1,
       stage: m.title,
-      amount: Number(m.amount || 0),
-      condition: tx.conditionStage.replace("{stage}", m.title)
+      amount: Number(m.amount || 0)
     }));
   }
 
@@ -259,8 +255,7 @@ function buildPaymentScheduleRows(
     {
       index: 1,
       stage: tx.singlePaymentLabel,
-      amount: Number(agreement.total_price || 0),
-      condition: tx.conditionSingle
+      amount: Number(agreement.total_price || 0)
     }
   ];
 }
@@ -344,11 +339,8 @@ export default function AgreementClientPage({
             "Ստորև նշված է վճարման ժամանակացույցը, որը դուք ընդունում եք մեկ ստորագրությամբ։",
           scheduleStage: "Փուլ",
           scheduleAmount: "Գումար",
-          scheduleCondition: "Պայման / Շարժիչ",
           scheduleStatus: "Կարգավիճակ",
           pendingSignature: "Սպասում է ստորագրության",
-          conditionStage: "Այս փուլի ավարտից հետո՝ {stage}",
-          conditionSingle: "Պայմանագրով ամբողջ աշխատանքի ավարտից հետո",
           singlePaymentLabel: "Լրիվ վճարում",
           optionalSignature: "Ձեր ստորագրությունը",
           signatureHint:
@@ -477,11 +469,8 @@ export default function AgreementClientPage({
               "Ниже указан график платежей, который вы принимаете одной подписью.",
             scheduleStage: "Этап",
             scheduleAmount: "Сумма",
-            scheduleCondition: "Условие / триггер",
             scheduleStatus: "Статус",
             pendingSignature: "Ожидает подписи",
-            conditionStage: "После завершения этапа: {stage}",
-            conditionSingle: "После выполнения всех работ по соглашению",
             singlePaymentLabel: "Полная оплата",
             optionalSignature: "Ваша подпись",
             signatureHint:
@@ -609,11 +598,8 @@ export default function AgreementClientPage({
               "The payment schedule below is accepted in full with your single signature at the bottom.",
             scheduleStage: "Stage",
             scheduleAmount: "Amount",
-            scheduleCondition: "Condition / Trigger",
             scheduleStatus: "Status",
             pendingSignature: "Pending signature",
-            conditionStage: "Upon completion of: {stage}",
-            conditionSingle: "Upon completion of all work under this agreement",
             singlePaymentLabel: "Full payment",
             optionalSignature: "Your signature",
             signatureHint:
@@ -1542,7 +1528,6 @@ export default function AgreementClientPage({
                     <th className="px-4 py-3.5">#</th>
                     <th className="px-4 py-3.5">{tx.scheduleStage}</th>
                     <th className="px-4 py-3.5">{tx.scheduleAmount}</th>
-                    <th className="px-4 py-3.5">{tx.scheduleCondition}</th>
                     <th className="px-4 py-3.5">{tx.scheduleStatus}</th>
                   </tr>
                 </thead>
@@ -1552,7 +1537,6 @@ export default function AgreementClientPage({
                       <td className="px-4 py-4 font-semibold text-slate-500">{row.index}</td>
                       <td className="px-4 py-4 font-semibold text-slate-900">{row.stage}</td>
                       <td className="px-4 py-4 tabular-nums text-base font-black text-[#0033A0]">{money(row.amount)} ֏</td>
-                      <td className="px-4 py-4 leading-snug text-slate-700">{row.condition}</td>
                       <td className="px-4 py-4">{milestoneStatusBadge(signed)}</td>
                     </tr>
                   ))}
@@ -1575,10 +1559,6 @@ export default function AgreementClientPage({
                   <div className="space-y-2.5 px-3.5 py-4">
                     <p className="font-semibold leading-snug text-slate-900">{row.stage}</p>
                     <p className="text-xl font-black tabular-nums text-[#0033A0]">{money(row.amount)} ֏</p>
-                    <div className="rounded-xl bg-slate-50 px-3 py-2.5 ring-1 ring-slate-100">
-                      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{tx.scheduleCondition}</p>
-                      <p className="mt-1 text-sm leading-snug text-slate-700">{row.condition}</p>
-                    </div>
                   </div>
                 </li>
               ))}

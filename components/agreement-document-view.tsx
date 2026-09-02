@@ -44,7 +44,7 @@ export type AgreementDocumentData = {
   total_price: number;
   vat_mode?: VatMode;
   payment_type: "single" | "milestones";
-  milestones: { title: string; amount: number }[] | null;
+  milestones: { title: string; amount: number; target_date?: string }[] | null;
   created_at: string;
   status?: "pending" | "signed" | "completed";
   client_signature?: string;
@@ -83,7 +83,7 @@ type PaymentScheduleRow = {
   index: number;
   stage: string;
   amount: number;
-  condition: string;
+  targetDate?: string;
 };
 
 function buildPaymentScheduleRows(
@@ -95,7 +95,7 @@ function buildPaymentScheduleRows(
       index: i + 1,
       stage: m.title,
       amount: Number(m.amount || 0),
-      condition: tx.conditionStage.replace("{stage}", m.title)
+      targetDate: m.target_date?.trim() || undefined
     }));
   }
 
@@ -103,8 +103,7 @@ function buildPaymentScheduleRows(
     {
       index: 1,
       stage: tx.singlePaymentLabel,
-      amount: Number(agreement.total_price || 0),
-      condition: tx.conditionSingle
+      amount: Number(agreement.total_price || 0)
     }
   ];
 }
@@ -168,6 +167,7 @@ export function AgreementDocumentView({
     ? tx.previewId
     : `VSTAH-${new Date(agreement.created_at).getFullYear()}-${agreement.id.split("-")[0].toUpperCase()}`;
   const paymentScheduleRows = buildPaymentScheduleRows(agreement, tx);
+  const showMilestoneTargetDates = paymentScheduleRows.some((row) => Boolean(row.targetDate));
   const terms = agreement.custom_terms?.trim() || "";
   const providerLogo = useAgreementProviderLogo(agreement, viewerUserId) ?? null;
   const providerLogoSrc =
@@ -389,7 +389,9 @@ export function AgreementDocumentView({
                   <th className="px-4 py-3.5">#</th>
                   <th className="px-4 py-3.5">{tx.scheduleStage}</th>
                   <th className="px-4 py-3.5">{tx.scheduleAmount}</th>
-                  <th className="px-4 py-3.5">{tx.scheduleCondition}</th>
+                  {showMilestoneTargetDates ? (
+                    <th className="px-4 py-3.5">{tx.scheduleTargetDate}</th>
+                  ) : null}
                   <th className="px-4 py-3.5">{tx.scheduleStatus}</th>
                 </tr>
               </thead>
@@ -399,7 +401,11 @@ export function AgreementDocumentView({
                     <td className="px-4 py-4 font-semibold text-slate-500">{row.index}</td>
                     <td className="px-4 py-4 font-semibold text-slate-900">{row.stage}</td>
                     <td className="px-4 py-4 tabular-nums text-base font-black text-[#0033A0]">{money(row.amount)} ֏</td>
-                    <td className="px-4 py-4 leading-snug text-slate-700">{row.condition}</td>
+                    {showMilestoneTargetDates ? (
+                      <td className="px-4 py-4 text-slate-700">
+                        {row.targetDate ? formatDateDMY(row.targetDate) : "—"}
+                      </td>
+                    ) : null}
                     <td className="px-4 py-4">{milestoneStatusBadge(signed)}</td>
                   </tr>
                 ))}
@@ -422,10 +428,12 @@ export function AgreementDocumentView({
                 <div className="space-y-2.5 px-3.5 py-4">
                   <p className="font-semibold leading-snug text-slate-900">{row.stage}</p>
                   <p className="text-xl font-black tabular-nums text-[#0033A0]">{money(row.amount)} ֏</p>
-                  <div className="rounded-xl bg-slate-50 px-3 py-2.5 ring-1 ring-slate-100">
-                    <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{tx.scheduleCondition}</p>
-                    <p className="mt-1 text-sm leading-snug text-slate-700">{row.condition}</p>
-                  </div>
+                  {row.targetDate ? (
+                    <div className="rounded-xl bg-slate-50 px-3 py-2.5 ring-1 ring-slate-100">
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{tx.scheduleTargetDate}</p>
+                      <p className="mt-1 text-sm font-semibold text-slate-800">{formatDateDMY(row.targetDate)}</p>
+                    </div>
+                  ) : null}
                 </div>
               </li>
             ))}

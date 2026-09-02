@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { insertAgreementWithSchemaFallback, type PaymentType } from "@/lib/agreements/row";
+import { insertAgreementWithSchemaFallback, normalizeMilestoneInput, type PaymentType } from "@/lib/agreements/row";
 import { normalizeVatMode } from "@/lib/agreements/vat";
 import {
   getAgreementMutationClient,
@@ -64,13 +64,7 @@ export async function POST(request: NextRequest) {
 
   const paymentType: PaymentType = body.paymentType === "milestones" ? "milestones" : "single";
   const rawMilestones = Array.isArray(body.milestones) ? body.milestones : [];
-  const milestones = rawMilestones.map((m) => {
-    const row = m as Record<string, unknown>;
-    return {
-      title: readString(row.title),
-      amount: readNumber(row.amount)
-    };
-  });
+  const milestones = rawMilestones.map((m) => normalizeMilestoneInput(m));
 
   const result = await insertAgreementWithSchemaFallback(insertClient, {
     providerId: user.id,

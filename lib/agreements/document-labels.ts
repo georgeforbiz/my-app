@@ -34,12 +34,10 @@ export type AgreementDocumentLabels = {
   paymentScheduleIntro: string;
   scheduleStage: string;
   scheduleAmount: string;
-  scheduleCondition: string;
+  scheduleTargetDate: string;
   scheduleStatus: string;
   statusSigned: string;
   pendingSignature: string;
-  conditionStage: string;
-  conditionSingle: string;
   singlePaymentLabel: string;
   agreeTermsAccepted: string;
   previewSignHint: string;
@@ -84,12 +82,10 @@ const labels: Record<Language, AgreementDocumentLabels> = {
       "The payment schedule below is accepted in full with your single signature at the bottom.",
     scheduleStage: "Stage",
     scheduleAmount: "Amount",
-    scheduleCondition: "Condition / Trigger",
+    scheduleTargetDate: "Target date",
     scheduleStatus: "Status",
     statusSigned: "Signed",
     pendingSignature: "Pending signature",
-    conditionStage: "Upon completion of: {stage}",
-    conditionSingle: "Upon completion of all work under this agreement",
     singlePaymentLabel: "Full payment",
     agreeTermsAccepted: "Terms accepted",
     previewSignHint: "Client will sign here on the shared agreement link.",
@@ -132,12 +128,10 @@ const labels: Record<Language, AgreementDocumentLabels> = {
       "Ստորև նշված է վճարման ժամանակացույցը, որը դուք ընդունում եք մեկ ստորագրությամբ։",
     scheduleStage: "Փուլ",
     scheduleAmount: "Գումար",
-    scheduleCondition: "Պայման / Շարժիչ",
+    scheduleTargetDate: "Նպատակային ամսաթիվ",
     scheduleStatus: "Կարգավիճակ",
     statusSigned: "Ստորագրված",
     pendingSignature: "Սպասում է ստորագրության",
-    conditionStage: "Այս փուլի ավարտից հետո՝ {stage}",
-    conditionSingle: "Պայմանագրով ամբողջ աշխատանքի ավարտից հետո",
     singlePaymentLabel: "Լրիվ վճարում",
     agreeTermsAccepted: "Պայմաններն ընդունված են",
     previewSignHint: "Հաճախորդը կստորագրի այստեղ՝ բացված հղումով։",
@@ -179,12 +173,10 @@ const labels: Record<Language, AgreementDocumentLabels> = {
     paymentScheduleIntro: "Ниже указан график платежей, который вы принимаете одной подписью.",
     scheduleStage: "Этап",
     scheduleAmount: "Сумма",
-    scheduleCondition: "Условие / триггер",
+    scheduleTargetDate: "Целевая дата",
     scheduleStatus: "Статус",
     statusSigned: "Подписано",
     pendingSignature: "Ожидает подписи",
-    conditionStage: "После завершения этапа: {stage}",
-    conditionSingle: "После выполнения всех работ по соглашению",
     singlePaymentLabel: "Полная оплата",
     agreeTermsAccepted: "Условия приняты",
     previewSignHint: "Клиент подпишет здесь по общей ссылке.",

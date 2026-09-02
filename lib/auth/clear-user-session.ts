@@ -1,5 +1,6 @@
 import { clearSigningOut } from "@/lib/auth/constants";
 import {
+  clearStoredContractTerms,
   isSupabaseAuthStorageKey,
   isVstahSessionStorageKey,
   LEGACY_MOCK_PLAN_KEY,
@@ -53,6 +54,7 @@ export function clearUserSessionData(userId: string): void {
   const localAgreementIds = listLocalAgreements(userId).map((row) => row.id);
 
   clearStoredProviderLogo(userId);
+  clearStoredContractTerms(userId);
   clearVerificationPendingForAgreementIds(localAgreementIds);
   clearLocalAgreementsForProvider(userId);
   clearAgreementCachesForProvider(userId);

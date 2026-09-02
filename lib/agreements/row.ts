@@ -10,7 +10,37 @@ import {
 import { appendVatModeToTerms, normalizeVatMode, resolveVatMode, stripVatModeFromTerms } from "./vat";
 
 export type PaymentType = "single" | "milestones";
-export type Milestone = { title: string; amount: number; status?: "pending" | "escrow_held" | "released" };
+export type Milestone = {
+  title: string;
+  amount: number;
+  status?: "pending" | "escrow_held" | "released";
+  /** Optional per-milestone target completion date (`YYYY-MM-DD`). */
+  target_date?: string;
+};
+
+/** @internal Shared mapper for DB / localStorage milestone JSON. */
+export function mapMilestoneFromStorage(raw: unknown): Milestone {
+  const row = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
+  const targetRaw = String(row.target_date ?? row.completion_date ?? "").trim();
+  const isoTarget = /^\d{4}-\d{2}-\d{2}/.test(targetRaw) ? targetRaw.slice(0, 10) : undefined;
+  return {
+    title: String(row.title ?? ""),
+    amount: Number(row.amount ?? 0),
+    status:
+      row.status === "released" ? "released" : row.status === "escrow_held" ? "escrow_held" : "pending",
+    ...(isoTarget ? { target_date: isoTarget } : {})
+  };
+}
+
+/** Normalize milestone input from API / form payloads. */
+export function normalizeMilestoneInput(raw: unknown): Milestone {
+  const mapped = mapMilestoneFromStorage(raw);
+  return {
+    title: mapped.title,
+    amount: mapped.amount,
+    ...(mapped.target_date ? { target_date: mapped.target_date } : {})
+  };
+}
 export type AgreementStatus = "pending" | "signed" | "completed";
 
 export type NormalizedAgreement = {
@@ -60,11 +90,7 @@ function parseLegacyPaymentTerms(raw: unknown): { payment_type: PaymentType; mil
       return {
         payment_type: "milestones",
         milestones: Array.isArray(parsed.milestones)
-          ? (parsed.milestones as Milestone[]).map((m) => ({
-              title: String(m?.title ?? ""),
-              amount: Number(m?.amount ?? 0),
-              status: m?.status === "released" ? "released" : m?.status === "escrow_held" ? "escrow_held" : "pending"
-            }))
+          ? parsed.milestones.map(mapMilestoneFromStorage)
           : []
       };
     }
@@ -85,13 +111,7 @@ export function normalizeAgreementRow(row: Record<string, unknown>): NormalizedA
   if (row.payment_type === "milestones" || row.payment_type === "single") {
     payment_type = row.payment_type;
     if (payment_type === "milestones") {
-      milestones = Array.isArray(row.milestones)
-        ? (row.milestones as Milestone[]).map((m) => ({
-            title: String(m?.title ?? ""),
-            amount: Number(m?.amount ?? 0),
-            status: m?.status === "released" ? "released" : m?.status === "escrow_held" ? "escrow_held" : "pending"
-          }))
-        : [];
+      milestones = Array.isArray(row.milestones) ? row.milestones.map(mapMilestoneFromStorage) : [];
     }
   } else {
     const legacy = parseLegacyPaymentTerms(row.payment_terms);
@@ -331,10 +351,7 @@ export async function insertAgreementWithSchemaFallback(
     payment_type: params.paymentType,
     milestones:
       params.paymentType === "milestones"
-        ? params.milestones.map((m) => ({
-            ...m,
-            status: m.status === "released" ? "released" : m.status === "escrow_held" ? "escrow_held" : "pending"
-          }))
+        ? params.milestones.map((m) => mapMilestoneFromStorage({ ...m, status: m.status ?? "pending" }))
         : [],
     status: "pending" as const
   };
@@ -390,10 +407,9 @@ export async function insertAgreementWithSchemaFallback(
         ? JSON.stringify({
             vstahVersion: 1,
             payment_type: "milestones",
-            milestones: params.milestones.map((m) => ({
-              ...m,
-              status: m.status === "released" ? "released" : m.status === "escrow_held" ? "escrow_held" : "pending"
-            }))
+            milestones: params.milestones.map((m) =>
+              mapMilestoneFromStorage({ ...m, status: m.status ?? "pending" })
+            )
           })
         : "single",
     status: "pending" as const

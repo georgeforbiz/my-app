@@ -40,10 +40,9 @@ type TranslationBundle = {
   btnProtectProject: string;
   btnSeeHow: string;
   heroEyebrow: string;
-  /** Split headline so the renovation word can be styled (blue + underline). */
-  heroTitleBefore: string;
-  heroTitleHighlight: string;
-  heroTitleAfter: string;
+  heroTitleLine1: string;
+  heroTitleLine2: string;
+  heroTitleLine3: string;
   heroSubtitle: string;
   heroPainPoints: string[];
   heroDashboardTitle: string;
@@ -164,9 +163,9 @@ const translations: Record<Locale, TranslationBundle> = {
     btnProtectProject: "Try for Free",
     btnSeeHow: "See How It Works",
     heroEyebrow: "",
-    heroTitleBefore: "Protect every deal with a clear agreement before",
-    heroTitleHighlight: "",
-    heroTitleAfter: "work starts.",
+    heroTitleLine1: "Protect every deal",
+    heroTitleLine2: "with a clear agreement",
+    heroTitleLine3: "before work starts.",
     heroSubtitle: "Send a link. Lock the terms. Avoid the argument.",
     heroPainPoints: [
       "When the client is terrified to pay you upfront, but you can't work for free...",
@@ -402,9 +401,9 @@ const translations: Record<Locale, TranslationBundle> = {
     btnProtectProject: "Փորձել անվճար",
     btnSeeHow: "Տեսնել ինչպես է աշխատում",
     heroEyebrow: "",
-    heroTitleBefore: "Պաշտպանիր գործարքդ հստակ պայմանագրով՝ նախքան",
-    heroTitleHighlight: "",
-    heroTitleAfter: "աշխատանքը սկսելը:",
+    heroTitleLine1: "Պաշտպանիր գործարքդ",
+    heroTitleLine2: "հստակ պայմանագրով",
+    heroTitleLine3: "նախքան աշխատանքը սկսելը:",
     heroSubtitle: "Ուղարկիր հղումը: Ֆիքսիր պայմանները: Խուսափիր վեճից:",
     heroPainPoints: [
       "Երբ հաճախորդը վախենում է կանխավճարից, բայց դուք չեք կարող անվճար աշխատել...",
@@ -641,9 +640,9 @@ const translations: Record<Locale, TranslationBundle> = {
     btnProtectProject: "Попробовать бесплатно",
     btnSeeHow: "Как это работает",
     heroEyebrow: "",
-    heroTitleBefore: "Защити сделку четким договором до",
-    heroTitleHighlight: "",
-    heroTitleAfter: "начала работ.",
+    heroTitleLine1: "Защити каждую сделку",
+    heroTitleLine2: "четким соглашением",
+    heroTitleLine3: "до начала работ.",
     heroSubtitle: "Отправьте ссылку. Зафиксируйте условия. Избегите спора.",
     heroPainPoints: [
       "Когда клиент боится платить вперёд, а вы не можете работать бесплатно...",

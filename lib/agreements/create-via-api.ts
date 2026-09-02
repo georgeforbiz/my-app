@@ -21,7 +21,7 @@ export type CreateAgreementApiPayload = {
   vatMode?: VatMode;
   totalPrice: number;
   paymentType: PaymentType;
-  milestones: { title: string; amount: number }[];
+  milestones: { title: string; amount: number; target_date?: string }[];
   providerLogoUrl?: string;
 };
 
@@ -52,6 +52,46 @@ export async function createAgreementViaApi(
   }
 }
 
+export type UpdatePendingAgreementPayload = {
+  customTerms: string;
+  paymentType: PaymentType;
+  milestones: { title: string; amount: number; target_date?: string }[];
+  totalPrice: number;
+  estimatedCompletionDate?: string;
+};
+
+/** Updates custom terms / milestones / dates on a pending (unsigned) agreement. */
+export async function updatePendingAgreementViaApi(
+  accessToken: string,
+  agreementId: string,
+  payload: UpdatePendingAgreementPayload
+): Promise<{ id?: string; agreement?: NormalizedAgreement; error?: string }> {
+  try {
+    const res = await fetch(`/api/agreement/${encodeURIComponent(agreementId)}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${accessToken}`
+      },
+      body: JSON.stringify(payload)
+    });
+    const data = (await res.json().catch(() => ({}))) as {
+      id?: string;
+      agreement?: NormalizedAgreement;
+      error?: string;
+    };
+    if (!res.ok) {
+      return { error: data.error ?? "Failed to update agreement." };
+    }
+    if (!data.id) {
+      return { error: "Failed to update agreement." };
+    }
+    return { id: data.id, agreement: data.agreement };
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Failed to fetch" };
+  }
+}
+
 export function localAgreementToApiPayload(local: NormalizedAgreement): CreateAgreementApiPayload {
   return {
     clientName: local.client_name,
@@ -72,7 +112,8 @@ export function localAgreementToApiPayload(local: NormalizedAgreement): CreateAg
     paymentType: local.payment_type,
     milestones: (local.milestones ?? []).map((m) => ({
       title: m.title,
-      amount: Number(m.amount || 0)
+      amount: Number(m.amount || 0),
+      ...(m.target_date ? { target_date: m.target_date } : {})
     })),
     providerLogoUrl: local.provider_logo_url
   };

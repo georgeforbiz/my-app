@@ -79,7 +79,8 @@ function toApiPayload(draft: ShareableDraft): CreateAgreementApiPayload {
     paymentType: draft.paymentType,
     milestones: draft.milestones.map((m) => ({
       title: m.title,
-      amount: Number(m.amount || 0)
+      amount: Number(m.amount || 0),
+      ...(m.target_date ? { target_date: m.target_date } : {})
     })),
     providerLogoUrl: draft.providerLogoUrl ?? undefined
   };

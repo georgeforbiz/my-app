@@ -54,6 +54,15 @@ export function isSignedWithoutSignature(agreement: {
   return isSignedOrCompleted(agreement.status) && !hasStoredClientSignature(agreement);
 }
 
+/** Pending & unsigned — creator may still change terms / milestones / dates. */
+export function isAgreementEditable(agreement: {
+  status?: string | null;
+  client_signature?: string | null;
+}): boolean {
+  if (isAgreementSigned(agreement)) return false;
+  return (agreement.status ?? "pending") === "pending";
+}
+
 export function statusRank(status: string | undefined | null): number {
   if (status === "completed") return 2;
   if (status === "signed") return 1;

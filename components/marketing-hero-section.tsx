@@ -7,26 +7,49 @@ import { ORANGE } from "@/lib/brand";
 import { ROUTES } from "@/lib/routes";
 
 type HeroCopy = ProposalPreviewCopy & {
-  heroTitleBefore: string;
-  heroTitleAfter: string;
+  heroTitleLine1: string;
+  heroTitleLine2: string;
+  heroTitleLine3: string;
   heroSubtitle: string;
   btnProtectProject: string;
   btnSeeHow: string;
 };
 
-const heroSubtitleClass =
-  "w-full max-w-lg text-[1.0625rem] font-semibold leading-relaxed text-white/90 max-md:mx-auto max-md:text-center sm:text-lg md:max-w-xl md:border-l-2 md:border-[#F2A800]/75 md:pl-4 md:text-left md:text-xl";
+const heroSubtitleClassEn =
+  "w-full max-w-lg text-[1.0625rem] font-semibold leading-relaxed text-white/90 max-md:mx-auto max-md:text-center sm:text-lg md:max-w-xl md:whitespace-nowrap md:border-l-2 md:border-[#F2A800]/75 md:pl-4 md:text-left md:text-xl";
 
-const heroHeadlineClass =
-  "mt-4 w-full min-w-0 text-balance text-pretty font-black tracking-tight text-center text-[2rem] leading-[1.12] sm:mt-5 sm:text-[2.35rem] md:text-left md:text-[2.5rem] md:leading-[1.1] lg:text-[3rem] xl:text-[3.35rem]";
+/** HY/RU subtitles are longer — smaller type + single row. */
+const heroSubtitleClassLocalized =
+  "w-full max-w-none whitespace-nowrap text-[0.8rem] font-semibold leading-snug text-white/90 max-md:mx-auto max-md:text-center sm:text-[0.9rem] md:border-l-2 md:border-[#F2A800]/75 md:pl-4 md:text-left md:text-[0.95rem] lg:text-base";
 
-function HeroHeadline({ before, after }: { before: string; after: string }) {
+const heroHeadlineClassEn =
+  "mt-4 w-full min-w-0 font-black tracking-tight text-center text-[clamp(1.45rem,calc(4.8vw+0.4rem),3.35rem)] leading-[1.15] sm:mt-5 md:text-left md:leading-[1.12]";
+
+/** HY/RU translations run longer — keep the same 3-line breaks with a smaller scale. */
+const heroHeadlineClassLocalized =
+  "mt-4 w-full min-w-0 font-black tracking-tight text-center text-[clamp(1.15rem,calc(3.4vw+0.35rem),2.35rem)] leading-[1.18] sm:mt-5 md:text-left md:leading-[1.14]";
+
+/** Keep each phrase on one row — no mid-line wraps like "with a clear / agreement". */
+const heroHeadlineRowClass = "block whitespace-nowrap max-md:mx-auto md:mt-1 lg:mt-1.5 first:mt-0";
+
+function HeroHeadline({
+  line1,
+  line2,
+  line3,
+  compact
+}: {
+  line1: string;
+  line2: string;
+  line3: string;
+  compact?: boolean;
+}) {
   return (
-    <h1 className={heroHeadlineClass}>
-      <span className="block max-md:mx-auto" style={{ color: ORANGE }}>
-        {before}
+    <h1 className={compact ? heroHeadlineClassLocalized : heroHeadlineClassEn}>
+      <span className={heroHeadlineRowClass} style={{ color: ORANGE }}>
+        {line1}
       </span>
-      <span className="mt-1.5 block text-white max-md:mx-auto md:mt-2">{after}</span>
+      <span className={`${heroHeadlineRowClass} text-white`}>{line2}</span>
+      <span className={`${heroHeadlineRowClass} text-white`}>{line3}</span>
     </h1>
   );
 }
@@ -41,6 +64,7 @@ export function MarketingHeroSection({
   locale: "en" | "hy" | "ru";
 }) {
   const isArmenian = locale === "hy";
+  const compactHeadline = locale === "hy" || locale === "ru";
   void isHy;
 
   const buttonsClass = isArmenian
@@ -58,12 +82,15 @@ export function MarketingHeroSection({
   return (
     <div className="relative mx-auto grid w-full min-w-0 max-w-7xl gap-10 px-4 pt-8 max-md:justify-items-center sm:gap-12 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:items-center md:gap-10 md:px-6 md:pt-10 lg:gap-14">
       <div className="relative z-10 flex min-w-0 w-full flex-col items-center text-center max-md:mx-auto md:max-w-[34rem] md:items-start md:pl-6 md:text-left lg:pl-12 xl:pl-16">
-        <p
-          className={`${heroSubtitleClass}${locale === "en" || locale === "ru" ? " md:whitespace-nowrap" : ""}`}
-        >
+        <p className={compactHeadline ? heroSubtitleClassLocalized : heroSubtitleClassEn}>
           {t.heroSubtitle.replace(/\n/g, " ")}
         </p>
-        <HeroHeadline before={t.heroTitleBefore} after={t.heroTitleAfter} />
+        <HeroHeadline
+          line1={t.heroTitleLine1}
+          line2={t.heroTitleLine2}
+          line3={t.heroTitleLine3}
+          compact={compactHeadline}
+        />
         <div className={buttonsClass}>
           <Link href={ROUTES.register} className={primaryBtnClass}>
             {t.btnProtectProject}

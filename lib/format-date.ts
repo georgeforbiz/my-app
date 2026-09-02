@@ -16,6 +16,17 @@ export function formatDateDMY(value: string | number | Date): string {
   return `${day}/${month}/${d.getFullYear()}`;
 }
 
+/** Latest valid ISO date (`YYYY-MM-DD`) from a list; ignores empty or invalid values. */
+export function latestIsoDate(dates: Array<string | undefined | null>): string {
+  let latest = "";
+  for (const value of dates) {
+    const trimmed = value?.trim();
+    if (!trimmed || !/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) continue;
+    if (!latest || trimmed > latest) latest = trimmed;
+  }
+  return latest;
+}
+
 /** Fix legacy contract text that embedded ISO dates in custom terms. */
 export function formatEmbeddedDatesInTerms(terms: string): string {
   return terms

@@ -3,7 +3,7 @@
  * session came from mock auth). Mirrors `lib/auth/mock-storage.ts`.
  */
 
-import type { Milestone, NormalizedAgreement } from "./row";
+import { mapMilestoneFromStorage, type Milestone, type NormalizedAgreement } from "./row";
 
 const KEY = "vstah_local_agreements";
 const LOCAL_ID_PREFIX = "local-";
@@ -25,12 +25,7 @@ function withMilestoneStatuses(agreement: NormalizedAgreement): NormalizedAgreem
   if (!Array.isArray(agreement.milestones)) return agreement;
   return {
     ...agreement,
-    milestones: agreement.milestones.map((m): Milestone => ({
-      title: String(m?.title ?? ""),
-      amount: Number(m?.amount ?? 0),
-      status:
-        m?.status === "released" ? "released" : m?.status === "escrow_held" ? "escrow_held" : "pending"
-    }))
+    milestones: agreement.milestones.map((m): Milestone => mapMilestoneFromStorage(m))
   };
 }
 

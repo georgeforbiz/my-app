@@ -21,6 +21,7 @@ import {
   Trash2,
   ImageIcon,
   User,
+  Pencil,
   Phone,
   Briefcase,
   MapPin,
@@ -44,15 +45,15 @@ import { FREE_AGREEMENT_LIMIT, readMockPlan, writeMockPlan, type MockPlanId } fr
 import { authDisplayName, useAuth, type AuthUser } from "@/lib/auth/auth-context";
 import { mockGetSession } from "@/lib/auth/mock-storage";
 import { isSigningOut, redirectToLogin } from "@/lib/auth/constants";
-import { readHasAgreementsHint, writeHasAgreementsHint } from "@/lib/auth/storage-keys";
+import { readHasAgreementsHint, writeHasAgreementsHint, readStoredContractTerms, writeStoredContractTerms } from "@/lib/auth/storage-keys";
 import { ROUTES } from "@/lib/routes";
 import { ensureSupabaseBrowser, getSupabaseBrowser, getSupabaseReachable } from "@/lib/supabase/browser-client";
 import { normalizeAgreementRow } from "@/lib/agreements/row";
-import { fetchDashboardAgreementsViaApi, mergeAgreementsById, publishLocalAgreementToCloud } from "@/lib/agreements/create-via-api";
+import { fetchDashboardAgreementsViaApi, mergeAgreementsById, publishLocalAgreementToCloud, updatePendingAgreementViaApi } from "@/lib/agreements/create-via-api";
 import { getAgreementPublicUrl, isShareableAgreementId } from "@/lib/agreements/public-url";
 import { createShareableAgreement, ensureSupabaseAccessToken } from "@/lib/agreements/shareable-create";
 import type { VatMode } from "@/lib/agreements/vat";
-import { pickAdvancedStatus, statusRank } from "@/lib/agreements/status-rank";
+import { isAgreementEditable, pickAdvancedStatus, statusRank } from "@/lib/agreements/status-rank";
 import { writeAgreementCache } from "@/lib/agreements/signed-cache";
 import {
   getLocalAgreement,
@@ -62,7 +63,7 @@ import {
   saveLocalAgreement,
   updateLocalAgreement
 } from "@/lib/agreements/local-store";
-import { formatDateDMY } from "@/lib/format-date";
+import { formatDateDMY, latestIsoDate } from "@/lib/format-date";
 import {
   readLogoDataUrl,
   readStoredProviderLogo,
@@ -85,8 +86,20 @@ type Lang = Language;
 type View = "overview" | "create" | "archive" | "billing";
 type AgreementStatus = "pending" | "signed" | "completed";
 type PaymentType = "single" | "milestones";
-type Milestone = { title: string; amount: number; status?: "pending" | "escrow_held" | "released" };
-type MilestoneDraft = { id: string; title: string; amount: string };
+type Milestone = {
+  title: string;
+  amount: number;
+  status?: "pending" | "escrow_held" | "released";
+  target_date?: string;
+};
+type MilestoneDraft = {
+  id: string;
+  title: string;
+  amount: string;
+  targetDay: string;
+  targetMonth: string;
+  targetYear: string;
+};
 
 type Agreement = {
   id: string;
@@ -110,6 +123,7 @@ type Agreement = {
   milestones: Milestone[] | null;
   status: AgreementStatus;
   payment_status: "pending" | "escrow_held" | "released";
+  client_signature?: string;
   provider_logo_url?: string;
   created_at: string;
 };
@@ -167,9 +181,18 @@ type Tx = {
   addMilestone: string;
   milestoneTitle: string;
   milestoneAmount: string;
+  milestoneTargetDate: string;
+  estimatedCompletionAuto: string;
   milestonesMismatch: string;
   create: string;
   creating: string;
+  edit: string;
+  editAgreement: string;
+  saveChanges: string;
+  saving: string;
+  cancelEdit: string;
+  toastUpdated: string;
+  editLocked: string;
   completeRequired: string;
   completeMilestones: string;
   agreementHistory: string;
@@ -298,9 +321,18 @@ const t: Record<Lang, Tx> = {
     addMilestone: "Add milestone",
     milestoneTitle: "Milestone title",
     milestoneAmount: "Amount (֏)",
+    milestoneTargetDate: "Target date (optional)",
+    estimatedCompletionAuto: "Auto-set from the latest milestone date",
     milestonesMismatch: "Milestones total must match total price.",
     create: "Create",
     creating: "Creating...",
+    edit: "Edit",
+    editAgreement: "Edit Agreement",
+    saveChanges: "Save changes",
+    saving: "Saving...",
+    cancelEdit: "Cancel",
+    toastUpdated: "Agreement updated",
+    editLocked: "Signed agreements cannot be edited.",
     completeRequired: "Please complete all required fields.",
     completeMilestones: "Please fill all milestone titles and amounts.",
     agreementHistory: "Agreement History",
@@ -330,7 +362,8 @@ const t: Record<Lang, Tx> = {
     completionDateCol: "Date",
     viewDetails: "View Details",
     contractTerms: "Contract Terms",
-    contractTermsPlaceholder: "Editable at any time. Your latest saved terms load when you open the dashboard.",
+    contractTermsPlaceholder:
+      "Copy and paste your work agreement here. You can edit and format it anytime before sending.",
     scopeOfWork: "Scope of Work (Included)",
     scopeOfWorkPlaceholder: "List exact deliverables (e.g., demolition, wiring, finishing, cleanup).",
     scopeExclusions: "What is NOT Included (Optional)",
@@ -427,9 +460,18 @@ const t: Record<Lang, Tx> = {
     addMilestone: "Ավելացնել փուլ",
     milestoneTitle: "Փուլի անվանում",
     milestoneAmount: "Գումար (֏)",
+    milestoneTargetDate: "Նպատակային ամսաթիվ (ըստ ցանկության)",
+    estimatedCompletionAuto: "Ավտոմատ՝ վերջին փուլի ամսաթվից",
     milestonesMismatch: "Փուլերի գումարը պետք է հավասար լինի ընդհանուրին։",
     create: "Ստեղծել",
     creating: "Ստեղծվում է…",
+    edit: "Խմբագրել",
+    editAgreement: "Խմբագրել պայմանագիրը",
+    saveChanges: "Պահպանել",
+    saving: "Պահպանվում է…",
+    cancelEdit: "Չեղարկել",
+    toastUpdated: "Պայմանագիրը թարմացված է",
+    editLocked: "Ստորագրված պայմանագրերը չեն խմբագրվում։",
     completeRequired: "Լրացրեք բոլոր պարտադիր դաշտերը։",
     completeMilestones: "Լրացրեք փուլերի անուններն ու գումարները։",
     agreementHistory: "Պայմանագրերի պատմություն",
@@ -460,7 +502,7 @@ const t: Record<Lang, Tx> = {
     viewDetails: "Մանրամասն",
     contractTerms: "Պայմաններ",
     contractTermsPlaceholder:
-      "Խմբագրելի է միշտ։ Վերջին պահվածը՝ վահանակը բացելիս։",
+      "Պատճենեք և տեղադրեք ձեր աշխատանքային պայմանագիրը այստեղ։ Կարող եք խմբագրել և ձևաչափել այն ցանկացած պահի՝ մինչև ուղարկելը։",
     scopeOfWork: "Աշխատանքի շրջանակ (ներառված)",
     scopeOfWorkPlaceholder: "Նշեք կատարվող աշխատանքները (օր.՝ քանդում, էլեկտրամոնтаж, ավարտ)...",
     scopeExclusions: "Ինչը չի ներառվում (ընտրովի)",
@@ -557,9 +599,18 @@ const t: Record<Lang, Tx> = {
     addMilestone: "Добавить этап",
     milestoneTitle: "Название этапа",
     milestoneAmount: "Сумма (֏)",
+    milestoneTargetDate: "Целевая дата (необязательно)",
+    estimatedCompletionAuto: "Автоматически — по последнему этапу",
     milestonesMismatch: "Сумма этапов должна совпадать с общей суммой.",
     create: "Создать",
     creating: "Создание…",
+    edit: "Изменить",
+    editAgreement: "Изменить соглашение",
+    saveChanges: "Сохранить",
+    saving: "Сохранение…",
+    cancelEdit: "Отмена",
+    toastUpdated: "Соглашение обновлено",
+    editLocked: "Подписанные соглашения нельзя редактировать.",
     completeRequired: "Заполните обязательные поля.",
     completeMilestones: "Укажите названия и суммы всех этапов.",
     agreementHistory: "История соглашений",
@@ -590,7 +641,7 @@ const t: Record<Lang, Tx> = {
     viewDetails: "Подробнее",
     contractTerms: "Условия",
     contractTermsPlaceholder:
-      "Можно менять в любой момент. При открытии кабинета подставляются последние сохранённые условия.",
+      "Скопируйте и вставьте сюда свой договор. Вы можете редактировать и форматировать его в любой момент до отправки.",
     scopeOfWork: "Объём работ (включено)",
     scopeOfWorkPlaceholder: "Перечислите работы (напр., демонтаж, электрика, отделка)...",
     scopeExclusions: "Что НЕ включено (необязательно)",
@@ -640,7 +691,10 @@ const fill = (template: string, vars: Record<string, string | number>) =>
 const createMilestone = (): MilestoneDraft => ({
   id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
   title: "",
-  amount: ""
+  amount: "",
+  targetDay: "",
+  targetMonth: "",
+  targetYear: ""
 });
 
 const formatAgreementNumber = (id: string, createdAt: string) =>
@@ -703,6 +757,14 @@ const selectFieldClass =
 function buildCompletionDate(year: string, month: string, day: string): string {
   if (!year || !month || !day) return "";
   return `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+}
+
+function splitIsoDate(value?: string | null): { day: string; month: string; year: string } {
+  const match = String(value ?? "")
+    .trim()
+    .match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return { day: "", month: "", year: "" };
+  return { year: match[1], month: match[2], day: match[3] };
 }
 
 function completionYearOptions(): number[] {
@@ -773,18 +835,23 @@ export default function DashboardPage() {
   const [vatMode, setVatMode] = useState<VatMode>("included");
   const [paymentType, setPaymentType] = useState<PaymentType>("single");
   const [milestones, setMilestones] = useState<MilestoneDraft[]>([]);
+  /** When set, the create form updates this pending agreement instead of creating a new one. */
+  const [editingAgreementId, setEditingAgreementId] = useState<string | null>(null);
   const [providerLogoUrl, setProviderLogoUrl] = useState("");
   const [logoRevision, setLogoRevision] = useState(0);
   const [logoError, setLogoError] = useState("");
   const [logoUploading, setLogoUploading] = useState(false);
   const logoInputRef = useRef<HTMLInputElement>(null);
-  /** Latest saved agreement body text for this provider — mirrors DB + updates on each successful create. */
+  /** Latest saved Contract Terms template for this provider (localStorage + optional cloud metadata). */
   const [globalTermsTemplate, setGlobalTermsTemplate] = useState("");
-  /** One-time hydrate of contract terms from the latest agreement (or static boilerplate). */
+  /** One-time hydrate of contract terms from saved template / last agreement. */
   const termsHydratedRef = useRef(false);
   /** Protects against overwriting user-typed terms mid-session. */
   const termsDirtyRef = useRef(false);
   const contractTermsRef = useRef(contractTerms);
+  const termsSaveTimerRef = useRef<number | null>(null);
+  const termsCloudSaveTimerRef = useRef<number | null>(null);
+  const logoBackfillAttemptedRef = useRef<Set<string>>(new Set());
   const agreementsFetchSeqRef = useRef(0);
   const agreementsRefreshTimerRef = useRef<number | null>(null);
   const agreementsRef = useRef(agreements);
@@ -797,6 +864,15 @@ export default function DashboardPage() {
       return;
     }
     setMockPlan(readMockPlan(user.id));
+  }, [user?.id]);
+
+  useEffect(() => {
+    termsHydratedRef.current = false;
+    termsDirtyRef.current = false;
+    if (!user?.id) {
+      setGlobalTermsTemplate("");
+      setContractTerms("");
+    }
   }, [user?.id]);
 
   const hydrateProviderLogo = useCallback(async () => {
@@ -838,6 +914,74 @@ export default function DashboardPage() {
     if (view !== "create" || !user?.id || providerLogoUrl.trim()) return;
     void hydrateProviderLogo();
   }, [view, user?.id, providerLogoUrl, hydrateProviderLogo]);
+
+  // Backfill logos onto older agreements so logged-out share links can render them.
+  useEffect(() => {
+    if (!user?.id || !supabase || user.source === "mock") return;
+    let logo = providerLogoUrl.trim();
+    if (!logo) return;
+
+    const missing = agreements.filter(
+      (a) =>
+        a.provider_id === user.id &&
+        !(a.provider_logo_url ?? "").trim() &&
+        !logoBackfillAttemptedRef.current.has(a.id)
+    );
+    if (missing.length === 0) return;
+
+    for (const row of missing) {
+      logoBackfillAttemptedRef.current.add(row.id);
+    }
+
+    let cancelled = false;
+    void (async () => {
+      if (logo.startsWith("data:image/")) {
+        try {
+          const token = await ensureSupabaseAccessToken(supabase);
+          if (!token || cancelled) return;
+          const blobRes = await fetch(logo);
+          const blob = await blobRes.blob();
+          const ext = blob.type.includes("png") ? "png" : blob.type.includes("webp") ? "webp" : "jpeg";
+          const file = new File([blob], `logo.${ext}`, { type: blob.type || `image/${ext}` });
+          const form = new FormData();
+          form.append("file", file);
+          const res = await fetch("/api/user/logo", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${token}` },
+            body: form
+          });
+          const payload = (await res.json().catch(() => ({}))) as { url?: string };
+          if (!res.ok || !payload.url || cancelled) return;
+          logo = payload.url;
+          setProviderLogoUrl(logo);
+          writeStoredProviderLogo(user.id, logo);
+          void syncProviderLogoToAccount(supabase, user.id, logo);
+        } catch {
+          return;
+        }
+      }
+
+      if (!logo.startsWith("http://") && !logo.startsWith("https://")) return;
+
+      for (const row of missing.slice(0, 25)) {
+        if (cancelled) return;
+        const { error } = await supabase
+          .from("agreements")
+          .update({ provider_logo_url: logo })
+          .eq("id", row.id)
+          .eq("provider_id", user.id);
+        if (!error) {
+          setAgreements((prev) =>
+            prev.map((a) => (a.id === row.id ? { ...a, provider_logo_url: logo } : a))
+          );
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [agreements, providerLogoUrl, supabase, user?.id, user?.source]);
 
   const providerLogoDisplayUrl =
     withProviderLogoCacheBust(providerLogoUrl, user?.id ?? "", logoRevision) ?? providerLogoUrl;
@@ -935,11 +1079,14 @@ export default function DashboardPage() {
       return;
     }
     const termsTemplate = globalTermsTemplate.trim() || contractTerms.trim() || undefined;
+    setEditingAgreementId(null);
     resetForm(termsTemplate);
     setView("create");
   };
 
   const openBilling = () => setView("billing");
+
+  const isEditing = Boolean(editingAgreementId);
 
   const pageTitle =
     view === "archive"
@@ -947,7 +1094,9 @@ export default function DashboardPage() {
       : view === "billing"
         ? tx.billingTitle
         : view === "create"
-          ? tx.createSafeAgreement
+          ? isEditing
+            ? tx.editAgreement
+            : tx.createSafeAgreement
           : tx.agreementsTitle;
 
   const navItems = [
@@ -962,6 +1111,7 @@ export default function DashboardPage() {
       tryOpenCreate();
       return;
     }
+    setEditingAgreementId(null);
     setView(id);
   };
   const statusText: Record<DerivedAgreementStatus, string> = {
@@ -1030,23 +1180,43 @@ export default function DashboardPage() {
 
   const totalPrice = useMemo(() => parseGroupedNumberInput(totalPriceInput), [totalPriceInput]);
 
-  const estimatedCompletionDate = useMemo(
+  const manualEstimatedCompletionDate = useMemo(
     () => buildCompletionDate(completionYear, completionMonth, completionDay),
     [completionYear, completionMonth, completionDay]
+  );
+
+  const milestonesParsed = useMemo(
+    () =>
+      milestones.map((m) => {
+        const target_date = buildCompletionDate(m.targetYear, m.targetMonth, m.targetDay);
+        return {
+          title: m.title.trim(),
+          amount: parseGroupedNumberInput(m.amount),
+          ...(target_date ? { target_date } : {})
+        };
+      }),
+    [milestones]
+  );
+
+  const effectiveEstimatedCompletionDate = useMemo(() => {
+    if (paymentType === "milestones") {
+      const milestoneDates = milestonesParsed.map((m) => m.target_date).filter(Boolean);
+      if (milestoneDates.length > 0) {
+        return latestIsoDate(milestoneDates);
+      }
+      return "";
+    }
+    return manualEstimatedCompletionDate;
+  }, [paymentType, milestonesParsed, manualEstimatedCompletionDate]);
+
+  const hasMilestoneTargetDates = useMemo(
+    () => milestonesParsed.some((m) => Boolean(m.target_date)),
+    [milestonesParsed]
   );
 
   const offerDeadline = useMemo(
     () => buildCompletionDate(deadlineYear, deadlineMonth, deadlineDay),
     [deadlineYear, deadlineMonth, deadlineDay]
-  );
-
-  const milestonesParsed = useMemo(
-    () =>
-      milestones.map((m) => ({
-        title: m.title.trim(),
-        amount: parseGroupedNumberInput(m.amount)
-      })),
-    [milestones]
   );
 
   const milestonesTotal = useMemo(() => milestonesParsed.reduce((sum, item) => sum + item.amount, 0), [milestonesParsed]);
@@ -1337,77 +1507,99 @@ export default function DashboardPage() {
     setVatMode("included");
     setPaymentType("single");
     setMilestones([]);
+    setEditingAgreementId(null);
     setError("");
   };
 
-  /** Reads provider names from cloud metadata, falling back to the local session. */
-  const resolveProviderNames = useCallback(async (): Promise<{
-    full_name: string;
-    business_name: string;
-  }> => {
-    const fallback = {
-      full_name: user?.full_name?.trim() ?? "",
-      business_name: user?.business_name?.trim() ?? ""
-    };
-    if (!user || !supabase || user.source === "mock" || getSupabaseReachable() !== true) return fallback;
-
-    try {
-      const authData = await withNetworkTimeout(supabase.auth.getUser());
-      if (!authData) return fallback;
-
-      const userMetadata = (authData.data.user?.user_metadata ?? {}) as Record<string, unknown>;
-      let full_name = String(userMetadata.full_name ?? userMetadata.fullName ?? "").trim();
-      let business_name = String(userMetadata.business_name ?? userMetadata.businessName ?? "").trim();
-      if (!full_name && !business_name) {
-        const legacy = String(userMetadata.full_name_or_business_name ?? "").trim();
-        if (legacy) {
-          const m = legacy.match(/^(.+?)\s*\((.+)\)\s*$/);
-          if (m) {
-            business_name = m[1].trim();
-            full_name = m[2].trim();
-          } else {
-            full_name = legacy;
-          }
-        }
-      }
-      return {
-        full_name: full_name || fallback.full_name,
-        business_name: business_name || fallback.business_name
-      };
-    } catch {
-      return fallback;
+  const startEditAgreement = (agreement: Agreement) => {
+    if (!isAgreementEditable(agreement)) {
+      setToast(tx.editLocked);
+      return;
     }
-  }, [supabase, user]);
 
-  const resolveProviderDisplayName = useCallback(async (): Promise<string> => {
-    if (!user) return "Service Provider";
-    const { full_name, business_name } = await resolveProviderNames();
-    return business_name || full_name || authDisplayName(user) || "Service Provider";
-  }, [resolveProviderNames, user]);
+    const completion = splitIsoDate(agreement.estimated_completion_date);
+    const deadline = splitIsoDate(agreement.deadline);
+    const defaults = profileDefaultsFromUser(user);
 
-  const buildDefaultTerms = useCallback((input: {
-    providerName: string;
-    clientName: string;
-    serviceArea: string;
-    totalPrice: number;
-  }) => {
-    const saved = globalTermsTemplate.trim();
-    if (saved.length > 0) return saved;
+    setEditingAgreementId(agreement.id);
+    setClientName(agreement.client_name ?? "");
+    setClientPhone(agreement.client_phone ?? "");
+    setProjectTitle(agreement.project_title ?? "");
+    setServiceArea(agreement.service_area?.trim() || defaults.serviceArea);
+    setProviderPhone(agreement.provider_phone?.trim() || defaults.phone);
+    setContractTerms(agreement.custom_terms ?? "");
+    setScopeOfWork(agreement.scope_of_work ?? "");
+    setScopeExclusions(agreement.scope_exclusions ?? "");
+    setCompletionDay(completion.day);
+    setCompletionMonth(completion.month);
+    setCompletionYear(completion.year);
+    setDeadlineDay(deadline.day);
+    setDeadlineMonth(deadline.month);
+    setDeadlineYear(deadline.year);
+    setTotalPriceInput(formatGroupedNumberInput(String(agreement.total_price ?? "")));
+    setVatMode(agreement.vat_mode === "exempt" ? "exempt" : "included");
+    setPaymentType(agreement.payment_type === "milestones" ? "milestones" : "single");
+    setMilestones(
+      agreement.payment_type === "milestones" && (agreement.milestones?.length ?? 0) > 0
+        ? (agreement.milestones ?? []).map((m) => {
+            const target = splitIsoDate(m.target_date);
+            return {
+              id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+              title: m.title ?? "",
+              amount: formatGroupedNumberInput(String(m.amount ?? "")),
+              targetDay: target.day,
+              targetMonth: target.month,
+              targetYear: target.year
+            };
+          })
+        : []
+    );
+    termsDirtyRef.current = true;
+    setError("");
+    setView("create");
+  };
 
-    const clientDisplay = input.clientName.trim() || "Client";
-    return [
-      "SERVICE AGREEMENT",
-      "",
-      `This Agreement is made between ${input.providerName || "Service Provider"} (\"Provider\") and ${clientDisplay} (\"Client\").`,
-      `Service Area: ${input.serviceArea}.`,
-      `Total Price: ${formatAmount(input.totalPrice)}.`,
-      "",
-      "Provider agrees to deliver services professionally and within the agreed scope and timeline.",
-      "Client agrees to cooperate, provide access where required, and review delivered work in good faith.",
-      "",
-      "Funds will be released only upon client approval."
-    ].join("\n");
-  }, [globalTermsTemplate]);
+  const cancelEditAgreement = () => {
+    setEditingAgreementId(null);
+    resetForm(globalTermsTemplate.trim() || undefined);
+    setView("overview");
+  };
+
+  const persistContractTermsTemplate = useCallback(
+    (terms: string, opts?: { syncCloud?: boolean }) => {
+      setGlobalTermsTemplate(terms);
+      if (!user?.id) return;
+      writeStoredContractTerms(user.id, terms);
+
+      if (!opts?.syncCloud || !supabase || user.source === "mock") return;
+      if (termsCloudSaveTimerRef.current) window.clearTimeout(termsCloudSaveTimerRef.current);
+      termsCloudSaveTimerRef.current = window.setTimeout(() => {
+        void supabase.auth
+          .updateUser({ data: { default_agreement_terms: terms } })
+          .catch(() => {});
+      }, 1200);
+    },
+    [supabase, user?.id, user?.source]
+  );
+
+  const handleContractTermsChange = useCallback(
+    (next: string) => {
+      termsDirtyRef.current = true;
+      setContractTerms(next);
+      if (termsSaveTimerRef.current) window.clearTimeout(termsSaveTimerRef.current);
+      termsSaveTimerRef.current = window.setTimeout(() => {
+        persistContractTermsTemplate(next, { syncCloud: true });
+      }, 400);
+    },
+    [persistContractTermsTemplate]
+  );
+
+  useEffect(() => {
+    return () => {
+      if (termsSaveTimerRef.current) window.clearTimeout(termsSaveTimerRef.current);
+      if (termsCloudSaveTimerRef.current) window.clearTimeout(termsCloudSaveTimerRef.current);
+    };
+  }, []);
 
   const providerDisplayName = useMemo(
     () => authDisplayName(user) || "Service Provider",
@@ -1424,14 +1616,7 @@ export default function DashboardPage() {
   };
 
   const buildDraftPreviewAgreement = useCallback((): Agreement => {
-    const terms =
-      contractTerms.trim() ||
-      buildDefaultTerms({
-        providerName: providerDisplayName,
-        clientName: clientName.trim(),
-        serviceArea: serviceArea.trim() || "Armenia",
-        totalPrice: totalPrice || 0
-      });
+    const terms = contractTerms.trim();
     const full_name = user?.full_name?.trim() || "";
     const business_name = user?.business_name?.trim() || "";
     return {
@@ -1448,7 +1633,7 @@ export default function DashboardPage() {
       custom_terms: terms,
       scope_of_work: scopeOfWork.trim() || undefined,
       scope_exclusions: scopeExclusions.trim() || undefined,
-      estimated_completion_date: estimatedCompletionDate.trim() || undefined,
+      estimated_completion_date: effectiveEstimatedCompletionDate.trim() || undefined,
       deadline: offerDeadline.trim() || undefined,
       total_price: totalPrice || 0,
       vat_mode: vatMode,
@@ -1460,13 +1645,12 @@ export default function DashboardPage() {
       created_at: new Date().toISOString()
     };
   }, [
-    buildDefaultTerms,
     clientName,
     clientPhone,
     contractTerms,
     scopeOfWork,
     scopeExclusions,
-    estimatedCompletionDate,
+    effectiveEstimatedCompletionDate,
     offerDeadline,
     milestonesParsed,
     paymentType,
@@ -1494,12 +1678,24 @@ export default function DashboardPage() {
   }, [previewAgreement, buildDraftPreviewAgreement, agreements]);
 
   useEffect(() => {
-    if (termsHydratedRef.current || loadingAgreements) return;
+    if (termsHydratedRef.current || !user?.id) return;
 
     let cancelled = false;
 
     void (async () => {
-      if (supabase && user?.id) {
+      const fromStorage = readStoredContractTerms(user.id);
+      if (fromStorage.trim().length > 0) {
+        if (cancelled) return;
+        setGlobalTermsTemplate(fromStorage);
+        if (!termsDirtyRef.current) setContractTerms(fromStorage);
+        termsHydratedRef.current = true;
+        return;
+      }
+
+      // Wait for agreements before falling back to cloud metadata / last agreement.
+      if (loadingAgreements) return;
+
+      if (supabase && user.source !== "mock") {
         const authData = await withNetworkTimeout(supabase.auth.getUser());
         if (cancelled) return;
         if (authData) {
@@ -1507,6 +1703,7 @@ export default function DashboardPage() {
           const saved = String(meta.default_agreement_terms ?? "").trim();
           if (saved.length > 0) {
             setGlobalTermsTemplate(saved);
+            writeStoredContractTerms(user.id, saved);
             if (!termsDirtyRef.current) setContractTerms(saved);
             termsHydratedRef.current = true;
             return;
@@ -1518,60 +1715,36 @@ export default function DashboardPage() {
         const latest = agreements[0];
         const t = (latest.custom_terms ?? "").trim();
         if (t.length > 0) {
-          termsHydratedRef.current = true;
+          if (cancelled) return;
           setGlobalTermsTemplate(t);
+          writeStoredContractTerms(user.id, t);
           if (!termsDirtyRef.current) setContractTerms(t);
+          termsHydratedRef.current = true;
           return;
         }
       }
 
+      // No saved template — leave empty so the informative placeholder shows.
       termsHydratedRef.current = true;
-      const pn = await resolveProviderDisplayName();
-      if (cancelled || termsDirtyRef.current) return;
-      setContractTerms(
-        buildDefaultTerms({
-          providerName: pn,
-          clientName: "",
-          serviceArea: "Armenia",
-          totalPrice: 0
-        })
-      );
+      if (!termsDirtyRef.current) {
+        setGlobalTermsTemplate("");
+        setContractTerms("");
+      }
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [loadingAgreements, agreements, buildDefaultTerms, resolveProviderDisplayName, supabase, user?.id, user?.source]);
+  }, [loadingAgreements, agreements, supabase, user?.id, user?.source]);
 
   useEffect(() => {
-    // When the user navigates into the Create view, prefill the textarea from
-    // the saved default template (or fallback boilerplate) if it's currently empty.
-    if (view !== "create") return;
+    // Prefill create form from the saved template when the field is empty.
+    if (view !== "create" || editingAgreementId) return;
     if (contractTermsRef.current.trim().length > 0) return;
     if (globalTermsTemplate.trim().length > 0) {
       setContractTerms(globalTermsTemplate);
-      return;
     }
-
-    let cancelled = false;
-
-    void (async () => {
-      const pn = await resolveProviderDisplayName();
-      if (cancelled) return;
-      setContractTerms(
-        buildDefaultTerms({
-          providerName: pn,
-          clientName: "",
-          serviceArea: "Armenia",
-          totalPrice: 0
-        })
-      );
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [view, globalTermsTemplate, buildDefaultTerms, resolveProviderDisplayName]);
+  }, [view, globalTermsTemplate, editingAgreementId]);
 
   const submitAgreement = async () => {
     if (!user?.id) {
@@ -1581,7 +1754,15 @@ export default function DashboardPage() {
 
     setError("");
 
-    if (isAtFreeLimit) {
+    const editingId = editingAgreementId;
+    const editingExisting = editingId ? agreements.find((a) => a.id === editingId) : undefined;
+
+    if (editingId) {
+      if (!editingExisting || !isAgreementEditable(editingExisting)) {
+        setError(tx.editLocked);
+        return;
+      }
+    } else if (isAtFreeLimit) {
       setLimitModalOpen(true);
       return;
     }
@@ -1609,6 +1790,96 @@ export default function DashboardPage() {
 
     setCreating(true);
     try {
+      const customTermsText = contractTerms.trim();
+      const milestonePayload =
+        paymentType === "milestones"
+          ? milestonesParsed.map((m) => ({
+              title: m.title,
+              amount: m.amount,
+              ...(m.target_date ? { target_date: m.target_date } : {}),
+              status: "pending" as const
+            }))
+          : null;
+
+      if (editingId && editingExisting) {
+        const updatePayload = {
+          customTerms: customTermsText,
+          paymentType,
+          milestones:
+            paymentType === "milestones"
+              ? milestonesParsed.map((m) => ({
+                  title: m.title,
+                  amount: m.amount,
+                  ...(m.target_date ? { target_date: m.target_date } : {})
+                }))
+              : [],
+          totalPrice,
+          estimatedCompletionDate: effectiveEstimatedCompletionDate.trim() || undefined
+        };
+
+        const cloudOnline = getSupabaseReachable() === true && user.source !== "mock";
+        let updatedRow: Agreement = {
+          ...editingExisting,
+          custom_terms: customTermsText,
+          payment_type: paymentType,
+          milestones: milestonePayload,
+          total_price: totalPrice,
+          estimated_completion_date: effectiveEstimatedCompletionDate.trim() || undefined,
+          status: "pending"
+        };
+
+        if (isLocalAgreementId(editingId) || user.source === "mock" || !cloudOnline) {
+          const local = updateLocalAgreement(editingId, {
+            custom_terms: customTermsText,
+            payment_type: paymentType,
+            milestones: milestonePayload,
+            total_price: totalPrice,
+            estimated_completion_date: effectiveEstimatedCompletionDate.trim() || undefined
+          });
+          if (local) updatedRow = local as Agreement;
+        } else if (supabase) {
+          const token = await ensureSupabaseAccessToken(supabase);
+          if (!token) {
+            setError(tx.signInRequiredForSharing);
+            return;
+          }
+          const result = await updatePendingAgreementViaApi(token, editingId, updatePayload);
+          if (result.error || !result.id) {
+            setError(result.error ?? tx.cloudSaveFailed);
+            return;
+          }
+          if (result.agreement) {
+            updatedRow = result.agreement as Agreement;
+          }
+          updateLocalAgreement(editingId, {
+            custom_terms: customTermsText,
+            payment_type: paymentType,
+            milestones: milestonePayload,
+            total_price: totalPrice,
+            estimated_completion_date: effectiveEstimatedCompletionDate.trim() || undefined
+          });
+        } else {
+          setError(tx.cloudSaveFailed);
+          return;
+        }
+
+        writeAgreementCache(updatedRow);
+        setAgreements((prev) => mergeAgreementsById([[updatedRow], prev]));
+        void fetch(`/api/agreement/${encodeURIComponent(editingId)}/log`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "agreement.updated" })
+        }).catch(() => {});
+
+        persistContractTermsTemplate(customTermsText, { syncCloud: cloudOnline });
+        setEditingAgreementId(null);
+        setToast(tx.toastUpdated);
+        setView("overview");
+        resetForm(customTermsText);
+        void fetchAgreements({ background: true });
+        return;
+      }
+
       const full_name = user.full_name?.trim() ?? "";
       const business_name = user.business_name?.trim() ?? "";
       const resolvedProviderPhone = providerPhone.trim() || undefined;
@@ -1617,14 +1888,36 @@ export default function DashboardPage() {
       const cloudOnline = getSupabaseReachable() === true && user.source !== "mock";
       const providerName =
         business_name || full_name || authDisplayName(user) || "Service Provider";
-      const customTermsText =
-        contractTerms.trim() ||
-        buildDefaultTerms({
-          providerName,
-          clientName: clientName.trim(),
-          serviceArea: serviceArea.trim(),
-          totalPrice
-        });
+
+      // Prefer a public HTTP logo URL so logged-out share links can render it.
+      let logoForAgreement = savedProviderLogoUrl.trim();
+      if (logoForAgreement.startsWith("data:image/") && cloudOnline && supabase) {
+        try {
+          const token = await ensureSupabaseAccessToken(supabase);
+          if (token) {
+            const blobRes = await fetch(logoForAgreement);
+            const blob = await blobRes.blob();
+            const ext = blob.type.includes("png") ? "png" : blob.type.includes("webp") ? "webp" : "jpeg";
+            const file = new File([blob], `logo.${ext}`, { type: blob.type || `image/${ext}` });
+            const form = new FormData();
+            form.append("file", file);
+            const res = await fetch("/api/user/logo", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${token}` },
+              body: form
+            });
+            const payload = (await res.json().catch(() => ({}))) as { url?: string };
+            if (res.ok && payload.url) {
+              logoForAgreement = payload.url;
+              setProviderLogoUrl(payload.url);
+              writeStoredProviderLogo(user.id, payload.url);
+              void syncProviderLogoToAccount(supabase, user.id, payload.url);
+            }
+          }
+        } catch {
+          // Keep data URL — still saved on the agreement row for viewers who can load it.
+        }
+      }
 
       const draft = {
         providerId,
@@ -1637,7 +1930,7 @@ export default function DashboardPage() {
         customTerms: customTermsText,
         scopeOfWork: scopeOfWork.trim(),
         scopeExclusions: scopeExclusions.trim() || undefined,
-        estimatedCompletionDate: estimatedCompletionDate.trim() || undefined,
+        estimatedCompletionDate: effectiveEstimatedCompletionDate.trim() || undefined,
         deadline: offerDeadline.trim() || undefined,
         providerPhone: resolvedProviderPhone,
         clientPhone: resolvedClientPhone,
@@ -1645,7 +1938,7 @@ export default function DashboardPage() {
         totalPrice,
         paymentType,
         milestones: paymentType === "milestones" ? milestonesParsed : [],
-        providerLogoUrl: savedProviderLogoUrl || undefined
+        providerLogoUrl: logoForAgreement || undefined
       };
 
       let agreementId: string | undefined;
@@ -1680,7 +1973,7 @@ export default function DashboardPage() {
                 customTerms: customTermsText,
                 scopeOfWork: scopeOfWork.trim(),
                 scopeExclusions: scopeExclusions.trim() || undefined,
-                estimatedCompletionDate: estimatedCompletionDate.trim() || undefined,
+                estimatedCompletionDate: effectiveEstimatedCompletionDate.trim() || undefined,
                 deadline: offerDeadline.trim() || undefined,
                 providerPhone: resolvedProviderPhone,
                 clientPhone: resolvedClientPhone,
@@ -1689,9 +1982,13 @@ export default function DashboardPage() {
                 paymentType,
                 milestones:
                   paymentType === "milestones"
-                    ? milestonesParsed.map((m) => ({ title: m.title, amount: m.amount }))
+                    ? milestonesParsed.map((m) => ({
+                        title: m.title,
+                        amount: m.amount,
+                        ...(m.target_date ? { target_date: m.target_date } : {})
+                      }))
                     : [],
-                providerLogoUrl: savedProviderLogoUrl || undefined
+                providerLogoUrl: logoForAgreement || undefined
               })
             });
             const deviceData = (await deviceRes.json().catch(() => ({}))) as { id?: string; error?: string };
@@ -1724,7 +2021,7 @@ export default function DashboardPage() {
           custom_terms: customTermsText,
           scope_of_work: scopeOfWork.trim(),
           scope_exclusions: scopeExclusions.trim() || undefined,
-          estimated_completion_date: estimatedCompletionDate.trim() || undefined,
+          estimated_completion_date: effectiveEstimatedCompletionDate.trim() || undefined,
           deadline: offerDeadline.trim() || undefined,
           provider_phone: resolvedProviderPhone,
           client_phone: resolvedClientPhone,
@@ -1737,7 +2034,7 @@ export default function DashboardPage() {
               : null,
           status: "pending",
           payment_status: "pending",
-          provider_logo_url: savedProviderLogoUrl || undefined
+          provider_logo_url: logoForAgreement || undefined
         });
         agreementId = local.id;
       }
@@ -1754,7 +2051,7 @@ export default function DashboardPage() {
         custom_terms: customTermsText,
         scope_of_work: scopeOfWork.trim(),
         scope_exclusions: scopeExclusions.trim() || undefined,
-        estimated_completion_date: estimatedCompletionDate.trim() || undefined,
+        estimated_completion_date: effectiveEstimatedCompletionDate.trim() || undefined,
         deadline: offerDeadline.trim() || undefined,
         provider_phone: resolvedProviderPhone,
         client_phone: resolvedClientPhone,
@@ -1767,7 +2064,7 @@ export default function DashboardPage() {
             : null,
         status: "pending",
         payment_status: "pending",
-        provider_logo_url: savedProviderLogoUrl || undefined,
+        provider_logo_url: logoForAgreement || undefined,
         created_at: new Date().toISOString()
       };
       setAgreements((prev) => mergeAgreementsById([[createdRow], prev]));
@@ -1786,7 +2083,7 @@ export default function DashboardPage() {
           custom_terms: customTermsText,
           scope_of_work: scopeOfWork.trim(),
           scope_exclusions: scopeExclusions.trim() || undefined,
-          estimated_completion_date: estimatedCompletionDate.trim() || undefined,
+          estimated_completion_date: effectiveEstimatedCompletionDate.trim() || undefined,
           deadline: offerDeadline.trim() || undefined,
           provider_phone: resolvedProviderPhone,
           client_phone: resolvedClientPhone,
@@ -1799,7 +2096,7 @@ export default function DashboardPage() {
               : null,
           status: "pending",
           payment_status: "pending",
-          provider_logo_url: savedProviderLogoUrl || undefined
+          provider_logo_url: logoForAgreement || undefined
         });
       }
 
@@ -1812,14 +2109,9 @@ export default function DashboardPage() {
         })
       }).catch(() => {});
 
-      setGlobalTermsTemplate(customTermsText);
-      if (cloudOnline && supabase) {
-        void supabase.auth
-          .updateUser({ data: { default_agreement_terms: customTermsText } })
-          .catch(() => {});
-      }
-      if (savedProviderLogoUrl && user?.id && supabase) {
-        void syncProviderLogoToAccount(supabase, user.id, savedProviderLogoUrl);
+      persistContractTermsTemplate(customTermsText, { syncCloud: cloudOnline });
+      if (logoForAgreement && user?.id && supabase) {
+        void syncProviderLogoToAccount(supabase, user.id, logoForAgreement);
       }
 
       if (cloudOnline && !isShareableAgreementId(agreementId)) {
@@ -2092,11 +2384,14 @@ export default function DashboardPage() {
                                   <AgreementStatusPill status={derived} label={statusText[derived]} />
                                 </div>
                               </div>
-                              <div className="mt-3 grid grid-cols-4 gap-2">
-                                <button type="button" onClick={() => openAgreementLink(item.id)} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.viewLink} title={tx.viewLink}><ExternalLink className="h-4 w-4" /></button>
-                                <button type="button" onClick={() => void copyAgreementLink(item.id)} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.copyLink} title={tx.copyLink}><Copy className="h-4 w-4" /></button>
-                                <button type="button" onClick={() => void openShareAgreement(item.id)} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-[#0033A0]/20 bg-[#0033A0]/5 p-2 text-[#0033A0] hover:bg-[#0033A0]/10" aria-label={tx.share} title={tx.share}><Share2 className="h-4 w-4" /></button>
-                                <button type="button" onClick={() => void downloadAgreementPdf(item)} className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.download} title={tx.download}><Download className="h-4 w-4" /></button>
+                              <div className="mt-3 flex flex-wrap gap-2">
+                                {isAgreementEditable(item) ? (
+                                  <button type="button" onClick={() => startEditAgreement(item)} className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg border border-[#F2A800]/40 bg-[#F2A800]/10 p-2 text-slate-800 hover:bg-[#F2A800]/20" aria-label={tx.edit} title={tx.edit}><Pencil className="h-4 w-4" /></button>
+                                ) : null}
+                                <button type="button" onClick={() => openAgreementLink(item.id)} className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.viewLink} title={tx.viewLink}><ExternalLink className="h-4 w-4" /></button>
+                                <button type="button" onClick={() => void copyAgreementLink(item.id)} className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.copyLink} title={tx.copyLink}><Copy className="h-4 w-4" /></button>
+                                <button type="button" onClick={() => void openShareAgreement(item.id)} className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg border border-[#0033A0]/20 bg-[#0033A0]/5 p-2 text-[#0033A0] hover:bg-[#0033A0]/10" aria-label={tx.share} title={tx.share}><Share2 className="h-4 w-4" /></button>
+                                <button type="button" onClick={() => void downloadAgreementPdf(item)} className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.download} title={tx.download}><Download className="h-4 w-4" /></button>
                               </div>
                             </article>
                           );
@@ -2130,6 +2425,9 @@ export default function DashboardPage() {
                                 </td>
                                 <td className="px-3 py-3">
                                   <div className="flex items-center gap-2">
+                                    {isAgreementEditable(item) ? (
+                                      <button type="button" onClick={() => startEditAgreement(item)} className="inline-flex items-center justify-center rounded-lg border border-[#F2A800]/40 bg-[#F2A800]/10 p-2 text-slate-800 hover:bg-[#F2A800]/20" aria-label={tx.edit} title={tx.edit}><Pencil className="h-4 w-4" /></button>
+                                    ) : null}
                                     <button type="button" onClick={() => openAgreementLink(item.id)} className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.viewLink} title={tx.viewLink}><ExternalLink className="h-4 w-4" /></button>
                                     <button type="button" onClick={() => void copyAgreementLink(item.id)} className="inline-flex items-center justify-center rounded-lg border border-slate-300 bg-white p-2 text-slate-700 hover:bg-slate-50" aria-label={tx.copyLink} title={tx.copyLink}><Copy className="h-4 w-4" /></button>
                                     <button type="button" onClick={() => void openShareAgreement(item.id)} className="inline-flex items-center justify-center rounded-lg border border-[#0033A0]/20 bg-[#0033A0]/5 p-2 text-[#0033A0] hover:bg-[#0033A0]/10" aria-label={tx.share} title={tx.share}><Share2 className="h-4 w-4" /></button>
@@ -2154,8 +2452,20 @@ export default function DashboardPage() {
 
             {view === "create" ? (
               <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h3 className="text-lg font-extrabold">{tx.createSafeAgreement}</h3>
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <h3 className="text-lg font-extrabold">{isEditing ? tx.editAgreement : tx.createSafeAgreement}</h3>
+                  {isEditing ? (
+                    <button
+                      type="button"
+                      onClick={cancelEditAgreement}
+                      className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                    >
+                      {tx.cancelEdit}
+                    </button>
+                  ) : null}
+                </div>
 
+                {!isEditing ? (
                 <div className="mt-5 rounded-xl border border-dashed border-slate-300 bg-slate-50/80 p-4">
                   <p className="text-sm font-semibold text-slate-700">{tx.providerLogo}</p>
                   <p className="mt-0.5 text-xs text-slate-500">{tx.providerLogoHint}</p>
@@ -2203,6 +2513,7 @@ export default function DashboardPage() {
                   </div>
                   {logoError ? <p className="mt-2 text-sm font-semibold text-red-700">{logoError}</p> : null}
                 </div>
+                ) : null}
 
                 <div className="mt-5 grid gap-4 md:grid-cols-2">
                   <FormField
@@ -2212,6 +2523,7 @@ export default function DashboardPage() {
                     value={clientName}
                     onChange={(e) => setClientName(e.target.value)}
                     autoComplete="off"
+                    readOnly={isEditing}
                   />
                   <FormField
                     id="create-client-phone"
@@ -2222,6 +2534,7 @@ export default function DashboardPage() {
                     autoComplete="tel"
                     inputMode="tel"
                     required
+                    readOnly={isEditing}
                   />
                   <FormField
                     id="create-project-title"
@@ -2230,6 +2543,7 @@ export default function DashboardPage() {
                     value={projectTitle}
                     onChange={(e) => setProjectTitle(e.target.value)}
                     autoComplete="off"
+                    readOnly={isEditing}
                   />
                   <FormField
                     id="create-service-area"
@@ -2238,6 +2552,7 @@ export default function DashboardPage() {
                     value={serviceArea}
                     onChange={(e) => setServiceArea(e.target.value)}
                     autoComplete="off"
+                    readOnly={isEditing}
                   />
                   <div className="md:col-span-2">
                     <FormField
@@ -2248,9 +2563,9 @@ export default function DashboardPage() {
                       onChange={(e) => setTotalPriceInput(formatGroupedNumberInput(e.target.value))}
                       inputMode="decimal"
                     />
-                    <fieldset className="mt-3">
+                    <fieldset className="mt-3" disabled={isEditing}>
                       <legend className="sr-only">{tx.totalPrice}</legend>
-                      <div className="flex flex-col gap-2 sm:flex-row sm:gap-6">
+                      <div className={`flex flex-col gap-2 sm:flex-row sm:gap-6 ${isEditing ? "opacity-60" : ""}`}>
                         <label className="flex cursor-pointer items-center gap-2.5 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-medium text-slate-700 transition has-[:checked]:border-[#0033A0] has-[:checked]:bg-[#0033A0]/5 has-[:checked]:text-[#0033A0]">
                           <input
                             type="radio"
@@ -2283,10 +2598,7 @@ export default function DashboardPage() {
                     <textarea
                       id="contract-terms-create"
                       value={contractTerms}
-                      onChange={(e) => {
-                        termsDirtyRef.current = true;
-                        setContractTerms(e.target.value);
-                      }}
+                      onChange={(e) => handleContractTermsChange(e.target.value)}
                       rows={7}
                       placeholder={tx.contractTermsPlaceholder}
                       className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500"
@@ -2305,7 +2617,8 @@ export default function DashboardPage() {
                       onChange={(e) => setScopeOfWork(e.target.value)}
                       rows={4}
                       placeholder={tx.scopeOfWorkPlaceholder}
-                      className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500"
+                      readOnly={isEditing}
+                      className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500 read-only:bg-slate-50 read-only:text-slate-700"
                     />
                   </div>
                   <div className="md:col-span-2">
@@ -2318,71 +2631,82 @@ export default function DashboardPage() {
                       onChange={(e) => setScopeExclusions(e.target.value)}
                       rows={3}
                       placeholder={tx.scopeExclusionsPlaceholder}
-                      className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500"
+                      readOnly={isEditing}
+                      className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500 read-only:bg-slate-50 read-only:text-slate-700"
                     />
                   </div>
-                  <div className="md:col-span-2">
-                    <p className="text-sm font-semibold text-slate-700">{tx.estimatedCompletionDate}</p>
-                    <div className="mt-1 grid grid-cols-3 gap-3 sm:max-w-lg">
-                      <label className="min-w-0 text-xs font-medium text-slate-500">
-                        {tx.dateDay}
-                        <select
-                          value={completionDay}
-                          onChange={(e) => setCompletionDay(e.target.value)}
-                          className={selectFieldClass}
-                          aria-label={tx.dateDay}
-                        >
-                          <option value="">—</option>
-                          {Array.from({ length: 31 }, (_, i) => {
-                            const day = String(i + 1).padStart(2, "0");
-                            return (
-                              <option key={day} value={day}>
-                                {day}
+                  {paymentType === "single" ? (
+                    <div className="md:col-span-2">
+                      <p className="text-sm font-semibold text-slate-700">{tx.estimatedCompletionDate}</p>
+                      <div className="mt-1 grid grid-cols-3 gap-3 sm:max-w-lg">
+                        <label className="min-w-0 text-xs font-medium text-slate-500">
+                          {tx.dateDay}
+                          <select
+                            value={completionDay}
+                            onChange={(e) => setCompletionDay(e.target.value)}
+                            className={selectFieldClass}
+                            aria-label={tx.dateDay}
+                          >
+                            <option value="">—</option>
+                            {Array.from({ length: 31 }, (_, i) => {
+                              const day = String(i + 1).padStart(2, "0");
+                              return (
+                                <option key={day} value={day}>
+                                  {day}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </label>
+                        <label className="min-w-0 text-xs font-medium text-slate-500">
+                          {tx.dateMonth}
+                          <select
+                            value={completionMonth}
+                            onChange={(e) => setCompletionMonth(e.target.value)}
+                            className={selectFieldClass}
+                            aria-label={tx.dateMonth}
+                          >
+                            <option value="">—</option>
+                            {Array.from({ length: 12 }, (_, i) => {
+                              const month = String(i + 1).padStart(2, "0");
+                              return (
+                                <option key={month} value={month}>
+                                  {month}
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </label>
+                        <label className="min-w-0 text-xs font-medium text-slate-500">
+                          {tx.dateYear}
+                          <select
+                            value={completionYear}
+                            onChange={(e) => setCompletionYear(e.target.value)}
+                            className={selectFieldClass}
+                            aria-label={tx.dateYear}
+                          >
+                            <option value="">—</option>
+                            {completionYearOptions().map((year) => (
+                              <option key={year} value={String(year)}>
+                                {year}
                               </option>
-                            );
-                          })}
-                        </select>
-                      </label>
-                      <label className="min-w-0 text-xs font-medium text-slate-500">
-                        {tx.dateMonth}
-                        <select
-                          value={completionMonth}
-                          onChange={(e) => setCompletionMonth(e.target.value)}
-                          className={selectFieldClass}
-                          aria-label={tx.dateMonth}
-                        >
-                          <option value="">—</option>
-                          {Array.from({ length: 12 }, (_, i) => {
-                            const month = String(i + 1).padStart(2, "0");
-                            return (
-                              <option key={month} value={month}>
-                                {month}
-                              </option>
-                            );
-                          })}
-                        </select>
-                      </label>
-                      <label className="min-w-0 text-xs font-medium text-slate-500">
-                        {tx.dateYear}
-                        <select
-                          value={completionYear}
-                          onChange={(e) => setCompletionYear(e.target.value)}
-                          className={selectFieldClass}
-                          aria-label={tx.dateYear}
-                        >
-                          <option value="">—</option>
-                          {completionYearOptions().map((year) => (
-                            <option key={year} value={String(year)}>
-                              {year}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
+                            ))}
+                          </select>
+                        </label>
+                      </div>
                     </div>
-                  </div>
+                  ) : hasMilestoneTargetDates ? (
+                    <div className="md:col-span-2">
+                      <p className="text-sm font-semibold text-slate-700">{tx.estimatedCompletionDate}</p>
+                      <p className="mt-1 text-sm font-semibold text-slate-800">
+                        {formatDateDMY(effectiveEstimatedCompletionDate)}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">{tx.estimatedCompletionAuto}</p>
+                    </div>
+                  ) : null}
                   <div className="md:col-span-2">
                     <p className="text-sm font-semibold text-slate-700">{tx.offerDeadline}</p>
-                    <div className="mt-1 grid grid-cols-3 gap-3 sm:max-w-lg">
+                    <div className={`mt-1 grid grid-cols-3 gap-3 sm:max-w-lg ${isEditing ? "pointer-events-none opacity-60" : ""}`}>
                       <label className="min-w-0 text-xs font-medium text-slate-500">
                         {tx.dateDay}
                         <select
@@ -2390,6 +2714,7 @@ export default function DashboardPage() {
                           onChange={(e) => setDeadlineDay(e.target.value)}
                           className={selectFieldClass}
                           aria-label={tx.dateDay}
+                          disabled={isEditing}
                         >
                           <option value="">—</option>
                           {Array.from({ length: 31 }, (_, i) => {
@@ -2409,6 +2734,7 @@ export default function DashboardPage() {
                           onChange={(e) => setDeadlineMonth(e.target.value)}
                           className={selectFieldClass}
                           aria-label={tx.dateMonth}
+                          disabled={isEditing}
                         >
                           <option value="">—</option>
                           {Array.from({ length: 12 }, (_, i) => {
@@ -2428,6 +2754,7 @@ export default function DashboardPage() {
                           onChange={(e) => setDeadlineYear(e.target.value)}
                           className={selectFieldClass}
                           aria-label={tx.dateYear}
+                          disabled={isEditing}
                         >
                           <option value="">—</option>
                           {completionYearOptions().map((year) => (
@@ -2459,10 +2786,83 @@ export default function DashboardPage() {
                   {paymentType === "milestones" ? (
                     <div className="mt-4 space-y-3">
                       {milestones.map((m, index) => (
-                        <div key={m.id} className="grid gap-3 md:grid-cols-[1fr_160px_auto]">
-                          <input value={m.title} onChange={(e) => setMilestones((prev) => prev.map((x) => (x.id === m.id ? { ...x, title: e.target.value } : x)))} placeholder={`${tx.milestoneTitle} ${index + 1}`} aria-label={`${tx.milestoneTitle} ${index + 1}`} className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500" />
-                          <input value={m.amount} onChange={(e) => setMilestones((prev) => prev.map((x) => (x.id === m.id ? { ...x, amount: formatGroupedNumberInput(e.target.value) } : x)))} placeholder={tx.milestoneAmount} aria-label={`${tx.milestoneAmount} ${index + 1}`} inputMode="decimal" className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500" />
-                          <button type="button" onClick={() => setMilestones((prev) => prev.filter((x) => x.id !== m.id))} className="inline-flex items-center justify-center rounded-lg border border-red-300 bg-white px-3 py-2 text-red-600" aria-label="Remove milestone"><Trash2 className="h-4 w-4" /></button>
+                        <div key={m.id} className="space-y-3 rounded-lg border border-slate-200 bg-white p-3">
+                          <div className="grid gap-3 md:grid-cols-[1fr_160px_auto]">
+                            <input value={m.title} onChange={(e) => setMilestones((prev) => prev.map((x) => (x.id === m.id ? { ...x, title: e.target.value } : x)))} placeholder={`${tx.milestoneTitle} ${index + 1}`} aria-label={`${tx.milestoneTitle} ${index + 1}`} className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500" />
+                            <input value={m.amount} onChange={(e) => setMilestones((prev) => prev.map((x) => (x.id === m.id ? { ...x, amount: formatGroupedNumberInput(e.target.value) } : x)))} placeholder={tx.milestoneAmount} aria-label={`${tx.milestoneAmount} ${index + 1}`} inputMode="decimal" className="rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500" />
+                            <button type="button" onClick={() => setMilestones((prev) => prev.filter((x) => x.id !== m.id))} className="inline-flex items-center justify-center rounded-lg border border-red-300 bg-white px-3 py-2 text-red-600" aria-label="Remove milestone"><Trash2 className="h-4 w-4" /></button>
+                          </div>
+                          <div>
+                            <p className="text-xs font-medium text-slate-500">{tx.milestoneTargetDate}</p>
+                            <div className="mt-1 grid grid-cols-3 gap-2 sm:max-w-md">
+                              <label className="min-w-0 text-xs font-medium text-slate-500">
+                                {tx.dateDay}
+                                <select
+                                  value={m.targetDay}
+                                  onChange={(e) =>
+                                    setMilestones((prev) =>
+                                      prev.map((x) => (x.id === m.id ? { ...x, targetDay: e.target.value } : x))
+                                    )
+                                  }
+                                  className={selectFieldClass}
+                                  aria-label={`${tx.dateDay} ${index + 1}`}
+                                >
+                                  <option value="">—</option>
+                                  {Array.from({ length: 31 }, (_, i) => {
+                                    const day = String(i + 1).padStart(2, "0");
+                                    return (
+                                      <option key={`${m.id}-day-${day}`} value={day}>
+                                        {day}
+                                      </option>
+                                    );
+                                  })}
+                                </select>
+                              </label>
+                              <label className="min-w-0 text-xs font-medium text-slate-500">
+                                {tx.dateMonth}
+                                <select
+                                  value={m.targetMonth}
+                                  onChange={(e) =>
+                                    setMilestones((prev) =>
+                                      prev.map((x) => (x.id === m.id ? { ...x, targetMonth: e.target.value } : x))
+                                    )
+                                  }
+                                  className={selectFieldClass}
+                                  aria-label={`${tx.dateMonth} ${index + 1}`}
+                                >
+                                  <option value="">—</option>
+                                  {Array.from({ length: 12 }, (_, i) => {
+                                    const month = String(i + 1).padStart(2, "0");
+                                    return (
+                                      <option key={`${m.id}-month-${month}`} value={month}>
+                                        {month}
+                                      </option>
+                                    );
+                                  })}
+                                </select>
+                              </label>
+                              <label className="min-w-0 text-xs font-medium text-slate-500">
+                                {tx.dateYear}
+                                <select
+                                  value={m.targetYear}
+                                  onChange={(e) =>
+                                    setMilestones((prev) =>
+                                      prev.map((x) => (x.id === m.id ? { ...x, targetYear: e.target.value } : x))
+                                    )
+                                  }
+                                  className={selectFieldClass}
+                                  aria-label={`${tx.dateYear} ${index + 1}`}
+                                >
+                                  <option value="">—</option>
+                                  {completionYearOptions().map((year) => (
+                                    <option key={`${m.id}-year-${year}`} value={String(year)}>
+                                      {year}
+                                    </option>
+                                  ))}
+                                </select>
+                              </label>
+                            </div>
+                          </div>
                         </div>
                       ))}
                       <button type="button" onClick={() => setMilestones((prev) => [...prev, createMilestone()])} className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700"><Plus className="h-4 w-4" />{tx.addMilestone}</button>
@@ -2483,7 +2883,7 @@ export default function DashboardPage() {
                     className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#F2A800] px-5 py-2.5 text-sm font-black text-slate-900 disabled:opacity-60 sm:flex-none sm:min-w-[10rem]"
                   >
                     {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
-                    {creating ? tx.creating : tx.create}
+                    {creating ? (isEditing ? tx.saving : tx.creating) : isEditing ? tx.saveChanges : tx.create}
                   </button>
                   <button
                     type="button"
@@ -2493,6 +2893,15 @@ export default function DashboardPage() {
                     <Eye className="h-4 w-4 shrink-0" />
                     {tx.preview}
                   </button>
+                  {isEditing ? (
+                    <button
+                      type="button"
+                      onClick={cancelEditAgreement}
+                      className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 sm:flex-none sm:min-w-[8rem]"
+                    >
+                      {tx.cancelEdit}
+                    </button>
+                  ) : null}
                 </div>
               </section>
             ) : null}
