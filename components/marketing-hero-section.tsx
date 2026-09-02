@@ -18,9 +18,43 @@ type HeroCopy = ProposalPreviewCopy & {
 const heroSubtitleClassEn =
   "w-full max-w-lg text-[1.0625rem] font-semibold leading-relaxed text-white/90 max-md:mx-auto max-md:text-center sm:text-lg md:max-w-xl md:whitespace-nowrap md:border-l-2 md:border-[#F2A800]/75 md:pl-4 md:text-left md:text-xl";
 
-/** HY/RU subtitles are longer — smaller type + single row. */
-const heroSubtitleClassLocalized =
-  "w-full max-w-none whitespace-nowrap text-[0.8rem] font-semibold leading-snug text-white/90 max-md:mx-auto max-md:text-center sm:text-[0.9rem] md:border-l-2 md:border-[#F2A800]/75 md:pl-4 md:text-left md:text-[0.95rem] lg:text-base";
+/** HY/RU — mobile: 3 stacked lines; md+: one row. */
+const heroSubtitleMobileLocalizedClass =
+  "flex w-full min-w-0 flex-col gap-0.5 text-center text-[0.8125rem] font-semibold leading-snug text-white/90 sm:text-[0.875rem] md:hidden";
+
+const heroSubtitleDesktopLocalizedClass =
+  "hidden w-full min-w-0 whitespace-nowrap text-[0.95rem] font-semibold leading-snug text-white/90 md:block md:border-l-2 md:border-[#F2A800]/75 md:pl-4 md:text-left lg:text-base";
+
+function localizedSubtitleLines(text: string, locale: "hy" | "ru"): string[] {
+  if (locale === "hy") {
+    const parts = text.split(/\s*:\s*/).filter(Boolean);
+    return parts.map((part, i) => (i < parts.length - 1 ? `${part}:` : part));
+  }
+  const parts = text.split(/\.\s+/).filter(Boolean);
+  return parts.map((part, i) => (i < parts.length - 1 ? `${part}.` : part.endsWith(".") ? part : `${part}.`));
+}
+
+function HeroSubtitle({ text, locale }: { text: string; locale: "en" | "hy" | "ru" }) {
+  const normalized = text.replace(/\n/g, " ");
+
+  if (locale === "hy" || locale === "ru") {
+    const lines = localizedSubtitleLines(normalized, locale);
+    return (
+      <>
+        <p className={heroSubtitleMobileLocalizedClass} aria-label={normalized}>
+          {lines.map((line) => (
+            <span key={line} className="block">
+              {line}
+            </span>
+          ))}
+        </p>
+        <p className={heroSubtitleDesktopLocalizedClass}>{normalized}</p>
+      </>
+    );
+  }
+
+  return <p className={heroSubtitleClassEn}>{normalized}</p>;
+}
 
 const heroHeadlineClassEn =
   "mt-4 w-full min-w-0 font-black tracking-tight text-center text-[clamp(1.45rem,calc(4.8vw+0.4rem),3.35rem)] leading-[1.15] sm:mt-5 md:text-left md:leading-[1.12]";
@@ -82,9 +116,7 @@ export function MarketingHeroSection({
   return (
     <div className="relative mx-auto grid w-full min-w-0 max-w-7xl gap-10 px-4 pt-8 max-md:justify-items-center sm:gap-12 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] md:items-center md:gap-10 md:px-6 md:pt-10 lg:gap-14">
       <div className="relative z-10 flex min-w-0 w-full flex-col items-center text-center max-md:mx-auto md:max-w-[34rem] md:items-start md:pl-6 md:text-left lg:pl-12 xl:pl-16">
-        <p className={compactHeadline ? heroSubtitleClassLocalized : heroSubtitleClassEn}>
-          {t.heroSubtitle.replace(/\n/g, " ")}
-        </p>
+        <HeroSubtitle text={t.heroSubtitle} locale={locale} />
         <HeroHeadline
           line1={t.heroTitleLine1}
           line2={t.heroTitleLine2}
