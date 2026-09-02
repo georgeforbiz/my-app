@@ -15,15 +15,21 @@ type HeroCopy = ProposalPreviewCopy & {
   btnSeeHow: string;
 };
 
-const heroSubtitleClassEn =
-  "w-full max-w-lg text-[1.0625rem] font-semibold leading-relaxed text-white/90 max-md:mx-auto max-md:text-center sm:text-lg md:max-w-xl md:whitespace-nowrap md:border-l-2 md:border-[#F2A800]/75 md:pl-4 md:text-left md:text-xl";
+/** EN — mobile: 2 rows; md+: one row. */
+const heroSubtitleMobileEnClass =
+  "flex w-full min-w-0 flex-col gap-0.5 text-center text-[1.0625rem] font-semibold leading-snug text-white/90 sm:text-lg md:hidden";
 
-/** HY/RU — mobile: 3 stacked lines; md+: one row. */
+const heroSubtitleDesktopEnClass =
+  "hidden w-full max-w-xl whitespace-nowrap text-xl font-semibold leading-relaxed text-white/90 md:block md:border-l-2 md:border-[#F2A800]/75 md:pl-4 md:text-left";
+
+/** HY/RU — mobile: 3 stacked lines (slightly larger); md+: one row. */
 const heroSubtitleMobileLocalizedClass =
-  "flex w-full min-w-0 flex-col gap-0.5 text-center text-[0.8125rem] font-semibold leading-snug text-white/90 sm:text-[0.875rem] md:hidden";
+  "flex w-full min-w-0 flex-col gap-0.5 text-center text-[0.9375rem] font-semibold leading-snug text-white/90 sm:text-base md:hidden";
 
 const heroSubtitleDesktopLocalizedClass =
   "hidden w-full min-w-0 whitespace-nowrap text-[0.95rem] font-semibold leading-snug text-white/90 md:block md:border-l-2 md:border-[#F2A800]/75 md:pl-4 md:text-left lg:text-base";
+
+const EN_SUBTITLE_MOBILE_LINES = ["Send a link. Lock the terms.", "Avoid the argument."] as const;
 
 function localizedSubtitleLines(text: string, locale: "hy" | "ru"): string[] {
   if (locale === "hy") {
@@ -53,7 +59,18 @@ function HeroSubtitle({ text, locale }: { text: string; locale: "en" | "hy" | "r
     );
   }
 
-  return <p className={heroSubtitleClassEn}>{normalized}</p>;
+  return (
+    <>
+      <p className={heroSubtitleMobileEnClass} aria-label={normalized}>
+        {EN_SUBTITLE_MOBILE_LINES.map((line) => (
+          <span key={line} className="block">
+            {line}
+          </span>
+        ))}
+      </p>
+      <p className={heroSubtitleDesktopEnClass}>{normalized}</p>
+    </>
+  );
 }
 
 const heroHeadlineClassEn =
