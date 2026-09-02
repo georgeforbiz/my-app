@@ -22,13 +22,13 @@ export function MarketingFooter({
   return (
     <footer className="bg-[#FAFBFC] text-slate-600">
       <div className="mx-auto w-full max-w-6xl px-4 py-12 md:px-6 md:py-14">
-        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_0.8fr] lg:gap-8">
+        <div className="grid gap-10 max-md:justify-items-center max-md:text-center sm:grid-cols-2 lg:grid-cols-[1.4fr_1fr_1fr_0.8fr] lg:gap-8 lg:text-left">
           <div className="min-w-0 sm:col-span-2 lg:col-span-1">
-            <div className="flex items-center gap-2.5">
+            <div className="flex items-center justify-center gap-2.5 md:justify-start">
               <VstahLogo size={32} alt="VSTAH logo" className="h-8 w-8" />
               <span className="text-base font-semibold tracking-tight text-slate-900">{t.brand}</span>
             </div>
-            <p className="mt-4 max-w-xs text-sm leading-relaxed text-slate-500">{t.footerTagline}</p>
+            <p className="mx-auto mt-4 max-w-xs text-sm leading-relaxed text-slate-500 md:mx-0">{t.footerTagline}</p>
           </div>
 
           <div>
@@ -68,9 +68,9 @@ export function MarketingFooter({
             </ul>
           </div>
 
-          <div className="sm:text-right lg:text-right">
+          <div className="max-md:flex max-md:flex-col max-md:items-center md:text-left lg:text-right">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{t.footerFollow}</p>
-            <div className="mt-4 flex items-center gap-4 sm:justify-end">
+            <div className="mt-4 flex items-center justify-center gap-4 lg:justify-end">
               <a
                 href="https://instagram.com/vstah.am"
                 target="_blank"
@@ -93,7 +93,7 @@ export function MarketingFooter({
           </div>
         </div>
 
-        <p className="mt-12 border-t border-slate-200/80 pt-6 text-xs text-slate-400">{t.footerRights}</p>
+        <p className="mt-12 border-t border-slate-200/80 pt-6 text-center text-xs text-slate-400 md:text-left">{t.footerRights}</p>
       </div>
     </footer>
   );
