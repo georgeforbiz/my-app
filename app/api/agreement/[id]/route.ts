@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchAgreementById } from "@/lib/agreements/load-server";
 import {
+  augmentCustomTermsWithScope,
   isMissingColumnOrSchemaCacheError,
   mapMilestoneFromStorage,
   normalizeMilestoneInput,
+  stripScopeFromTerms,
   type PaymentType
 } from "@/lib/agreements/row";
 import { appendPhonesToTerms } from "@/lib/agreements/phone-metadata";
@@ -53,7 +55,7 @@ export async function GET(_request: Request, { params }: { params: { id: string 
 
 /**
  * Provider-only update for unsigned (pending) deals.
- * Editable: custom_terms, milestones (+ target dates), estimated_completion_date, payment_type, total_price.
+ * Editable: custom_terms, scope, exclusions, deadline, milestones, completion date, payment, total.
  * Locked once signed / active.
  */
 export async function PATCH(request: NextRequest, { params }: { params: { id: string } }) {
@@ -109,12 +111,19 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
     return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 });
   }
 
-  const customTerms = readString(body.customTerms);
+  const customTerms = stripScopeFromTerms(readString(body.customTerms));
   const paymentType: PaymentType = body.paymentType === "milestones" ? "milestones" : "single";
   const rawMilestones = Array.isArray(body.milestones) ? body.milestones : [];
   const milestones = rawMilestones.map((m) => normalizeMilestoneInput(m));
   const totalPrice = readNumber(body.totalPrice);
   const estimatedCompletionDate = readString(body.estimatedCompletionDate) || null;
+  const scopeOfWork = readString(body.scopeOfWork);
+  const scopeExclusions = readString(body.scopeExclusions) || null;
+  const deadline = readString(body.deadline) || null;
+
+  if (!scopeOfWork) {
+    return NextResponse.json({ error: "Scope of work is required." }, { status: 400 });
+  }
 
   if (paymentType === "milestones") {
     if (milestones.length === 0 || milestones.some((m) => !m.title || m.amount <= 0)) {
@@ -129,7 +138,13 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
   }
 
   const vatMode = normalizeVatMode(existing.vat_mode);
-  const customTermsStored = appendPhonesToTerms(appendVatModeToTerms(customTerms, vatMode), {
+  const termsWithScope = augmentCustomTermsWithScope(customTerms, {
+    scopeOfWork,
+    scopeExclusions: scopeExclusions ?? undefined,
+    estimatedCompletionDate: estimatedCompletionDate ?? undefined,
+    deadline: deadline ?? undefined
+  });
+  const customTermsStored = appendPhonesToTerms(appendVatModeToTerms(termsWithScope, vatMode), {
     providerPhone: existing.provider_phone,
     clientPhone: existing.client_phone
   });
@@ -139,17 +154,37 @@ export async function PATCH(request: NextRequest, { params }: { params: { id: st
       ? milestones.map((m) => mapMilestoneFromStorage({ ...m, status: "pending" }))
       : [];
 
-  const payload: Record<string, unknown> = {
+  const fullPayload: Record<string, unknown> = {
     custom_terms: customTermsStored,
     payment_type: paymentType,
     milestones: normalizedMilestones,
     total_price: totalPrice,
-    estimated_completion_date: estimatedCompletionDate
+    estimated_completion_date: estimatedCompletionDate,
+    scope_of_work: scopeOfWork,
+    scope_exclusions: scopeExclusions,
+    deadline
   };
 
   const attempts: Record<string, unknown>[] = [
-    payload,
-    // Older schemas may lack estimated_completion_date
+    fullPayload,
+    // Older schemas may lack deadline
+    {
+      custom_terms: customTermsStored,
+      payment_type: paymentType,
+      milestones: normalizedMilestones,
+      total_price: totalPrice,
+      estimated_completion_date: estimatedCompletionDate,
+      scope_of_work: scopeOfWork,
+      scope_exclusions: scopeExclusions
+    },
+    // Older schemas may lack scope columns — terms still carry embedded scope
+    {
+      custom_terms: customTermsStored,
+      payment_type: paymentType,
+      milestones: normalizedMilestones,
+      total_price: totalPrice,
+      estimated_completion_date: estimatedCompletionDate
+    },
     {
       custom_terms: customTermsStored,
       payment_type: paymentType,

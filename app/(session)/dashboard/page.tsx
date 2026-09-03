@@ -1814,7 +1814,10 @@ export default function DashboardPage() {
                 }))
               : [],
           totalPrice,
-          estimatedCompletionDate: effectiveEstimatedCompletionDate.trim() || undefined
+          estimatedCompletionDate: effectiveEstimatedCompletionDate.trim() || undefined,
+          scopeOfWork: scopeOfWork.trim(),
+          scopeExclusions: scopeExclusions.trim() || undefined,
+          deadline: offerDeadline.trim() || undefined
         };
 
         const cloudOnline = getSupabaseReachable() === true && user.source !== "mock";
@@ -1825,6 +1828,9 @@ export default function DashboardPage() {
           milestones: milestonePayload,
           total_price: totalPrice,
           estimated_completion_date: effectiveEstimatedCompletionDate.trim() || undefined,
+          scope_of_work: scopeOfWork.trim(),
+          scope_exclusions: scopeExclusions.trim() || undefined,
+          deadline: offerDeadline.trim() || undefined,
           status: "pending"
         };
 
@@ -1834,7 +1840,10 @@ export default function DashboardPage() {
             payment_type: paymentType,
             milestones: milestonePayload,
             total_price: totalPrice,
-            estimated_completion_date: effectiveEstimatedCompletionDate.trim() || undefined
+            estimated_completion_date: effectiveEstimatedCompletionDate.trim() || undefined,
+            scope_of_work: scopeOfWork.trim(),
+            scope_exclusions: scopeExclusions.trim() || undefined,
+            deadline: offerDeadline.trim() || undefined
           });
           if (local) updatedRow = local as Agreement;
         } else if (supabase) {
@@ -1856,7 +1865,10 @@ export default function DashboardPage() {
             payment_type: paymentType,
             milestones: milestonePayload,
             total_price: totalPrice,
-            estimated_completion_date: effectiveEstimatedCompletionDate.trim() || undefined
+            estimated_completion_date: effectiveEstimatedCompletionDate.trim() || undefined,
+            scope_of_work: scopeOfWork.trim(),
+            scope_exclusions: scopeExclusions.trim() || undefined,
+            deadline: offerDeadline.trim() || undefined
           });
         } else {
           setError(tx.cloudSaveFailed);
@@ -2617,8 +2629,7 @@ export default function DashboardPage() {
                       onChange={(e) => setScopeOfWork(e.target.value)}
                       rows={4}
                       placeholder={tx.scopeOfWorkPlaceholder}
-                      readOnly={isEditing}
-                      className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500 read-only:bg-slate-50 read-only:text-slate-700"
+                      className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500"
                     />
                   </div>
                   <div className="md:col-span-2">
@@ -2631,8 +2642,7 @@ export default function DashboardPage() {
                       onChange={(e) => setScopeExclusions(e.target.value)}
                       rows={3}
                       placeholder={tx.scopeExclusionsPlaceholder}
-                      readOnly={isEditing}
-                      className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500 read-only:bg-slate-50 read-only:text-slate-700"
+                      className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500"
                     />
                   </div>
                   {paymentType === "single" ? (
@@ -2706,7 +2716,7 @@ export default function DashboardPage() {
                   ) : null}
                   <div className="md:col-span-2">
                     <p className="text-sm font-semibold text-slate-700">{tx.offerDeadline}</p>
-                    <div className={`mt-1 grid grid-cols-3 gap-3 sm:max-w-lg ${isEditing ? "pointer-events-none opacity-60" : ""}`}>
+                    <div className="mt-1 grid grid-cols-3 gap-3 sm:max-w-lg">
                       <label className="min-w-0 text-xs font-medium text-slate-500">
                         {tx.dateDay}
                         <select
@@ -2714,7 +2724,6 @@ export default function DashboardPage() {
                           onChange={(e) => setDeadlineDay(e.target.value)}
                           className={selectFieldClass}
                           aria-label={tx.dateDay}
-                          disabled={isEditing}
                         >
                           <option value="">—</option>
                           {Array.from({ length: 31 }, (_, i) => {
@@ -2734,7 +2743,6 @@ export default function DashboardPage() {
                           onChange={(e) => setDeadlineMonth(e.target.value)}
                           className={selectFieldClass}
                           aria-label={tx.dateMonth}
-                          disabled={isEditing}
                         >
                           <option value="">—</option>
                           {Array.from({ length: 12 }, (_, i) => {
@@ -2754,7 +2762,6 @@ export default function DashboardPage() {
                           onChange={(e) => setDeadlineYear(e.target.value)}
                           className={selectFieldClass}
                           aria-label={tx.dateYear}
-                          disabled={isEditing}
                         >
                           <option value="">—</option>
                           {completionYearOptions().map((year) => (

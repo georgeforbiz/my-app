@@ -58,6 +58,9 @@ export type UpdatePendingAgreementPayload = {
   milestones: { title: string; amount: number; target_date?: string }[];
   totalPrice: number;
   estimatedCompletionDate?: string;
+  scopeOfWork?: string;
+  scopeExclusions?: string;
+  deadline?: string;
 };
 
 /** Updates custom terms / milestones / dates on a pending (unsigned) agreement. */
