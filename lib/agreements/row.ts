@@ -122,6 +122,16 @@ export function normalizeAgreementRow(row: Record<string, unknown>): NormalizedA
   const fullName = String(row.full_name ?? row.provider_full_name ?? "").trim();
   const businessName = String(row.business_name ?? row.provider_business_name ?? "").trim();
   const rawCustomTerms = String(row.custom_terms ?? "").trim();
+  const fromTerms = parseScopeFromTerms(rawCustomTerms);
+  const scope_of_work =
+    String(row.scope_of_work ?? "").trim() || fromTerms.scope_of_work || undefined;
+  const scope_exclusions =
+    String(row.scope_exclusions ?? "").trim() || fromTerms.scope_exclusions || undefined;
+  const estimated_completion_date =
+    String(row.estimated_completion_date ?? "").trim() ||
+    fromTerms.estimated_completion_date ||
+    undefined;
+  const deadline = String(row.deadline ?? "").trim() || fromTerms.deadline || undefined;
 
   return {
     id: String(row.id ?? ""),
@@ -136,11 +146,11 @@ export function normalizeAgreementRow(row: Record<string, unknown>): NormalizedA
     client_phone: resolveClientPhone(row.client_phone, rawCustomTerms),
     project_title,
     service_area: String(row.service_area ?? "").trim(),
-    custom_terms: stripPhonesFromTerms(stripVatModeFromTerms(rawCustomTerms)),
-    scope_of_work: String(row.scope_of_work ?? "").trim() || undefined,
-    scope_exclusions: String(row.scope_exclusions ?? "").trim() || undefined,
-    estimated_completion_date: String(row.estimated_completion_date ?? "").trim() || undefined,
-    deadline: String(row.deadline ?? "").trim() || undefined,
+    custom_terms: stripScopeFromTerms(stripPhonesFromTerms(stripVatModeFromTerms(rawCustomTerms))),
+    scope_of_work,
+    scope_exclusions,
+    estimated_completion_date,
+    deadline,
     total_price: Number(row.total_price ?? 0),
     vat_mode: resolveVatMode(row.vat_mode, rawCustomTerms),
     payment_type,
@@ -191,24 +201,29 @@ async function insertAgreementRowAdaptive(
   supabase: SupabaseClient,
   initial: Record<string, unknown>,
   params: { full_name?: string | null; business_name?: string | null }
-): Promise<{ id?: string; error?: string; payload?: Record<string, unknown> }> {
+): Promise<{
+  id?: string;
+  error?: string;
+  payload?: Record<string, unknown>;
+  stripped: Set<string>;
+}> {
   let payload = { ...initial };
   const stripped = new Set<string>();
 
   for (let attempt = 0; attempt < 16; attempt++) {
     const { data, error } = await supabase.from("agreements").insert(payload).select("id").single();
     if (!error && data?.id) {
-      return { id: data.id as string, payload };
+      return { id: data.id as string, payload, stripped };
     }
 
     const message = error?.message;
     if (!isMissingColumnOrSchemaCacheError(message)) {
-      return { error: message ?? "Failed to create agreement." };
+      return { error: message ?? "Failed to create agreement.", stripped };
     }
 
     const missing = extractMissingColumnName(message);
     if (!missing || !(missing in payload) || stripped.has(missing)) {
-      return { error: message ?? "Failed to create agreement." };
+      return { error: message ?? "Failed to create agreement.", stripped };
     }
 
     stripped.add(missing);
@@ -223,7 +238,7 @@ async function insertAgreementRowAdaptive(
     }
   }
 
-  return { error: "Failed to create agreement after schema fallbacks." };
+  return { error: "Failed to create agreement after schema fallbacks.", stripped };
 }
 
 function patchLogoInBackground(supabase: SupabaseClient, agreementId: string, logoUrl: string | null | undefined) {
@@ -240,6 +255,63 @@ function patchLogoInBackground(supabase: SupabaseClient, agreementId: string, lo
     });
 }
 
+const SCOPE_COLUMN_KEYS = [
+  "scope_of_work",
+  "scope_exclusions",
+  "estimated_completion_date",
+  "deadline"
+] as const;
+
+const SCOPE_BLOCK_RE =
+  /\n\n(?:SCOPE OF WORK \(INCLUDED\):|WHAT IS NOT INCLUDED:|ESTIMATED COMPLETION DATE:|OFFER DEADLINE:)\n[\s\S]*?(?=\n\n(?:SCOPE OF WORK \(INCLUDED\):|WHAT IS NOT INCLUDED:|ESTIMATED COMPLETION DATE:|OFFER DEADLINE:|---\nvstah-)|\s*$)/gi;
+
+function parseDmyOrIsoToIso(value: string): string | undefined {
+  const trimmed = value.trim();
+  if (!trimmed) return undefined;
+  if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) return trimmed.slice(0, 10);
+  const dmy = trimmed.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (dmy) return `${dmy[3]}-${dmy[2]}-${dmy[1]}`;
+  return undefined;
+}
+
+function extractScopeBlock(terms: string, label: string): string | undefined {
+  const re = new RegExp(
+    `${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}:\\n([\\s\\S]*?)(?=\\n\\n(?:SCOPE OF WORK \\(INCLUDED\\):|WHAT IS NOT INCLUDED:|ESTIMATED COMPLETION DATE:|OFFER DEADLINE:|---\\nvstah-)|\\s*$)`,
+    "i"
+  );
+  const match = terms.match(re);
+  const body = match?.[1]?.trim();
+  return body || undefined;
+}
+
+/** Pull scope fields out of custom_terms when dedicated DB columns are empty. */
+export function parseScopeFromTerms(customTerms: string): {
+  scope_of_work?: string;
+  scope_exclusions?: string;
+  estimated_completion_date?: string;
+  deadline?: string;
+} {
+  const terms = customTerms.trim();
+  if (!terms) return {};
+  const scope_of_work = extractScopeBlock(terms, "SCOPE OF WORK (INCLUDED)");
+  const scope_exclusions = extractScopeBlock(terms, "WHAT IS NOT INCLUDED");
+  const completionRaw = extractScopeBlock(terms, "ESTIMATED COMPLETION DATE");
+  const deadlineRaw = extractScopeBlock(terms, "OFFER DEADLINE");
+  return {
+    ...(scope_of_work ? { scope_of_work } : {}),
+    ...(scope_exclusions ? { scope_exclusions } : {}),
+    ...(completionRaw
+      ? { estimated_completion_date: parseDmyOrIsoToIso(completionRaw) ?? completionRaw }
+      : {}),
+    ...(deadlineRaw ? { deadline: parseDmyOrIsoToIso(deadlineRaw) ?? deadlineRaw } : {})
+  };
+}
+
+/** Remove embedded scope blocks so Terms & Conditions does not duplicate them. */
+export function stripScopeFromTerms(customTerms: string): string {
+  return customTerms.replace(SCOPE_BLOCK_RE, "").trim();
+}
+
 /** Embeds scope fields in contract text when dedicated DB columns are unavailable. */
 export function augmentCustomTermsWithScope(
   customTerms: string,
@@ -251,7 +323,7 @@ export function augmentCustomTermsWithScope(
   }
 ): string {
   const blocks: string[] = [];
-  const base = customTerms.trim();
+  const base = stripScopeFromTerms(customTerms).trim();
   if (base) blocks.push(base);
 
   const included = scope.scopeOfWork.trim();
@@ -336,7 +408,6 @@ export async function insertAgreementWithSchemaFallback(
     }),
     termsMetadata
   );
-  const customTermsWithVat = withAgreementTermsMetadata(params.customTerms, termsMetadata);
 
   const modernBaseCore = {
     provider_id: params.providerId,
@@ -358,7 +429,9 @@ export async function insertAgreementWithSchemaFallback(
 
   const modernWithScope: Record<string, unknown> = {
     ...modernBaseCore,
-    custom_terms: customTermsWithVat,
+    // Always embed scope in custom_terms as a safety net. Dedicated columns are
+    // preferred on read; embedded blocks are stripped from the Terms section.
+    custom_terms: customTermsWithScope,
     ...scopeColumns,
     ...logoColumn,
     full_name: params.full_name ?? null,
@@ -367,6 +440,18 @@ export async function insertAgreementWithSchemaFallback(
 
   let modernResult = await insertAgreementRowAdaptive(supabase, modernWithScope, params);
   if (modernResult.id) {
+    const lostScopeColumns = SCOPE_COLUMN_KEYS.filter((key) => modernResult.stripped.has(key));
+    if (lostScopeColumns.length > 0) {
+      // Scope columns were stripped by schema fallback — persist them inside custom_terms
+      // so the agreement document can still show Scope / Exclusions / Deadline.
+      const { error: scopeTermsError } = await supabase
+        .from("agreements")
+        .update({ custom_terms: customTermsWithScope })
+        .eq("id", modernResult.id);
+      if (scopeTermsError && !isMissingColumnOrSchemaCacheError(scopeTermsError.message)) {
+        console.warn("[vstah] scope fallback into custom_terms failed:", scopeTermsError.message);
+      }
+    }
     if (!("provider_logo_url" in (modernResult.payload ?? {}))) {
       patchLogoInBackground(supabase, modernResult.id, logoUrl);
     }
