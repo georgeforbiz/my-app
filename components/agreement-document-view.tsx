@@ -327,39 +327,50 @@ export function AgreementDocumentView({
           </section>
         </div>
 
-        {agreement.scope_of_work?.trim() ||
+        {isDraft ||
+        agreement.scope_of_work?.trim() ||
         agreement.scope_exclusions?.trim() ||
         agreement.estimated_completion_date?.trim() ||
         agreement.deadline?.trim() ? (
           <section className="space-y-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm ring-1 ring-slate-900/[0.03] sm:p-6">
-            {agreement.scope_of_work?.trim() ? (
+            {isDraft || agreement.scope_of_work?.trim() ? (
               <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-4 sm:p-5">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-[#0033A0]">{tx.scopeOfWork}</p>
+                <p className="text-xs font-bold uppercase tracking-wide text-[#0033A0] sm:text-[13px]">
+                  {tx.scopeOfWork}
+                </p>
                 <pre className="mt-3 whitespace-pre-wrap break-words font-sans text-sm leading-7 text-slate-700">
-                  {agreement.scope_of_work.trim()}
+                  {agreement.scope_of_work?.trim() || "—"}
                 </pre>
               </div>
             ) : null}
-            {agreement.scope_exclusions?.trim() ? (
+            {isDraft || agreement.scope_exclusions?.trim() ? (
               <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-4 sm:p-5">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-[#0033A0]">{tx.scopeExclusions}</p>
+                <p className="text-xs font-bold uppercase tracking-wide text-[#0033A0] sm:text-[13px]">
+                  {tx.scopeExclusions}
+                </p>
                 <pre className="mt-3 whitespace-pre-wrap break-words font-sans text-sm leading-7 text-slate-700">
-                  {agreement.scope_exclusions.trim()}
+                  {agreement.scope_exclusions?.trim() || "—"}
                 </pre>
               </div>
             ) : null}
             {agreement.estimated_completion_date?.trim() ? (
               <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-4 sm:p-5">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-[#0033A0]">{tx.estimatedCompletionDate}</p>
+                <p className="text-xs font-bold uppercase tracking-wide text-[#0033A0] sm:text-[13px]">
+                  {tx.estimatedCompletionDate}
+                </p>
                 <p className="mt-3 text-base font-semibold text-slate-800">
                   {formatDateDMY(agreement.estimated_completion_date)}
                 </p>
               </div>
             ) : null}
-            {agreement.deadline?.trim() ? (
+            {isDraft || agreement.deadline?.trim() ? (
               <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-4 sm:p-5">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-[#0033A0]">{tx.offerDeadline}</p>
-                <p className="mt-3 text-base font-semibold text-slate-800">{formatDateDMY(agreement.deadline)}</p>
+                <p className="text-xs font-bold uppercase tracking-wide text-[#0033A0] sm:text-[13px]">
+                  {tx.offerDeadline}
+                </p>
+                <p className="mt-3 text-base font-semibold text-slate-800">
+                  {agreement.deadline?.trim() ? formatDateDMY(agreement.deadline) : "—"}
+                </p>
               </div>
             ) : null}
           </section>

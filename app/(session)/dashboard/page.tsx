@@ -3161,7 +3161,7 @@ export default function DashboardPage() {
               <AgreementDocumentView
                 key={
                   displayedPreview.id === "draft"
-                    ? `draft-${displayedPreview.provider_logo_url?.length ?? 0}-${displayedPreview.client_name}-${displayedPreview.project_title}`
+                    ? `draft-${displayedPreview.provider_logo_url?.length ?? 0}-${displayedPreview.client_name}-${displayedPreview.project_title}-${displayedPreview.scope_of_work?.length ?? 0}-${displayedPreview.scope_exclusions?.length ?? 0}-${displayedPreview.deadline ?? ""}-${displayedPreview.estimated_completion_date ?? ""}`
                     : displayedPreview.id
                 }
                 agreement={displayedPreview}
