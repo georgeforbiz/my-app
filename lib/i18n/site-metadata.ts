@@ -1,19 +1,21 @@
 import type { Language } from "@/lib/i18n/locales";
 
+export const SITE_DESCRIPTION =
+  "Create, share, and sign digital service agreements in seconds. Lock scope, pricing, and terms before work starts with zero friction.";
+
 export const SITE_METADATA: Record<Language, { title: string; description: string }> = {
   en: {
     title: "VSTAH | Building Trust in Every Project",
-    description:
-      "Armenia's leading safe-deal platform for home and renovation. Protected payments and secure deposits until work is complete."
+    description: SITE_DESCRIPTION
   },
   hy: {
     title: "VSTAH | Վստահություն նախագծում",
     description:
-      "Անվտանգ գործարքներ տան ու վերանորոգման համար։ Դեպոզիտը պահվում է՝ մինչև աշխատանքի ավարտը։"
+      "Ստեղծեք, կիսվեք և ստորագրեք թվային ծառայության պայմանագրեր վայրկյանների ընթացքում։ Ամրագրեք ծավալը, գները և պայմանները՝ մինչև աշխատանքի սկիզբը։"
   },
   ru: {
     title: "VSTAH | Доверие в каждом проекте",
     description:
-      "Безопасные расчёты для дома и ремонта в Армении. Платежи под защитой, средства удерживаются до приёмки работ."
+      "Создавайте, отправляйте и подписывайте цифровые договоры на услуги за секунды. Фиксируйте объём, цену и условия до начала работ — без лишней сложности."
   }
 };

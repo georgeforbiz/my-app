@@ -3,14 +3,9 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import { Activity, LayoutDashboard, Landmark, Users } from "lucide-react";
+import { LayoutDashboard } from "lucide-react";
 
-const navItems = [
-  { href: "/admin", label: "Stats", icon: LayoutDashboard, exact: true },
-  { href: "/admin/users", label: "Users", icon: Users, exact: false },
-  { href: "/admin/agreements", label: "Transfer Approvals", icon: Landmark, exact: false },
-  { href: "/admin/activity", label: "Activity", icon: Activity, exact: false }
-] as const;
+const navItems = [{ href: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true }] as const;
 
 const LOGIN_PATH = "/admin/login";
 
@@ -78,14 +73,37 @@ export default function AdminLayout({ children }: { children: ReactNode }) {
   if (isLoginRoute) return <>{children}</>;
 
   if (checking || !authenticated) {
-    return <div className="min-h-dvh bg-[#F9FAFB] p-6 text-slate-700">Loading admin...</div>;
+    return (
+      <div className="fixed inset-0 flex overflow-hidden bg-[#F9FAFB]">
+        <aside className="hidden h-full w-72 shrink-0 flex-col bg-[#0033A0] p-6 lg:flex">
+          <div className="h-8 w-40 animate-pulse rounded-lg bg-white/20" />
+          <div className="mt-3 h-4 w-48 animate-pulse rounded bg-white/10" />
+          <div className="mt-8 h-10 animate-pulse rounded-xl bg-white/15" />
+          <div className="mt-auto space-y-3">
+            <div className="h-3 w-36 animate-pulse rounded bg-white/10" />
+            <div className="h-10 animate-pulse rounded-xl bg-white/20" />
+          </div>
+        </aside>
+        <main className="min-h-0 min-w-0 flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+          <div className="mx-auto w-full max-w-7xl space-y-6">
+            <div className="h-24 animate-pulse rounded-2xl border border-slate-200 bg-white" />
+            <div className="grid gap-3 sm:grid-cols-3">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="h-24 animate-pulse rounded-2xl border border-slate-200 bg-white" />
+              ))}
+            </div>
+            <div className="h-[28rem] animate-pulse rounded-2xl border border-slate-200 bg-white" />
+          </div>
+        </main>
+      </div>
+    );
   }
 
   return (
     <div className="fixed inset-0 flex overflow-hidden bg-[#F9FAFB] text-slate-900">
       <aside className="hidden h-full w-72 shrink-0 flex-col bg-[#0033A0] p-6 text-white lg:flex">
         <h1 className="text-2xl font-black">VSTAH Admin</h1>
-        <p className="mt-2 text-sm text-blue-100">Local / demo control panel</p>
+        <p className="mt-2 text-sm text-blue-100">Essential metrics & users</p>
         <nav className="mt-8 space-y-2">
           {navItems.map(({ href, label, icon: Icon, exact }) => {
             const active = exact ? pathname === href : pathname === href || pathname.startsWith(`${href}/`);

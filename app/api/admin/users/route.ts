@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
 
   const q = (request.nextUrl.searchParams.get("q") ?? "").trim().toLowerCase();
 
-  const [authResult, profileResult, agreementResult] = await Promise.all([
+  const [authResult, profileResult] = await Promise.all([
     withAdminTimeout(supabase.auth.admin.listUsers({ page: 1, perPage: 1000 }))
       .then((result) => ({ result, message: "" }))
       .catch((error: unknown) => ({
@@ -46,29 +46,15 @@ export async function GET(request: NextRequest) {
       .catch((error: unknown) => ({
         result: null,
         message: error instanceof Error ? error.message : "Could not load profiles."
-      })),
-    withAdminTimeout(supabase.from("agreements").select("provider_id"))
-      .then((result) => ({ result, message: "" }))
-      .catch((error: unknown) => ({
-        result: null,
-        message: error instanceof Error ? error.message : "Could not load agreement counts."
       }))
   ]);
 
   const profileError = profileResult.result?.error?.message ?? profileResult.message;
   const authError = authResult.result?.error?.message ?? authResult.message;
-  const agreementError = agreementResult.result?.error?.message ?? agreementResult.message;
 
   const profiles = (profileResult.result?.data ?? []) as Omit<AdminUserRow, "agreement_count">[];
   const profilesById = new Map(profiles.map((profile) => [profile.id, profile]));
   const authUsers = authResult.result?.data.users ?? [];
-  const agreements = agreementResult.result?.data ?? [];
-  const counts: Record<string, number> = {};
-  for (const row of agreements ?? []) {
-    const pid = String((row as { provider_id?: string }).provider_id ?? "");
-    if (!pid) continue;
-    counts[pid] = (counts[pid] ?? 0) + 1;
-  }
 
   // Auth is the source of truth. Profiles only enrich contact/business fields.
   // Fall back to profiles for projects where auth.admin.listUsers is unavailable.
@@ -87,14 +73,14 @@ export async function GET(request: NextRequest) {
               profile?.service_category ?? (metadata?.service_category ? String(metadata.service_category) : null),
             service_area: profile?.service_area ?? (metadata?.service_area ? String(metadata.service_area) : null),
             created_at: authUser.created_at ?? profile?.created_at ?? "",
-            agreement_count: counts[authUser.id] ?? 0
+            agreement_count: 0
           };
         })
       : profiles.map((profile) => ({
           ...profile,
           full_name: profile.full_name ?? "",
           business_name: profile.business_name ?? "",
-          agreement_count: counts[profile.id] ?? 0
+          agreement_count: 0
         }));
   const total = users.length;
 
@@ -119,13 +105,11 @@ export async function GET(request: NextRequest) {
     total,
     filtered: users.length,
     users,
-    ...((authError || profileError || agreementError) && users.length === 0
+    ...((authError || profileError) && users.length === 0
       ? {
           error:
             "Supabase is unavailable right now. The admin page stopped waiting and is showing local browser accounts."
         }
-      : profileError || agreementError
-        ? { warning: "Some profile details or deal counts could not be loaded." }
-        : {})
+      : {})
   });
 }

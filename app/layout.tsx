@@ -5,7 +5,7 @@ import { Caveat, Great_Vibes, Inter } from "next/font/google";
 import "./globals.css";
 import { LANG_COOKIE } from "@/lib/i18n/constants";
 import type { Language } from "@/lib/i18n/locales";
-import { SITE_METADATA } from "@/lib/i18n/site-metadata";
+import { SITE_DESCRIPTION, SITE_METADATA } from "@/lib/i18n/site-metadata";
 import { RootProviders } from "./root-providers";
 
 const inter = Inter({
@@ -28,9 +28,23 @@ const greatVibes = Great_Vibes({
   display: "swap"
 });
 
+const siteTitle = SITE_METADATA.en.title;
+
 export const metadata: Metadata = {
-  title: SITE_METADATA.en.title,
-  description: SITE_METADATA.en.description
+  title: siteTitle,
+  description: SITE_DESCRIPTION,
+  openGraph: {
+    title: siteTitle,
+    description: SITE_DESCRIPTION,
+    siteName: "VSTAH",
+    type: "website",
+    locale: "en"
+  },
+  twitter: {
+    card: "summary",
+    title: siteTitle,
+    description: SITE_DESCRIPTION
+  }
 };
 
 /** Device-width scaling + safe-area support for notched iPhones (pairs with global overflow-x rules). */
