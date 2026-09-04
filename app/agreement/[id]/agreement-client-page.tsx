@@ -1481,7 +1481,7 @@ export default function AgreementClientPage({
           {agreement.scope_of_work?.trim() ||
           agreement.scope_exclusions?.trim() ||
           agreement.estimated_completion_date?.trim() ||
-          agreement.deadline?.trim() ? (
+          (!signed && agreement.deadline?.trim()) ? (
             <section className="space-y-4 rounded-2xl border border-slate-200/80 bg-white p-5 shadow-sm ring-1 ring-slate-900/[0.03] sm:p-6">
               {agreement.scope_of_work?.trim() ? (
                 <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-4 sm:p-5">
@@ -1501,7 +1501,7 @@ export default function AgreementClientPage({
                   <p className="mt-3 text-base font-semibold text-slate-800">{formatDateDMY(agreement.estimated_completion_date)}</p>
                 </div>
               ) : null}
-              {agreement.deadline?.trim() ? (
+              {!signed && agreement.deadline?.trim() ? (
                 <div className="rounded-xl border border-slate-100 bg-slate-50/70 p-4 sm:p-5">
                   <p className="text-xs font-bold uppercase tracking-wide text-[#0033A0] sm:text-[13px]">{tx.offerDeadline}</p>
                   <p className="mt-3 text-base font-semibold text-slate-800">{formatDateDMY(agreement.deadline)}</p>
