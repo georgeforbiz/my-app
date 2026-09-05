@@ -1602,8 +1602,8 @@ export default function AgreementClientPage({
                     {milestoneStatusBadge(signed)}
                   </div>
                   <div className="space-y-2.5 px-3.5 py-4">
-                    <p className="font-semibold leading-snug text-slate-900">{row.stage}</p>
-                    <p className="text-xl font-black tabular-nums text-[#0033A0]">{money(row.amount)} ֏</p>
+                    <p className="text-sm font-semibold leading-snug text-slate-900">{row.stage}</p>
+                    <p className="text-lg font-black tabular-nums text-[#0033A0]">{money(row.amount)} ֏</p>
                     {row.targetDate ? (
                       <div className="rounded-xl bg-slate-50 px-3 py-2.5 ring-1 ring-slate-100">
                         <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{tx.scheduleTargetDate}</p>
