@@ -23,6 +23,8 @@ export type ShareableDraft = {
   deadline?: string;
   providerPhone?: string;
   clientPhone?: string;
+  providerEmail?: string;
+  clientEmail?: string;
   vatMode?: VatMode;
   totalPrice: number;
   paymentType: PaymentType;
@@ -74,13 +76,16 @@ function toApiPayload(draft: ShareableDraft): CreateAgreementApiPayload {
     deadline: draft.deadline,
     providerPhone: draft.providerPhone,
     clientPhone: draft.clientPhone,
+    providerEmail: draft.providerEmail,
+    clientEmail: draft.clientEmail,
     vatMode: draft.vatMode,
     totalPrice: draft.totalPrice,
     paymentType: draft.paymentType,
     milestones: draft.milestones.map((m) => ({
       title: m.title,
       amount: Number(m.amount || 0),
-      ...(m.target_date ? { target_date: m.target_date } : {})
+      ...(m.target_date ? { target_date: m.target_date } : {}),
+      ...(m.payment_due ? { payment_due: m.payment_due } : {})
     })),
     providerLogoUrl: draft.providerLogoUrl ?? undefined
   };
@@ -102,6 +107,8 @@ function draftToInsertParams(draft: ShareableDraft) {
     deadline: draft.deadline,
     providerPhone: draft.providerPhone,
     clientPhone: draft.clientPhone,
+    providerEmail: draft.providerEmail,
+    clientEmail: draft.clientEmail,
     vatMode: draft.vatMode,
     totalPrice: draft.totalPrice,
     paymentType: draft.paymentType,

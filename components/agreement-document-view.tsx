@@ -7,7 +7,7 @@ import {
   CheckCircle2,
   FileText,
   Hash,
-  MapPin,
+  Mail,
   PenLine,
   Phone,
   User
@@ -34,6 +34,8 @@ export type AgreementDocumentData = {
   client_name: string;
   provider_phone?: string;
   client_phone?: string;
+  provider_email?: string;
+  client_email?: string;
   project_title: string;
   service_area: string;
   custom_terms?: string;
@@ -44,7 +46,7 @@ export type AgreementDocumentData = {
   total_price: number;
   vat_mode?: VatMode;
   payment_type: "single" | "milestones";
-  milestones: { title: string; amount: number; target_date?: string }[] | null;
+  milestones: { title: string; amount: number; target_date?: string; payment_due?: string }[] | null;
   created_at: string;
   status?: "pending" | "signed" | "completed";
   client_signature?: string;
@@ -84,6 +86,7 @@ type PaymentScheduleRow = {
   stage: string;
   amount: number;
   targetDate?: string;
+  paymentDue?: string;
 };
 
 function buildPaymentScheduleRows(
@@ -95,7 +98,8 @@ function buildPaymentScheduleRows(
       index: i + 1,
       stage: m.title,
       amount: Number(m.amount || 0),
-      targetDate: m.target_date?.trim() || undefined
+      targetDate: m.target_date?.trim() || undefined,
+      paymentDue: m.payment_due?.trim() || undefined
     }));
   }
 
@@ -162,12 +166,12 @@ export function AgreementDocumentView({
   const isDraft = draft || agreement.id === "draft";
   const signed = isAgreementSigned(agreement);
   const providerFields = resolveProviderNameFields(agreement);
-  const serviceAreaDisplay = agreement.service_area?.trim() || "Armenia";
   const readableAgreementId = isDraft
     ? tx.previewId
     : `VSTAH-${new Date(agreement.created_at).getFullYear()}-${agreement.id.split("-")[0].toUpperCase()}`;
   const paymentScheduleRows = buildPaymentScheduleRows(agreement, tx);
   const showMilestoneTargetDates = paymentScheduleRows.some((row) => Boolean(row.targetDate));
+  const showMilestonePaymentDue = paymentScheduleRows.some((row) => Boolean(row.paymentDue));
   const terms = agreement.custom_terms?.trim() || "";
   const providerLogo = useAgreementProviderLogo(agreement, viewerUserId) ?? null;
   const providerLogoSrc =
@@ -213,7 +217,6 @@ export function AgreementDocumentView({
           <div className="min-w-0 flex-1">
             <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500 sm:text-xs">{tx.offer}</p>
             <h1 className="mt-2 text-balance text-2xl font-black leading-tight text-[#0033A0] sm:text-3xl">{tx.title}</h1>
-            <p className="mt-2 text-base font-bold text-slate-900">{agreement.project_title}</p>
             {signed ? (
               <p className="mt-2 max-w-xl text-sm font-semibold leading-relaxed text-emerald-800">{tx.subtitleSigned}</p>
             ) : (
@@ -250,6 +253,20 @@ export function AgreementDocumentView({
           <MetaCard icon={FileText} label={tx.agreementPhase} value={phaseLabel} />
         </div>
 
+        <section className="rounded-2xl border border-slate-200/90 bg-gradient-to-br from-[#0033A0]/[0.06] via-white to-slate-50/80 p-5 shadow-sm ring-1 ring-slate-900/[0.03] sm:p-6">
+          <div className="flex items-start gap-3">
+            <Briefcase className="mt-1 h-5 w-5 shrink-0 text-[#0033A0]" aria-hidden />
+            <div className="min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500 sm:text-xs">
+                {tx.projectHeader}
+              </p>
+              <h2 className="mt-1.5 text-balance text-xl font-black leading-snug text-slate-900 sm:text-2xl">
+                {agreement.project_title || "—"}
+              </h2>
+            </div>
+          </div>
+        </section>
+
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
           <section className="min-w-0 rounded-2xl border border-slate-200/90 bg-slate-50/50 p-4 shadow-sm ring-1 ring-slate-900/[0.03] sm:p-5">
             <AgreementSectionTitle>{tx.providerDetails}</AgreementSectionTitle>
@@ -264,15 +281,6 @@ export function AgreementDocumentView({
                 </div>
               </div>
               <div className="flex gap-3">
-                <User className="mt-0.5 h-4 w-4 shrink-0 text-[#0033A0]/70" aria-hidden />
-                <div className="min-w-0">
-                  <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{tx.providerNameLabel}</dt>
-                  <dd className="mt-0.5 break-words font-semibold leading-snug [overflow-wrap:anywhere]">
-                    {providerFields.full || "—"}
-                  </dd>
-                </div>
-              </div>
-              <div className="flex gap-3">
                 <Phone className="mt-0.5 h-4 w-4 shrink-0 text-[#0033A0]/70" aria-hidden />
                 <div className="min-w-0">
                   <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{tx.providerPhoneLabel}</dt>
@@ -282,11 +290,11 @@ export function AgreementDocumentView({
                 </div>
               </div>
               <div className="flex gap-3">
-                <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#0033A0]/70" aria-hidden />
+                <Mail className="mt-0.5 h-4 w-4 shrink-0 text-[#0033A0]/70" aria-hidden />
                 <div className="min-w-0">
-                  <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{tx.serviceAreaLabel}</dt>
+                  <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{tx.providerEmailLabel}</dt>
                   <dd className="mt-0.5 break-words font-semibold leading-snug [overflow-wrap:anywhere]">
-                    {serviceAreaDisplay}
+                    {agreement.provider_email?.trim() || "—"}
                   </dd>
                 </div>
               </div>
@@ -315,11 +323,11 @@ export function AgreementDocumentView({
                 </div>
               </div>
               <div className="flex gap-3">
-                <Briefcase className="mt-0.5 h-4 w-4 shrink-0 text-[#0033A0]/70" aria-hidden />
+                <Mail className="mt-0.5 h-4 w-4 shrink-0 text-[#0033A0]/70" aria-hidden />
                 <div className="min-w-0">
-                  <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{tx.project}</dt>
+                  <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{tx.clientEmailLabel}</dt>
                   <dd className="mt-0.5 break-words font-semibold leading-snug [overflow-wrap:anywhere]">
-                    {agreement.project_title}
+                    {agreement.client_email?.trim() || "—"}
                   </dd>
                 </div>
               </div>
@@ -403,6 +411,9 @@ export function AgreementDocumentView({
                   {showMilestoneTargetDates ? (
                     <th className="px-4 py-3.5">{tx.scheduleTargetDate}</th>
                   ) : null}
+                  {showMilestonePaymentDue ? (
+                    <th className="px-4 py-3.5">{tx.schedulePaymentDue}</th>
+                  ) : null}
                   <th className="px-4 py-3.5">{tx.scheduleStatus}</th>
                 </tr>
               </thead>
@@ -415,6 +426,11 @@ export function AgreementDocumentView({
                     {showMilestoneTargetDates ? (
                       <td className="px-4 py-4 text-slate-700">
                         {row.targetDate ? formatDateDMY(row.targetDate) : "—"}
+                      </td>
+                    ) : null}
+                    {showMilestonePaymentDue ? (
+                      <td className="px-4 py-4 font-medium text-slate-800">
+                        {row.paymentDue || "—"}
                       </td>
                     ) : null}
                     <td className="px-4 py-4">{milestoneStatusBadge(signed)}</td>
@@ -443,6 +459,12 @@ export function AgreementDocumentView({
                     <div className="rounded-xl bg-slate-50 px-3 py-2.5 ring-1 ring-slate-100">
                       <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{tx.scheduleTargetDate}</p>
                       <p className="mt-1 text-sm font-semibold text-slate-800">{formatDateDMY(row.targetDate)}</p>
+                    </div>
+                  ) : null}
+                  {row.paymentDue ? (
+                    <div className="rounded-xl bg-[#0033A0]/[0.06] px-3 py-2.5 ring-1 ring-[#0033A0]/10">
+                      <p className="text-[10px] font-bold uppercase tracking-wide text-[#0033A0]">{tx.schedulePaymentDue}</p>
+                      <p className="mt-1 text-sm font-semibold text-slate-900">{row.paymentDue}</p>
                     </div>
                   ) : null}
                 </div>

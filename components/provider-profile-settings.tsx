@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Building2, MapPin, Phone, User } from "lucide-react";
+import { Building2, Phone, User } from "lucide-react";
 import { useEffect, useState } from "react";
 import { FormField } from "@/components/form-field";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -13,8 +13,7 @@ function profileFromUser(user: ReturnType<typeof useAuth>["user"]): ProviderProf
   return {
     full_name: user?.full_name?.trim() ?? "",
     business_name: user?.business_name?.trim() ?? "",
-    phone_number: user?.phone_number?.trim() ?? "",
-    service_area: user?.service_area?.trim() ?? ""
+    phone_number: user?.phone_number?.trim() ?? ""
   };
 }
 
@@ -34,7 +33,6 @@ export function ProviderProfileSettings({ backHref = ROUTES.dashboard }: { backH
           fullName: "Ամբողջ անուն",
           businessName: "Բիզնեսի անվանում",
           phoneNumber: "Հեռախոսահամար",
-          serviceArea: "Տարածք",
           email: "Էլ․ փոստ",
           save: "Պահպանել",
           saving: "Պահպանում…",
@@ -50,7 +48,6 @@ export function ProviderProfileSettings({ backHref = ROUTES.dashboard }: { backH
             fullName: "ФИО",
             businessName: "Название компании",
             phoneNumber: "Телефон",
-            serviceArea: "Регион работ",
             email: "Эл. почта",
             save: "Сохранить",
             saving: "Сохранение…",
@@ -65,7 +62,6 @@ export function ProviderProfileSettings({ backHref = ROUTES.dashboard }: { backH
             fullName: "Full name",
             businessName: "Business name",
             phoneNumber: "Phone number",
-            serviceArea: "Service area",
             email: "Email",
             save: "Save changes",
             saving: "Saving…",
@@ -84,7 +80,7 @@ export function ProviderProfileSettings({ backHref = ROUTES.dashboard }: { backH
     event.preventDefault();
     setError("");
     setSuccess("");
-    if (!form.full_name.trim() || !form.business_name.trim() || !form.phone_number.trim() || !form.service_area.trim()) {
+    if (!form.full_name.trim() || !form.business_name.trim() || !form.phone_number.trim()) {
       setError(tx.completeRequired);
       return;
     }
@@ -144,15 +140,7 @@ export function ProviderProfileSettings({ backHref = ROUTES.dashboard }: { backH
             autoComplete="tel"
             inputMode="tel"
             required
-          />
-          <FormField
-            id="settings-service-area"
-            label={tx.serviceArea}
-            icon={MapPin}
-            value={form.service_area}
-            onChange={(e) => setForm((prev) => ({ ...prev, service_area: e.target.value }))}
-            autoComplete="off"
-            required
+            wrapperClassName="md:col-span-2"
           />
           <div className="md:col-span-2">
             <label className="text-sm font-semibold text-slate-700" htmlFor="settings-email">

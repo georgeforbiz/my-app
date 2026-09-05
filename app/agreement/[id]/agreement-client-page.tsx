@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { CheckCircle2, Loader2, Calendar, Hash, FileText, User, Building2, MapPin, Briefcase, PenLine, Phone } from "lucide-react";
+import { CheckCircle2, Loader2, Calendar, Hash, FileText, User, Building2, Briefcase, PenLine, Phone, Mail } from "lucide-react";
 import html2canvas from "html2canvas";
 import { jsPDF } from "jspdf";
 import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
@@ -131,6 +131,8 @@ function persistSignedLocally(agreement: Agreement, signature: string | null) {
     client_name: agreement.client_name,
     provider_phone: agreement.provider_phone,
     client_phone: agreement.client_phone,
+    provider_email: agreement.provider_email,
+    client_email: agreement.client_email,
     project_title: agreement.project_title,
     service_area: agreement.service_area,
     custom_terms: agreement.custom_terms,
@@ -161,6 +163,8 @@ type Agreement = {
   client_name: string;
   provider_phone?: string;
   client_phone?: string;
+  provider_email?: string;
+  client_email?: string;
   project_title: string;
   service_area: string;
   custom_terms: string;
@@ -171,7 +175,7 @@ type Agreement = {
   total_price: number;
   vat_mode?: VatMode;
   payment_type: "single" | "milestones";
-  milestones: { title: string; amount: number; status?: "pending" | "escrow_held" | "released"; target_date?: string }[] | null;
+  milestones: { title: string; amount: number; status?: "pending" | "escrow_held" | "released"; target_date?: string; payment_due?: string }[] | null;
   status: AgreementStatus;
   payment_status: "pending" | "escrow_held" | "released";
   client_signature?: string;
@@ -236,6 +240,7 @@ type PaymentScheduleRow = {
   stage: string;
   amount: number;
   targetDate?: string;
+  paymentDue?: string;
 };
 
 function buildPaymentScheduleRows(
@@ -249,7 +254,8 @@ function buildPaymentScheduleRows(
       index: i + 1,
       stage: m.title,
       amount: Number(m.amount || 0),
-      targetDate: m.target_date?.trim() || undefined
+      targetDate: m.target_date?.trim() || undefined,
+      paymentDue: m.payment_due?.trim() || undefined
     }));
   }
 
@@ -324,12 +330,15 @@ export default function AgreementClientPage({
           title: "Անվտանգ ծառայության պայմանագիր",
           subtitle: "Ստուգեք տվյալները ստորագրելուց առաջ։",
           subtitleSigned: "Պայմանագիրը պաշտոնապես կնքված և ստորագրված է",
-          client: "Հաճախորդ",
-          clientPhoneLabel: "Հաճախորդի հեռախոս",
-          providerPhoneLabel: "Մատակարարի հեռախոս",
+          client: "Հաճախորդի անուն",
+          clientPhoneLabel: "Հեռախոս",
+          clientEmailLabel: "Էլ․ փոստ",
+          providerPhoneLabel: "Հեռախոս",
+          providerEmailLabel: "Էլ․ փոստ",
           vatStatusIncluded: "ԱԱՀ (20%): Ներառված է",
           vatStatusExempt: "ԱԱՀ: Ազատված",
           project: "Նախագիծ / Ծառայություն",
+          projectHeader: "Նախագծի / ծառայության անվանում",
           total: "Ընդհանուր գին",
           status: "Կարգավիճակ",
           paymentType: "Վճարման տեսակ",
@@ -342,6 +351,7 @@ export default function AgreementClientPage({
           scheduleStage: "Փուլ",
           scheduleAmount: "Գումար",
           scheduleTargetDate: "Նպատակային ամսաթիվ",
+          schedulePaymentDue: "Վճարման ժամկետ",
           scheduleStatus: "Կարգավիճակ",
           pendingSignature: "Սպասում է ստորագրության",
           singlePaymentLabel: "Լրիվ վճարում",
@@ -455,12 +465,15 @@ export default function AgreementClientPage({
             title: "Безопасное сервисное соглашение",
             subtitle: "Проверьте детали ниже перед принятием.",
             subtitleSigned: "Соглашение официально заключено и подписано",
-            client: "Клиент",
-            clientPhoneLabel: "Телефон клиента",
-            providerPhoneLabel: "Телефон исполнителя",
+            client: "Имя клиента",
+            clientPhoneLabel: "Телефон",
+            clientEmailLabel: "Email",
+            providerPhoneLabel: "Телефон",
+            providerEmailLabel: "Email",
             vatStatusIncluded: "НДС (20%): Включён",
             vatStatusExempt: "НДС: Не облагается",
             project: "Проект / услуга",
+            projectHeader: "Название проекта / услуги",
             total: "Общая стоимость",
             status: "Статус",
             paymentType: "Тип оплаты",
@@ -473,6 +486,7 @@ export default function AgreementClientPage({
             scheduleStage: "Этап",
             scheduleAmount: "Сумма",
             scheduleTargetDate: "Целевая дата",
+            schedulePaymentDue: "Срок оплаты",
             scheduleStatus: "Статус",
             pendingSignature: "Ожидает подписи",
             singlePaymentLabel: "Полная оплата",
@@ -585,12 +599,15 @@ export default function AgreementClientPage({
             title: "Safe Service Agreement",
             subtitle: "Review all details below before accepting this offer.",
             subtitleSigned: "Agreement Officially Executed & Signed",
-            client: "Client",
-            clientPhoneLabel: "Client Phone",
-            providerPhoneLabel: "Provider Phone",
+            client: "Client Name",
+            clientPhoneLabel: "Phone",
+            clientEmailLabel: "Email",
+            providerPhoneLabel: "Phone",
+            providerEmailLabel: "Email",
             vatStatusIncluded: "VAT (20%): Included",
             vatStatusExempt: "VAT: Exempt",
             project: "Project / Service",
+            projectHeader: "Project / Service Name",
             total: "Total Price",
             status: "Status",
             paymentType: "Payment Type",
@@ -603,6 +620,7 @@ export default function AgreementClientPage({
             scheduleStage: "Stage",
             scheduleAmount: "Amount",
             scheduleTargetDate: "Target date",
+            schedulePaymentDue: "Payment due",
             scheduleStatus: "Status",
             pendingSignature: "Pending signature",
             singlePaymentLabel: "Full payment",
@@ -1244,7 +1262,6 @@ export default function AgreementClientPage({
     "SERVICE AGREEMENT",
     "",
     `This Agreement is made between ${agreement?.provider_name || "Service Provider"} (\"Provider\") and ${agreement?.client_name || "Client"} (\"Client\").`,
-    `Service Area: ${agreement?.service_area || "As agreed by the parties"}.`,
     `Total Price: ${money(Number(agreement?.total_price || 0))} ֏.`,
     "",
     "Provider agrees to deliver services professionally and within the agreed scope and timeline.",
@@ -1337,10 +1354,10 @@ export default function AgreementClientPage({
       agreement.created_at
     ) ?? providerLogo;
   const providerFields = resolveProviderNameFields(agreement);
-  const serviceAreaDisplay = agreement.service_area?.trim() || "Armenia";
   const readableAgreementId = `VSTAH-${new Date(agreement.created_at).getFullYear()}-${agreement.id.split("-")[0].toUpperCase()}`;
   const paymentScheduleRows = buildPaymentScheduleRows(agreement, tx);
   const showMilestoneTargetDates = paymentScheduleRows.some((row) => Boolean(row.targetDate));
+  const showMilestonePaymentDue = paymentScheduleRows.some((row) => Boolean(row.paymentDue));
 
   const milestoneStatusBadge = (isSigned: boolean) =>
     isSigned ? (
@@ -1378,7 +1395,6 @@ export default function AgreementClientPage({
             <div className="min-w-0 flex-1">
               <p className="text-[10px] font-black uppercase tracking-[0.22em] text-slate-500 sm:text-xs">{tx.offer}</p>
               <h1 className="mt-2 text-balance text-2xl font-black leading-tight text-[#0033A0] sm:text-3xl">{tx.title}</h1>
-              <p className="mt-2 text-base font-bold text-slate-900">{agreement.project_title}</p>
               {signed ? (
                 <p className="mt-2 max-w-xl text-sm font-semibold leading-relaxed text-emerald-800">{tx.subtitleSigned}</p>
               ) : (
@@ -1415,6 +1431,20 @@ export default function AgreementClientPage({
             <MetaCard icon={FileText} label={tx.agreementPhase} value={phaseLabel} />
           </div>
 
+          <section className="rounded-2xl border border-slate-200/90 bg-gradient-to-br from-[#0033A0]/[0.06] via-white to-slate-50/80 p-5 shadow-sm ring-1 ring-slate-900/[0.03] sm:p-6">
+            <div className="flex items-start gap-3">
+              <Briefcase className="mt-1 h-5 w-5 shrink-0 text-[#0033A0]" aria-hidden />
+              <div className="min-w-0">
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500 sm:text-xs">
+                  {tx.projectHeader}
+                </p>
+                <h2 className="mt-1.5 text-balance text-xl font-black leading-snug text-slate-900 sm:text-2xl">
+                  {agreement.project_title || "—"}
+                </h2>
+              </div>
+            </div>
+          </section>
+
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <section className="min-w-0 rounded-2xl border border-slate-200/90 bg-slate-50/50 p-4 shadow-sm ring-1 ring-slate-900/[0.03] sm:p-5">
               <AgreementSectionTitle>{tx.providerDetails}</AgreementSectionTitle>
@@ -1427,13 +1457,6 @@ export default function AgreementClientPage({
                   </div>
                 </div>
                 <div className="flex gap-3">
-                  <User className="mt-0.5 h-4 w-4 shrink-0 text-[#0033A0]/70" aria-hidden />
-                  <div className="min-w-0">
-                    <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{tx.providerNameLabel}</dt>
-                    <dd className="mt-0.5 break-words font-semibold leading-snug [overflow-wrap:anywhere]">{providerFields.full || "—"}</dd>
-                  </div>
-                </div>
-                <div className="flex gap-3">
                   <Phone className="mt-0.5 h-4 w-4 shrink-0 text-[#0033A0]/70" aria-hidden />
                   <div className="min-w-0">
                     <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{tx.providerPhoneLabel}</dt>
@@ -1441,10 +1464,10 @@ export default function AgreementClientPage({
                   </div>
                 </div>
                 <div className="flex gap-3">
-                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-[#0033A0]/70" aria-hidden />
+                  <Mail className="mt-0.5 h-4 w-4 shrink-0 text-[#0033A0]/70" aria-hidden />
                   <div className="min-w-0">
-                    <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{tx.serviceAreaLabel}</dt>
-                    <dd className="mt-0.5 break-words font-semibold leading-snug [overflow-wrap:anywhere]">{serviceAreaDisplay}</dd>
+                    <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{tx.providerEmailLabel}</dt>
+                    <dd className="mt-0.5 break-words font-semibold leading-snug [overflow-wrap:anywhere]">{agreement.provider_email?.trim() || "—"}</dd>
                   </div>
                 </div>
               </dl>
@@ -1468,10 +1491,10 @@ export default function AgreementClientPage({
                   </div>
                 </div>
                 <div className="flex gap-3">
-                  <Briefcase className="mt-0.5 h-4 w-4 shrink-0 text-[#0033A0]/70" aria-hidden />
+                  <Mail className="mt-0.5 h-4 w-4 shrink-0 text-[#0033A0]/70" aria-hidden />
                   <div className="min-w-0">
-                    <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{tx.project}</dt>
-                    <dd className="mt-0.5 break-words font-semibold leading-snug [overflow-wrap:anywhere]">{agreement.project_title}</dd>
+                    <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{tx.clientEmailLabel}</dt>
+                    <dd className="mt-0.5 break-words font-semibold leading-snug [overflow-wrap:anywhere]">{agreement.client_email?.trim() || "—"}</dd>
                   </div>
                 </div>
               </dl>
@@ -1537,6 +1560,9 @@ export default function AgreementClientPage({
                     {showMilestoneTargetDates ? (
                       <th className="px-4 py-3.5">{tx.scheduleTargetDate}</th>
                     ) : null}
+                    {showMilestonePaymentDue ? (
+                      <th className="px-4 py-3.5">{tx.schedulePaymentDue}</th>
+                    ) : null}
                     <th className="px-4 py-3.5">{tx.scheduleStatus}</th>
                   </tr>
                 </thead>
@@ -1549,6 +1575,11 @@ export default function AgreementClientPage({
                       {showMilestoneTargetDates ? (
                         <td className="px-4 py-4 text-slate-700">
                           {row.targetDate ? formatDateDMY(row.targetDate) : "—"}
+                        </td>
+                      ) : null}
+                      {showMilestonePaymentDue ? (
+                        <td className="px-4 py-4 font-medium text-slate-800">
+                          {row.paymentDue || "—"}
                         </td>
                       ) : null}
                       <td className="px-4 py-4">{milestoneStatusBadge(signed)}</td>
@@ -1577,6 +1608,12 @@ export default function AgreementClientPage({
                       <div className="rounded-xl bg-slate-50 px-3 py-2.5 ring-1 ring-slate-100">
                         <p className="text-[10px] font-bold uppercase tracking-wide text-slate-500">{tx.scheduleTargetDate}</p>
                         <p className="mt-1 text-sm font-semibold text-slate-800">{formatDateDMY(row.targetDate)}</p>
+                      </div>
+                    ) : null}
+                    {row.paymentDue ? (
+                      <div className="rounded-xl bg-[#0033A0]/[0.06] px-3 py-2.5 ring-1 ring-[#0033A0]/10">
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-[#0033A0]">{tx.schedulePaymentDue}</p>
+                        <p className="mt-1 text-sm font-semibold text-slate-900">{row.paymentDue}</p>
                       </div>
                     ) : null}
                   </div>

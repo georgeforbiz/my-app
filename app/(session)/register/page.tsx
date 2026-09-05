@@ -3,12 +3,10 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-  Briefcase,
   Building2,
   Lock,
   LockKeyhole,
   Mail,
-  MapPin,
   Phone,
   User,
   UserPlus
@@ -23,13 +21,6 @@ import { EMAIL_ALREADY_EXISTS_MESSAGE } from "@/lib/auth/humanize-auth-error";
 import { ROUTES, authPath, sanitizeNextRoute } from "@/lib/routes";
 import { useLanguage } from "@/lib/i18n/language-context";
 
-const DEFAULT_SERVICE_CATEGORY = "General Contractor" as const;
-const serviceCategoryLabel = {
-  en: "General Contractor",
-  hy: "Գլխավոր կապալառու",
-  ru: "Генеральный подрядчик"
-} as const;
-
 export default function RegisterPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -41,7 +32,6 @@ export default function RegisterPage() {
   const [fullName, setFullName] = useState("");
   const [businessName, setBusinessName] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
-  const [serviceArea, setServiceArea] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -60,9 +50,6 @@ export default function RegisterPage() {
           fullName: "Ամբողջ անուն",
           businessName: "Բիզնեսի անվանում",
           phoneNumber: "Հեռախոսահամար",
-          serviceCategory: "Ծառայության կատեգորիա",
-          selectService: "Ընտրել ծառայությունը",
-          serviceArea: "Տարածք",
           email: "Էլ․ փոստ",
           password: "Գաղտնաբառ",
           confirmPassword: "Հաստատել գաղտնաբառը",
@@ -91,9 +78,6 @@ export default function RegisterPage() {
             fullName: "ФИО",
             businessName: "Название компании",
             phoneNumber: "Телефон",
-            serviceCategory: "Категория услуг",
-            selectService: "Выберите категорию",
-            serviceArea: "Регион работ",
             email: "Эл. почта",
             password: "Пароль",
             confirmPassword: "Пароль ещё раз",
@@ -113,7 +97,7 @@ export default function RegisterPage() {
         : {
             eyebrow: "Account",
             title: "Register",
-            subtitle: "Create an account to manage protected deals.",
+            subtitle: "Building Trust in Every Project",
             passwordsNoMatch: "Passwords do not match.",
             passwordTooShort: "Password must be at least 6 characters.",
             completeDetails: "Please fill in all required service provider details.",
@@ -121,9 +105,6 @@ export default function RegisterPage() {
             fullName: "Full Name",
             businessName: "Business Name",
             phoneNumber: "Phone Number",
-            serviceCategory: "Service Category",
-            selectService: "Select service",
-            serviceArea: "Service Area",
             email: "Email",
             password: "Password",
             confirmPassword: "Confirm password",
@@ -172,7 +153,7 @@ export default function RegisterPage() {
       setError(tx.completeDetails);
       return;
     }
-    if (!fullName.trim() || !businessName.trim() || !phoneNumber.trim() || !serviceArea.trim()) {
+    if (!fullName.trim() || !businessName.trim() || !phoneNumber.trim()) {
       setError(tx.completeDetails);
       return;
     }
@@ -184,9 +165,7 @@ export default function RegisterPage() {
         business_name: businessName.trim(),
         // Keep legacy metadata for backward compatibility in existing flows.
         full_name_or_business_name: `${businessName.trim()} (${fullName.trim()})`,
-        phone_number: phoneNumber.trim(),
-        service_category: DEFAULT_SERVICE_CATEGORY,
-        service_area: serviceArea.trim()
+        phone_number: phoneNumber.trim()
       });
       if (res.error) {
         setError(res.error === EMAIL_ALREADY_EXISTS_MESSAGE ? tx.emailAlreadyExists : res.error);
@@ -244,23 +223,6 @@ export default function RegisterPage() {
             required
             value={phoneNumber}
             onChange={(e) => setPhoneNumber(e.target.value)}
-          />
-          <FormField
-            id="serviceCategory"
-            label={tx.serviceCategory}
-            icon={Briefcase}
-            type="text"
-            readOnly
-            value={serviceCategoryLabel[language]}
-          />
-          <FormField
-            id="serviceArea"
-            label={tx.serviceArea}
-            icon={MapPin}
-            type="text"
-            required
-            value={serviceArea}
-            onChange={(e) => setServiceArea(e.target.value)}
             wrapperClassName="md:col-span-2"
           />
         </div>

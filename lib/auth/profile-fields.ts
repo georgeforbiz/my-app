@@ -6,12 +6,12 @@ export type ProviderProfile = {
   full_name: string;
   business_name: string;
   phone_number: string;
-  service_area: string;
-  service_category: ServiceCategory;
+  service_area?: string;
+  service_category?: ServiceCategory;
 };
 
-/** Editable fields on the settings page (service category stays from signup). */
-export type ProviderProfileSettingsInput = Omit<ProviderProfile, "service_category">;
+/** Editable fields on the settings page. */
+export type ProviderProfileSettingsInput = Pick<ProviderProfile, "full_name" | "business_name" | "phone_number">;
 
 const SERVICE_CATEGORIES: ServiceCategory[] = [
   "General Contractor",
@@ -54,8 +54,12 @@ export function profileFromMetadata(meta: Record<string, unknown> | undefined): 
     full_name: names.full_name,
     business_name: names.business_name,
     phone_number: String(meta?.phone_number ?? "").trim(),
-    service_area: String(meta?.service_area ?? "").trim(),
-    service_category: normalizeServiceCategory(meta?.service_category)
+    ...(String(meta?.service_area ?? "").trim()
+      ? { service_area: String(meta?.service_area ?? "").trim() }
+      : {}),
+    ...(meta?.service_category != null
+      ? { service_category: normalizeServiceCategory(meta?.service_category) }
+      : {})
   };
 }
 
@@ -63,14 +67,17 @@ export function metadataFromProfile(profile: ProviderProfile): Record<string, st
   const full_name = profile.full_name.trim();
   const business_name = profile.business_name.trim();
   const phone_number = profile.phone_number.trim();
-  const service_area = profile.service_area.trim();
   const payload: Record<string, string> = {
     full_name,
     business_name,
-    phone_number,
-    service_area,
-    service_category: profile.service_category
+    phone_number
   };
+  if (profile.service_area?.trim()) {
+    payload.service_area = profile.service_area.trim();
+  }
+  if (profile.service_category) {
+    payload.service_category = profile.service_category;
+  }
   if (business_name && full_name) {
     payload.full_name_or_business_name = `${business_name} (${full_name})`;
   } else if (business_name || full_name) {
@@ -81,9 +88,6 @@ export function metadataFromProfile(profile: ProviderProfile): Record<string, st
 
 export function isProviderProfileComplete(profile: ProviderProfile): boolean {
   return Boolean(
-    profile.full_name.trim() &&
-      profile.business_name.trim() &&
-      profile.phone_number.trim() &&
-      profile.service_area.trim()
+    profile.full_name.trim() && profile.business_name.trim() && profile.phone_number.trim()
   );
 }

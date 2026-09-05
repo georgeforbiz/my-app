@@ -23,8 +23,9 @@ import {
   User,
   Pencil,
   Phone,
+  Mail,
+  Building2,
   Briefcase,
-  MapPin,
   CircleDollarSign
 } from "lucide-react";
 import { AgreementShareDialog } from "@/components/agreement-share-dialog";
@@ -91,6 +92,7 @@ type Milestone = {
   amount: number;
   status?: "pending" | "escrow_held" | "released";
   target_date?: string;
+  payment_due?: string;
 };
 type MilestoneDraft = {
   id: string;
@@ -99,6 +101,7 @@ type MilestoneDraft = {
   targetDay: string;
   targetMonth: string;
   targetYear: string;
+  paymentDue: string;
 };
 
 type Agreement = {
@@ -110,6 +113,8 @@ type Agreement = {
   client_name: string;
   provider_phone?: string;
   client_phone?: string;
+  provider_email?: string;
+  client_email?: string;
   project_title: string;
   service_area: string;
   custom_terms: string;
@@ -148,11 +153,17 @@ type Tx = {
   emptySubtitle: string;
   clientName: string;
   clientPhone: string;
+  clientEmail: string;
+  providerDetails: string;
+  clientDetails: string;
+  businessName: string;
+  providerPhone: string;
+  providerEmail: string;
   vatModeIncludes: string;
   vatModeExempt: string;
   completeClientPhone: string;
   projectTitle: string;
-  serviceArea: string;
+  projectHeader: string;
   price: string;
   status: string;
   copyLink: string;
@@ -177,11 +188,14 @@ type Tx = {
   totalPrice: string;
   milestones: string;
   milestonesHint: string;
+  milestonesHelp: string;
   singlePayment: string;
   addMilestone: string;
   milestoneTitle: string;
   milestoneAmount: string;
   milestoneTargetDate: string;
+  milestonePaymentDue: string;
+  milestonePaymentDuePlaceholder: string;
   estimatedCompletionAuto: string;
   milestonesMismatch: string;
   create: string;
@@ -285,12 +299,18 @@ const t: Record<Lang, Tx> = {
     emptyTitle: "Create your first deal to get started",
     emptySubtitle: "You can create a safe agreement and instantly share it with your client.",
     clientName: "Client Name",
-    clientPhone: "Client Phone",
+    clientPhone: "Phone",
+    clientEmail: "Email",
+    providerDetails: "Provider Details",
+    clientDetails: "Client Details",
+    businessName: "Business Name",
+    providerPhone: "Phone",
+    providerEmail: "Email",
     vatModeIncludes: "Includes 20% VAT",
     vatModeExempt: "VAT Exempt",
     completeClientPhone: "Please enter the client's phone number.",
     projectTitle: "Project Title",
-    serviceArea: "Service Area",
+    projectHeader: "Project / Service Name",
     price: "Amount",
     status: "Status",
     copyLink: "Copy Link",
@@ -317,11 +337,15 @@ const t: Record<Lang, Tx> = {
     totalPrice: "Total Price (֏)",
     milestones: "Milestones",
     milestonesHint: "Split payment into milestone amounts.",
+    milestonesHelp:
+      "Off = one full payment for the whole project. On = split the total into stages, each with its own amount, target date, and when to pay.",
     singlePayment: "Single payment selected.",
     addMilestone: "Add milestone",
     milestoneTitle: "Milestone title",
     milestoneAmount: "Amount (֏)",
     milestoneTargetDate: "Target date (optional)",
+    milestonePaymentDue: "Payment due (optional)",
+    milestonePaymentDuePlaceholder: "Describe when this milestone should be paid",
     estimatedCompletionAuto: "Auto-set from the latest milestone date",
     milestonesMismatch: "Milestones total must match total price.",
     create: "Create",
@@ -424,12 +448,18 @@ const t: Record<Lang, Tx> = {
     emptyTitle: "Սկսեք առաջին գործարքով",
     emptySubtitle: "Ապահով պայմանագիր՝ ուղարկեք հղումը հաճախորդին։",
     clientName: "Հաճախորդի անուն",
-    clientPhone: "Հաճախորդի հեռախոս",
+    clientPhone: "Հեռախոս",
+    clientEmail: "Էլ․ փոստ",
+    providerDetails: "Մատակարարի տվյալներ",
+    clientDetails: "Հաճախորդի տվյալներ",
+    businessName: "Բիզնեսի անվանում",
+    providerPhone: "Հեռախոս",
+    providerEmail: "Էլ․ փոստ",
     vatModeIncludes: "Ներառում է 20% ԱԱՀ",
     vatModeExempt: "ԱԱՀ-ից ազատ",
     completeClientPhone: "Մուտքագրեք հաճախորդի հեռախոսահամարը։",
     projectTitle: "Նախագծի վերնագիր",
-    serviceArea: "Տարածք",
+    projectHeader: "Նախագծի / ծառայության անվանում",
     price: "Գումար",
     status: "Կարգավիճակ",
     copyLink: "Պատճենել հղումը",
@@ -456,11 +486,15 @@ const t: Record<Lang, Tx> = {
     totalPrice: "Ընդհանուր գին (֏)",
     milestones: "Փուլեր",
     milestonesHint: "Բաժանեք վճարը փուլերի։",
+    milestonesHelp:
+      "Անջատված = մեկ ամբողջական վճարում։ Միացված = ընդհանուր գումարը բաժանվում է փուլերի՝ յուրաքանչյուրն իր գումարով, ամսաթվով և վճարման պահով։",
     singlePayment: "Մեկ վճարում",
     addMilestone: "Ավելացնել փուլ",
     milestoneTitle: "Փուլի անվանում",
     milestoneAmount: "Գումար (֏)",
     milestoneTargetDate: "Նպատակային ամսաթիվ (ըստ ցանկության)",
+    milestonePaymentDue: "Վճարման ժամկետ (ըստ ցանկության)",
+    milestonePaymentDuePlaceholder: "Նկարագրեք՝ երբ պետք է վճարվի այս փուլը",
     estimatedCompletionAuto: "Ավտոմատ՝ վերջին փուլի ամսաթվից",
     milestonesMismatch: "Փուլերի գումարը պետք է հավասար լինի ընդհանուրին։",
     create: "Ստեղծել",
@@ -562,13 +596,19 @@ const t: Record<Lang, Tx> = {
     loading: "Загрузка…",
     emptyTitle: "Создайте первое соглашение",
     emptySubtitle: "Создайте защищённое соглашение и сразу отправьте клиенту ссылку.",
-    clientName: "Клиент",
-    clientPhone: "Телефон клиента",
+    clientName: "Имя клиента",
+    clientPhone: "Телефон",
+    clientEmail: "Email",
+    providerDetails: "Исполнитель",
+    clientDetails: "Клиент",
+    businessName: "Название бизнеса",
+    providerPhone: "Телефон",
+    providerEmail: "Email",
     vatModeIncludes: "Включает 20% НДС",
     vatModeExempt: "Без НДС",
     completeClientPhone: "Укажите телефон клиента.",
     projectTitle: "Проект",
-    serviceArea: "Регион",
+    projectHeader: "Название проекта / услуги",
     price: "Сумма",
     status: "Статус",
     copyLink: "Копировать ссылку",
@@ -595,11 +635,15 @@ const t: Record<Lang, Tx> = {
     totalPrice: "Сумма по соглашению (֏)",
     milestones: "Этапы",
     milestonesHint: "Разбейте оплату по этапам.",
+    milestonesHelp:
+      "Выкл. = один полный платёж за весь проект. Вкл. = сумма делится на этапы, у каждого своя сумма, дата и срок оплаты.",
     singlePayment: "Выбран один платёж",
     addMilestone: "Добавить этап",
     milestoneTitle: "Название этапа",
     milestoneAmount: "Сумма (֏)",
     milestoneTargetDate: "Целевая дата (необязательно)",
+    milestonePaymentDue: "Срок оплаты (необязательно)",
+    milestonePaymentDuePlaceholder: "Опишите, когда нужно оплатить этот этап",
     estimatedCompletionAuto: "Автоматически — по последнему этапу",
     milestonesMismatch: "Сумма этапов должна совпадать с общей суммой.",
     create: "Создать",
@@ -694,7 +738,8 @@ const createMilestone = (): MilestoneDraft => ({
   amount: "",
   targetDay: "",
   targetMonth: "",
-  targetYear: ""
+  targetYear: "",
+  paymentDue: ""
 });
 
 const formatAgreementNumber = (id: string, createdAt: string) =>
@@ -774,8 +819,7 @@ function completionYearOptions(): number[] {
 
 function profileDefaultsFromUser(user: AuthUser | null | undefined) {
   return {
-    phone: user?.phone_number?.trim() ?? "",
-    serviceArea: user?.service_area?.trim() ?? ""
+    phone: user?.phone_number?.trim() ?? ""
   };
 }
 
@@ -798,7 +842,6 @@ export default function DashboardPage() {
     }
     const defaults = profileDefaultsFromUser(user);
     setProviderPhone(defaults.phone);
-    setServiceArea((current) => current || defaults.serviceArea);
   }, [user]);
 
   const [view, setView] = useState<View>("overview");
@@ -819,9 +862,9 @@ export default function DashboardPage() {
 
   const [clientName, setClientName] = useState("");
   const [clientPhone, setClientPhone] = useState("");
+  const [clientEmail, setClientEmail] = useState("");
   const [providerPhone, setProviderPhone] = useState("");
   const [projectTitle, setProjectTitle] = useState("");
-  const [serviceArea, setServiceArea] = useState("");
   const [contractTerms, setContractTerms] = useState("");
   const [scopeOfWork, setScopeOfWork] = useState("");
   const [scopeExclusions, setScopeExclusions] = useState("");
@@ -1189,10 +1232,12 @@ export default function DashboardPage() {
     () =>
       milestones.map((m) => {
         const target_date = buildCompletionDate(m.targetYear, m.targetMonth, m.targetDay);
+        const payment_due = m.paymentDue.trim();
         return {
           title: m.title.trim(),
           amount: parseGroupedNumberInput(m.amount),
-          ...(target_date ? { target_date } : {})
+          ...(target_date ? { target_date } : {}),
+          ...(payment_due ? { payment_due } : {})
         };
       }),
     [milestones]
@@ -1491,8 +1536,8 @@ export default function DashboardPage() {
     const defaults = profileDefaultsFromUser(user);
     setClientName("");
     setClientPhone("");
+    setClientEmail("");
     setProjectTitle("");
-    setServiceArea(defaults.serviceArea);
     setProviderPhone(defaults.phone);
     setContractTerms(nextContractTerms ?? "");
     setScopeOfWork("");
@@ -1524,8 +1569,8 @@ export default function DashboardPage() {
     setEditingAgreementId(agreement.id);
     setClientName(agreement.client_name ?? "");
     setClientPhone(agreement.client_phone ?? "");
+    setClientEmail(agreement.client_email ?? "");
     setProjectTitle(agreement.project_title ?? "");
-    setServiceArea(agreement.service_area?.trim() || defaults.serviceArea);
     setProviderPhone(agreement.provider_phone?.trim() || defaults.phone);
     setContractTerms(agreement.custom_terms ?? "");
     setScopeOfWork(agreement.scope_of_work ?? "");
@@ -1549,7 +1594,8 @@ export default function DashboardPage() {
               amount: formatGroupedNumberInput(String(m.amount ?? "")),
               targetDay: target.day,
               targetMonth: target.month,
-              targetYear: target.year
+              targetYear: target.year,
+              paymentDue: m.payment_due ?? ""
             };
           })
         : []
@@ -1627,9 +1673,11 @@ export default function DashboardPage() {
       business_name: business_name || undefined,
       client_name: clientName.trim() || "—",
       client_phone: clientPhone.trim() || undefined,
+      client_email: clientEmail.trim() || undefined,
       provider_phone: providerPhone.trim() || undefined,
+      provider_email: user?.email?.trim() || undefined,
       project_title: projectTitle.trim() || "—",
-      service_area: serviceArea.trim() || "Armenia",
+      service_area: "",
       custom_terms: terms,
       scope_of_work: scopeOfWork.trim() || undefined,
       scope_exclusions: scopeExclusions.trim() || undefined,
@@ -1647,6 +1695,7 @@ export default function DashboardPage() {
   }, [
     clientName,
     clientPhone,
+    clientEmail,
     contractTerms,
     scopeOfWork,
     scopeExclusions,
@@ -1658,10 +1707,10 @@ export default function DashboardPage() {
     providerDisplayName,
     savedProviderLogoUrl,
     providerPhone,
-    serviceArea,
     totalPrice,
     vatMode,
     user?.business_name,
+    user?.email,
     user?.full_name,
     user?.id
   ]);
@@ -1767,7 +1816,7 @@ export default function DashboardPage() {
       return;
     }
 
-    if (!clientName.trim() || !clientPhone.trim() || !projectTitle.trim() || !serviceArea.trim() || totalPrice <= 0) {
+    if (!clientName.trim() || !clientPhone.trim() || !projectTitle.trim() || totalPrice <= 0) {
       setError(tx.completeRequired);
       return;
     }
@@ -1797,6 +1846,7 @@ export default function DashboardPage() {
               title: m.title,
               amount: m.amount,
               ...(m.target_date ? { target_date: m.target_date } : {}),
+              ...(m.payment_due ? { payment_due: m.payment_due } : {}),
               status: "pending" as const
             }))
           : null;
@@ -1810,7 +1860,8 @@ export default function DashboardPage() {
               ? milestonesParsed.map((m) => ({
                   title: m.title,
                   amount: m.amount,
-                  ...(m.target_date ? { target_date: m.target_date } : {})
+                  ...(m.target_date ? { target_date: m.target_date } : {}),
+                  ...(m.payment_due ? { payment_due: m.payment_due } : {})
                 }))
               : [],
           totalPrice,
@@ -1896,6 +1947,8 @@ export default function DashboardPage() {
       const business_name = user.business_name?.trim() ?? "";
       const resolvedProviderPhone = providerPhone.trim() || undefined;
       const resolvedClientPhone = clientPhone.trim();
+      const resolvedProviderEmail = user.email?.trim() || undefined;
+      const resolvedClientEmail = clientEmail.trim() || undefined;
       const providerId = user.id;
       const cloudOnline = getSupabaseReachable() === true && user.source !== "mock";
       const providerName =
@@ -1938,7 +1991,7 @@ export default function DashboardPage() {
         business_name,
         clientName: clientName.trim(),
         projectTitle: projectTitle.trim(),
-        serviceArea: serviceArea.trim(),
+        serviceArea: "",
         customTerms: customTermsText,
         scopeOfWork: scopeOfWork.trim(),
         scopeExclusions: scopeExclusions.trim() || undefined,
@@ -1946,6 +1999,8 @@ export default function DashboardPage() {
         deadline: offerDeadline.trim() || undefined,
         providerPhone: resolvedProviderPhone,
         clientPhone: resolvedClientPhone,
+        providerEmail: resolvedProviderEmail,
+        clientEmail: resolvedClientEmail,
         vatMode,
         totalPrice,
         paymentType,
@@ -1989,6 +2044,8 @@ export default function DashboardPage() {
                 deadline: offerDeadline.trim() || undefined,
                 providerPhone: resolvedProviderPhone,
                 clientPhone: resolvedClientPhone,
+                providerEmail: resolvedProviderEmail,
+                clientEmail: resolvedClientEmail,
                 vatMode,
                 totalPrice,
                 paymentType,
@@ -1997,7 +2054,8 @@ export default function DashboardPage() {
                     ? milestonesParsed.map((m) => ({
                         title: m.title,
                         amount: m.amount,
-                        ...(m.target_date ? { target_date: m.target_date } : {})
+                        ...(m.target_date ? { target_date: m.target_date } : {}),
+                        ...(m.payment_due ? { payment_due: m.payment_due } : {})
                       }))
                     : [],
                 providerLogoUrl: logoForAgreement || undefined
@@ -2037,6 +2095,8 @@ export default function DashboardPage() {
           deadline: offerDeadline.trim() || undefined,
           provider_phone: resolvedProviderPhone,
           client_phone: resolvedClientPhone,
+          provider_email: resolvedProviderEmail,
+          client_email: resolvedClientEmail,
           vat_mode: vatMode,
           total_price: totalPrice,
           payment_type: paymentType,
@@ -2067,6 +2127,8 @@ export default function DashboardPage() {
         deadline: offerDeadline.trim() || undefined,
         provider_phone: resolvedProviderPhone,
         client_phone: resolvedClientPhone,
+        provider_email: resolvedProviderEmail,
+        client_email: resolvedClientEmail,
         vat_mode: vatMode,
         total_price: totalPrice,
         payment_type: paymentType,
@@ -2099,6 +2161,8 @@ export default function DashboardPage() {
           deadline: offerDeadline.trim() || undefined,
           provider_phone: resolvedProviderPhone,
           client_phone: resolvedClientPhone,
+          provider_email: resolvedProviderEmail,
+          client_email: resolvedClientEmail,
           vat_mode: vatMode,
           total_price: totalPrice,
           payment_type: paymentType,
@@ -2527,45 +2591,97 @@ export default function DashboardPage() {
                 </div>
                 ) : null}
 
-                <div className="mt-5 grid gap-4 md:grid-cols-2">
-                  <FormField
-                    id="create-client-name"
-                    label={tx.clientName}
-                    icon={User}
-                    value={clientName}
-                    onChange={(e) => setClientName(e.target.value)}
-                    autoComplete="off"
-                    readOnly={isEditing}
-                  />
-                  <FormField
-                    id="create-client-phone"
-                    label={tx.clientPhone}
-                    icon={Phone}
-                    value={clientPhone}
-                    onChange={(e) => setClientPhone(e.target.value)}
-                    autoComplete="tel"
-                    inputMode="tel"
-                    required
-                    readOnly={isEditing}
-                  />
+                <div className="mt-5">
                   <FormField
                     id="create-project-title"
-                    label={tx.projectTitle}
+                    label={tx.projectHeader}
                     icon={Briefcase}
                     value={projectTitle}
                     onChange={(e) => setProjectTitle(e.target.value)}
                     autoComplete="off"
                     readOnly={isEditing}
+                    required
+                    inputClassName="!pl-12 text-base font-semibold sm:text-lg"
                   />
-                  <FormField
-                    id="create-service-area"
-                    label={tx.serviceArea}
-                    icon={MapPin}
-                    value={serviceArea}
-                    onChange={(e) => setServiceArea(e.target.value)}
-                    autoComplete="off"
-                    readOnly={isEditing}
-                  />
+                </div>
+
+                <div className="mt-5 grid gap-4 md:grid-cols-2">
+                  <section className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+                    <h3 className="text-xs font-black uppercase tracking-[0.14em] text-slate-600">
+                      {tx.providerDetails}
+                    </h3>
+                    <div className="mt-3 grid gap-3">
+                      <FormField
+                        id="create-business-name"
+                        label={tx.businessName}
+                        icon={Building2}
+                        value={user?.business_name?.trim() || providerDisplayName || ""}
+                        readOnly
+                        inputClassName="read-only:!bg-white"
+                      />
+                      <FormField
+                        id="create-provider-phone"
+                        label={tx.providerPhone}
+                        icon={Phone}
+                        value={providerPhone}
+                        onChange={(e) => setProviderPhone(e.target.value)}
+                        autoComplete="tel"
+                        inputMode="tel"
+                        readOnly={isEditing}
+                        inputClassName="read-only:!bg-white"
+                      />
+                      <FormField
+                        id="create-provider-email"
+                        label={tx.providerEmail}
+                        icon={Mail}
+                        type="email"
+                        value={user?.email?.trim() || ""}
+                        readOnly
+                        inputClassName="read-only:!bg-white"
+                      />
+                    </div>
+                  </section>
+
+                  <section className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
+                    <h3 className="text-xs font-black uppercase tracking-[0.14em] text-slate-600">
+                      {tx.clientDetails}
+                    </h3>
+                    <div className="mt-3 grid gap-3">
+                      <FormField
+                        id="create-client-name"
+                        label={tx.clientName}
+                        icon={User}
+                        value={clientName}
+                        onChange={(e) => setClientName(e.target.value)}
+                        autoComplete="off"
+                        readOnly={isEditing}
+                      />
+                      <FormField
+                        id="create-client-phone"
+                        label={tx.clientPhone}
+                        icon={Phone}
+                        value={clientPhone}
+                        onChange={(e) => setClientPhone(e.target.value)}
+                        autoComplete="tel"
+                        inputMode="tel"
+                        required
+                        readOnly={isEditing}
+                      />
+                      <FormField
+                        id="create-client-email"
+                        label={tx.clientEmail}
+                        icon={Mail}
+                        type="email"
+                        value={clientEmail}
+                        onChange={(e) => setClientEmail(e.target.value)}
+                        autoComplete="email"
+                        readOnly={isEditing}
+                      />
+                    </div>
+                  </section>
+                </div>
+
+                <div className="mt-5 grid gap-4 md:grid-cols-2">
                   <div className="md:col-span-2">
                     <FormField
                       id="create-total-price"
@@ -2777,7 +2893,42 @@ export default function DashboardPage() {
 
                 <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
                   <div className="flex items-center justify-between gap-3">
-                    <div><p className="text-sm font-bold text-slate-900">{tx.milestones}</p><p className="text-xs text-slate-500">{tx.milestonesHint}</p></div>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm font-bold text-slate-900">{tx.milestones}</p>
+                        <span className="group relative inline-flex shrink-0">
+                          <button
+                            type="button"
+                            className="inline-flex items-center justify-center rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-400/50"
+                            aria-label={tx.milestonesHelp}
+                          >
+                            <svg
+                              viewBox="0 0 20 20"
+                              className="h-[18px] w-[18px] text-red-600 transition group-hover:text-red-700"
+                              aria-hidden
+                            >
+                              <circle cx="10" cy="10" r="9" fill="currentColor" />
+                              <path
+                                fill="none"
+                                stroke="white"
+                                strokeWidth="1.75"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                d="M7.6 7.7a2.4 2.4 0 0 1 4.7.8c0 1.6-2.35 2.2-2.35 3.5"
+                              />
+                              <circle cx="10" cy="14.4" r="0.95" fill="white" />
+                            </svg>
+                          </button>
+                          <span
+                            role="tooltip"
+                            className="pointer-events-none absolute bottom-full left-0 z-20 mb-2 w-64 rounded-lg border border-slate-200 bg-white px-3 py-2 text-left text-xs font-medium leading-relaxed text-slate-700 opacity-0 shadow-lg transition group-hover:opacity-100 group-focus-within:opacity-100 sm:left-1/2 sm:-translate-x-1/2"
+                          >
+                            {tx.milestonesHelp}
+                          </span>
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-500">{tx.milestonesHint}</p>
+                    </div>
                     <button
                       type="button"
                       role="switch"
@@ -2869,6 +3020,26 @@ export default function DashboardPage() {
                                 </select>
                               </label>
                             </div>
+                          </div>
+                          <div>
+                            <label
+                              className="text-xs font-medium text-slate-500"
+                              htmlFor={`milestone-payment-due-${m.id}`}
+                            >
+                              {tx.milestonePaymentDue}
+                            </label>
+                            <input
+                              id={`milestone-payment-due-${m.id}`}
+                              type="text"
+                              value={m.paymentDue}
+                              onChange={(e) =>
+                                setMilestones((prev) =>
+                                  prev.map((x) => (x.id === m.id ? { ...x, paymentDue: e.target.value } : x))
+                                )
+                              }
+                              placeholder={tx.milestonePaymentDuePlaceholder}
+                              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-slate-500"
+                            />
                           </div>
                         </div>
                       ))}

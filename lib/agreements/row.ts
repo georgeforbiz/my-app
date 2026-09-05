@@ -2,9 +2,13 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { formatDateDMY } from "@/lib/format-date";
 import type { VatMode } from "./vat";
 import {
+  appendEmailsToTerms,
   appendPhonesToTerms,
+  resolveClientEmail,
   resolveClientPhone,
+  resolveProviderEmail,
   resolveProviderPhone,
+  stripEmailsFromTerms,
   stripPhonesFromTerms
 } from "./phone-metadata";
 import { appendVatModeToTerms, normalizeVatMode, resolveVatMode, stripVatModeFromTerms } from "./vat";
@@ -16,6 +20,8 @@ export type Milestone = {
   status?: "pending" | "escrow_held" | "released";
   /** Optional per-milestone target completion date (`YYYY-MM-DD`). */
   target_date?: string;
+  /** Optional plain-language when payment is due (e.g. "Upon signing"). */
+  payment_due?: string;
 };
 
 /** @internal Shared mapper for DB / localStorage milestone JSON. */
@@ -23,12 +29,14 @@ export function mapMilestoneFromStorage(raw: unknown): Milestone {
   const row = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   const targetRaw = String(row.target_date ?? row.completion_date ?? "").trim();
   const isoTarget = /^\d{4}-\d{2}-\d{2}/.test(targetRaw) ? targetRaw.slice(0, 10) : undefined;
+  const paymentDue = String(row.payment_due ?? row.paymentDue ?? "").trim();
   return {
     title: String(row.title ?? ""),
     amount: Number(row.amount ?? 0),
     status:
       row.status === "released" ? "released" : row.status === "escrow_held" ? "escrow_held" : "pending",
-    ...(isoTarget ? { target_date: isoTarget } : {})
+    ...(isoTarget ? { target_date: isoTarget } : {}),
+    ...(paymentDue ? { payment_due: paymentDue } : {})
   };
 }
 
@@ -38,7 +46,8 @@ export function normalizeMilestoneInput(raw: unknown): Milestone {
   return {
     title: mapped.title,
     amount: mapped.amount,
-    ...(mapped.target_date ? { target_date: mapped.target_date } : {})
+    ...(mapped.target_date ? { target_date: mapped.target_date } : {}),
+    ...(mapped.payment_due ? { payment_due: mapped.payment_due } : {})
   };
 }
 export type AgreementStatus = "pending" | "signed" | "completed";
@@ -56,6 +65,8 @@ export type NormalizedAgreement = {
   client_name: string;
   provider_phone?: string;
   client_phone?: string;
+  provider_email?: string;
+  client_email?: string;
   project_title: string;
   service_area: string;
   custom_terms: string;
@@ -144,9 +155,13 @@ export function normalizeAgreementRow(row: Record<string, unknown>): NormalizedA
     client_name: String(row.client_name ?? ""),
     provider_phone: resolveProviderPhone(row.provider_phone, rawCustomTerms),
     client_phone: resolveClientPhone(row.client_phone, rawCustomTerms),
+    provider_email: resolveProviderEmail(row.provider_email, rawCustomTerms),
+    client_email: resolveClientEmail(row.client_email, rawCustomTerms),
     project_title,
     service_area: String(row.service_area ?? "").trim(),
-    custom_terms: stripScopeFromTerms(stripPhonesFromTerms(stripVatModeFromTerms(rawCustomTerms))),
+    custom_terms: stripEmailsFromTerms(
+      stripScopeFromTerms(stripPhonesFromTerms(stripVatModeFromTerms(rawCustomTerms)))
+    ),
     scope_of_work,
     scope_exclusions,
     estimated_completion_date,
@@ -347,12 +362,24 @@ export function augmentCustomTermsWithScope(
 
 function withAgreementTermsMetadata(
   customTerms: string,
-  opts: { vatMode: VatMode; providerPhone?: string; clientPhone?: string }
+  opts: {
+    vatMode: VatMode;
+    providerPhone?: string;
+    clientPhone?: string;
+    providerEmail?: string;
+    clientEmail?: string;
+  }
 ): string {
-  return appendPhonesToTerms(appendVatModeToTerms(customTerms, opts.vatMode), {
-    providerPhone: opts.providerPhone,
-    clientPhone: opts.clientPhone
-  });
+  return appendEmailsToTerms(
+    appendPhonesToTerms(appendVatModeToTerms(customTerms, opts.vatMode), {
+      providerPhone: opts.providerPhone,
+      clientPhone: opts.clientPhone
+    }),
+    {
+      providerEmail: opts.providerEmail,
+      clientEmail: opts.clientEmail
+    }
+  );
 }
 
 /**
@@ -378,6 +405,8 @@ export async function insertAgreementWithSchemaFallback(
     deadline?: string;
     providerPhone?: string;
     clientPhone?: string;
+    providerEmail?: string;
+    clientEmail?: string;
     vatMode?: VatMode;
     totalPrice: number;
     paymentType: PaymentType;
@@ -397,7 +426,9 @@ export async function insertAgreementWithSchemaFallback(
   const termsMetadata = {
     vatMode,
     providerPhone: params.providerPhone,
-    clientPhone: params.clientPhone
+    clientPhone: params.clientPhone,
+    providerEmail: params.providerEmail,
+    clientEmail: params.clientEmail
   };
   const customTermsWithScope = withAgreementTermsMetadata(
     augmentCustomTermsWithScope(params.customTerms, {
@@ -414,6 +445,8 @@ export async function insertAgreementWithSchemaFallback(
     client_name: params.clientName,
     provider_phone: params.providerPhone?.trim() || null,
     client_phone: params.clientPhone?.trim() || null,
+    provider_email: params.providerEmail?.trim() || null,
+    client_email: params.clientEmail?.trim() || null,
     project_title: params.projectTitle,
     service_area: params.serviceArea,
     provider_name: params.providerName,

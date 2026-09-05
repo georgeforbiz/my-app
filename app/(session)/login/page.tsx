@@ -82,7 +82,7 @@ export default function LoginPage() {
         : {
             eyebrow: "Account",
             title: "Login",
-            subtitle: "Secure access for homeowners and contractors.",
+            subtitle: "Building Trust in Every Project",
             email: "Email",
             password: "Password",
             forgot: "Forgot password?",

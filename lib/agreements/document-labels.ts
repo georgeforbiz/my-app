@@ -18,10 +18,13 @@ export type AgreementDocumentLabels = {
   businessName: string;
   providerNameLabel: string;
   providerPhoneLabel: string;
+  providerEmailLabel: string;
   serviceAreaLabel: string;
   client: string;
   clientPhoneLabel: string;
+  clientEmailLabel: string;
   project: string;
+  projectHeader: string;
   total: string;
   vatStatusIncluded: string;
   vatStatusExempt: string;
@@ -35,6 +38,7 @@ export type AgreementDocumentLabels = {
   scheduleStage: string;
   scheduleAmount: string;
   scheduleTargetDate: string;
+  schedulePaymentDue: string;
   scheduleStatus: string;
   statusSigned: string;
   pendingSignature: string;
@@ -64,11 +68,14 @@ const labels: Record<Language, AgreementDocumentLabels> = {
     clientDetails: "Client Details",
     businessName: "Business Name",
     providerNameLabel: "Provider Name",
-    providerPhoneLabel: "Provider Phone",
+    providerPhoneLabel: "Phone",
+    providerEmailLabel: "Email",
     serviceAreaLabel: "Service Area",
-    client: "Client",
-    clientPhoneLabel: "Client Phone",
+    client: "Client Name",
+    clientPhoneLabel: "Phone",
+    clientEmailLabel: "Email",
     project: "Project / Service",
+    projectHeader: "Project / Service Name",
     total: "Total Price",
     vatStatusIncluded: "VAT (20%): Included",
     vatStatusExempt: "VAT: Exempt",
@@ -83,6 +90,7 @@ const labels: Record<Language, AgreementDocumentLabels> = {
     scheduleStage: "Stage",
     scheduleAmount: "Amount",
     scheduleTargetDate: "Target date",
+    schedulePaymentDue: "Payment due",
     scheduleStatus: "Status",
     statusSigned: "Signed",
     pendingSignature: "Pending signature",
@@ -110,11 +118,14 @@ const labels: Record<Language, AgreementDocumentLabels> = {
     clientDetails: "Հաճախորդի տվյալներ",
     businessName: "Բիզնեսի անվանում",
     providerNameLabel: "Մատակարարի անուն",
-    providerPhoneLabel: "Մատակարարի հեռախոս",
+    providerPhoneLabel: "Հեռախոս",
+    providerEmailLabel: "Էլ․ փոստ",
     serviceAreaLabel: "Տարածք",
-    client: "Հաճախորդ",
-    clientPhoneLabel: "Հաճախորդի հեռախոս",
+    client: "Հաճախորդի անուն",
+    clientPhoneLabel: "Հեռախոս",
+    clientEmailLabel: "Էլ․ փոստ",
     project: "Նախագիծ / Ծառայություն",
+    projectHeader: "Նախագծի / ծառայության անվանում",
     total: "Ընդհանուր գին",
     vatStatusIncluded: "ԱԱՀ (20%): Ներառված է",
     vatStatusExempt: "ԱԱՀ: Ազատված",
@@ -129,6 +140,7 @@ const labels: Record<Language, AgreementDocumentLabels> = {
     scheduleStage: "Փուլ",
     scheduleAmount: "Գումար",
     scheduleTargetDate: "Նպատակային ամսաթիվ",
+    schedulePaymentDue: "Վճարման ժամկետ",
     scheduleStatus: "Կարգավիճակ",
     statusSigned: "Ստորագրված",
     pendingSignature: "Սպասում է ստորագրության",
@@ -156,11 +168,14 @@ const labels: Record<Language, AgreementDocumentLabels> = {
     clientDetails: "Клиент",
     businessName: "Название бизнеса",
     providerNameLabel: "Имя исполнителя",
-    providerPhoneLabel: "Телефон исполнителя",
+    providerPhoneLabel: "Телефон",
+    providerEmailLabel: "Email",
     serviceAreaLabel: "Регион",
-    client: "Клиент",
-    clientPhoneLabel: "Телефон клиента",
+    client: "Имя клиента",
+    clientPhoneLabel: "Телефон",
+    clientEmailLabel: "Email",
     project: "Проект / услуга",
+    projectHeader: "Название проекта / услуги",
     total: "Общая стоимость",
     vatStatusIncluded: "НДС (20%): Включён",
     vatStatusExempt: "НДС: Не облагается",
@@ -174,6 +189,7 @@ const labels: Record<Language, AgreementDocumentLabels> = {
     scheduleStage: "Этап",
     scheduleAmount: "Сумма",
     scheduleTargetDate: "Целевая дата",
+    schedulePaymentDue: "Срок оплаты",
     scheduleStatus: "Статус",
     statusSigned: "Подписано",
     pendingSignature: "Ожидает подписи",

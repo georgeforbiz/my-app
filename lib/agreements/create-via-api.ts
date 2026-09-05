@@ -18,10 +18,12 @@ export type CreateAgreementApiPayload = {
   deadline?: string;
   providerPhone?: string;
   clientPhone?: string;
+  providerEmail?: string;
+  clientEmail?: string;
   vatMode?: VatMode;
   totalPrice: number;
   paymentType: PaymentType;
-  milestones: { title: string; amount: number; target_date?: string }[];
+  milestones: { title: string; amount: number; target_date?: string; payment_due?: string }[];
   providerLogoUrl?: string;
 };
 
@@ -55,7 +57,7 @@ export async function createAgreementViaApi(
 export type UpdatePendingAgreementPayload = {
   customTerms: string;
   paymentType: PaymentType;
-  milestones: { title: string; amount: number; target_date?: string }[];
+  milestones: { title: string; amount: number; target_date?: string; payment_due?: string }[];
   totalPrice: number;
   estimatedCompletionDate?: string;
   scopeOfWork?: string;
@@ -110,13 +112,16 @@ export function localAgreementToApiPayload(local: NormalizedAgreement): CreateAg
     deadline: local.deadline,
     providerPhone: local.provider_phone,
     clientPhone: local.client_phone,
+    providerEmail: local.provider_email,
+    clientEmail: local.client_email,
     vatMode: local.vat_mode,
     totalPrice: Number(local.total_price || 0),
     paymentType: local.payment_type,
     milestones: (local.milestones ?? []).map((m) => ({
       title: m.title,
       amount: Number(m.amount || 0),
-      ...(m.target_date ? { target_date: m.target_date } : {})
+      ...(m.target_date ? { target_date: m.target_date } : {}),
+      ...(m.payment_due ? { payment_due: m.payment_due } : {})
     })),
     providerLogoUrl: local.provider_logo_url
   };

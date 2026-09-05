@@ -81,6 +81,8 @@ export async function POST(request: NextRequest) {
     deadline: readString(body.deadline) || undefined,
     providerPhone: readString(body.providerPhone) || undefined,
     clientPhone: readString(body.clientPhone) || undefined,
+    providerEmail: readString(body.providerEmail) || undefined,
+    clientEmail: readString(body.clientEmail) || undefined,
     vatMode: normalizeVatMode(body.vatMode),
     totalPrice,
     paymentType,

@@ -49,8 +49,8 @@ export type SignUpMetadata = {
   business_name: string;
   full_name_or_business_name?: string;
   phone_number: string;
-  service_category: "General Contractor" | "Renovations" | "Electricity" | "Cleaning" | "Other";
-  service_area: string;
+  service_category?: "General Contractor" | "Renovations" | "Electricity" | "Cleaning" | "Other";
+  service_area?: string;
 };
 
 type AuthContextValue = {
@@ -114,7 +114,7 @@ function mapSupabaseUser(u: SupabaseUser): AuthUser {
     ...(profile.business_name ? { business_name: profile.business_name } : {}),
     ...(profile.phone_number ? { phone_number: profile.phone_number } : {}),
     ...(profile.service_area ? { service_area: profile.service_area } : {}),
-    service_category: profile.service_category
+    ...(profile.service_category ? { service_category: profile.service_category } : {})
   };
 }
 
@@ -564,7 +564,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const fullProfile: ProviderProfile = {
         ...profile,
-        service_category: user.service_category ?? "General Contractor"
+        ...(user.service_area ? { service_area: user.service_area } : {}),
+        ...(user.service_category ? { service_category: user.service_category } : {})
       };
 
       if (user.source === "mock") {
