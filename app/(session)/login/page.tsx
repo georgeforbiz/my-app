@@ -33,7 +33,7 @@ export default function LoginPage() {
       ? {
           eyebrow: "Հաշիվ",
           title: "Մուտք",
-          subtitle: "Մուտք՝ տանտերերի ու մատակարարների համար։",
+          subtitle: "Վստահություն յուրաքանչյուր նախագծում",
           email: "Էլ․ փոստ",
           password: "Գաղտնաբառ",
           forgot: "Մոռացե՞լ եք գաղտնաբառը",
@@ -58,7 +58,7 @@ export default function LoginPage() {
         ? {
             eyebrow: "Аккаунт",
             title: "Вход",
-            subtitle: "Вход для заказчиков и исполнителей.",
+            subtitle: "Доверие в каждом проекте",
             email: "Эл. почта",
             password: "Пароль",
             forgot: "Забыли пароль?",

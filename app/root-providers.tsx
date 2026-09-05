@@ -4,11 +4,11 @@ import type { ReactNode } from "react";
 import { ClientErrorBoundary } from "@/components/client-error-boundary";
 import { DocumentMeta } from "@/components/document-meta";
 import { LanguageProvider } from "@/lib/i18n/language-context";
-import type { Language } from "@/lib/i18n/locales";
+import { DEFAULT_LANGUAGE, type Language } from "@/lib/i18n/locales";
 
 export function RootProviders({
   children,
-  initialLanguage = "en"
+  initialLanguage = DEFAULT_LANGUAGE
 }: {
   children: ReactNode;
   /** From server `cookies()` so first paint matches `<html lang>` before client storage runs. */

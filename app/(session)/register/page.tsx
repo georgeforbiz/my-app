@@ -42,7 +42,7 @@ export default function RegisterPage() {
       ? {
           eyebrow: "Հաշիվ",
           title: "Գրանցում",
-          subtitle: "Հաշիվ՝ գործարքները կառավարելու համար։",
+          subtitle: "Վստահություն յուրաքանչյուր նախագծում",
           passwordsNoMatch: "Գաղտնաբառերը չեն համընկնում։",
           passwordTooShort: "Գաղտնաբառը պետք է լինի առնվազն 6 նիշ։",
           completeDetails: "Լրացրեք բոլոր պարտադիր դաշտերը։",
@@ -70,7 +70,7 @@ export default function RegisterPage() {
         ? {
             eyebrow: "Аккаунт",
             title: "Регистрация",
-            subtitle: "Аккаунт для соглашений с защитой платежей.",
+            subtitle: "Доверие в каждом проекте",
             passwordsNoMatch: "Пароли не совпадают.",
             passwordTooShort: "Минимум 6 символов.",
             completeDetails: "Заполните все обязательные поля.",

@@ -75,8 +75,8 @@ export function FloatingPillHeader({
 
   const langButtons = useMemo<LangOption[]>(
     () => [
-      { code: "en", label: "English" },
       { code: "hy", label: "Հայերեն" },
+      { code: "en", label: "English" },
       { code: "ru", label: "Русский" }
     ],
     []

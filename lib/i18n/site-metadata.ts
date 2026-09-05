@@ -9,7 +9,7 @@ export const SITE_METADATA: Record<Language, { title: string; description: strin
     description: SITE_DESCRIPTION
   },
   hy: {
-    title: "VSTAH | Վստահություն նախագծում",
+    title: "VSTAH | Վստահություն յուրաքանչյուր նախագծում",
     description:
       "Ստեղծեք, կիսվեք և ստորագրեք թվային ծառայության պայմանագրեր վայրկյանների ընթացքում։ Ամրագրեք ծավալը, գները և պայմանները՝ մինչև աշխատանքի սկիզբը։"
   },

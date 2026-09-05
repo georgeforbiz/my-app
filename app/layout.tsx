@@ -4,8 +4,8 @@ import { cookies } from "next/headers";
 import { Caveat, Great_Vibes, Inter } from "next/font/google";
 import "./globals.css";
 import { LANG_COOKIE } from "@/lib/i18n/constants";
-import type { Language } from "@/lib/i18n/locales";
-import { SITE_DESCRIPTION, SITE_METADATA } from "@/lib/i18n/site-metadata";
+import { DEFAULT_LANGUAGE, type Language } from "@/lib/i18n/locales";
+import { SITE_METADATA } from "@/lib/i18n/site-metadata";
 import { RootProviders } from "./root-providers";
 
 const inter = Inter({
@@ -28,22 +28,23 @@ const greatVibes = Great_Vibes({
   display: "swap"
 });
 
-const siteTitle = SITE_METADATA.en.title;
+const defaultMeta = SITE_METADATA[DEFAULT_LANGUAGE];
+const siteTitle = defaultMeta.title;
 
 export const metadata: Metadata = {
   title: siteTitle,
-  description: SITE_DESCRIPTION,
+  description: defaultMeta.description,
   openGraph: {
     title: siteTitle,
-    description: SITE_DESCRIPTION,
+    description: defaultMeta.description,
     siteName: "VSTAH",
     type: "website",
-    locale: "en"
+    locale: "hy_AM"
   },
   twitter: {
     card: "summary",
     title: siteTitle,
-    description: SITE_DESCRIPTION
+    description: defaultMeta.description
   }
 };
 
@@ -58,7 +59,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const cookieStore = cookies();
   const cookieLang = cookieStore.get(LANG_COOKIE)?.value;
   const htmlLang: Language =
-    cookieLang === "hy" || cookieLang === "ru" ? cookieLang : "en";
+    cookieLang === "en" || cookieLang === "ru" || cookieLang === "hy" ? cookieLang : DEFAULT_LANGUAGE;
 
   return (
     <html lang={htmlLang} suppressHydrationWarning className="scroll-smooth">

@@ -2343,7 +2343,7 @@ export default function DashboardPage() {
                     </button>
                     {langMenuOpen ? (
                       <div className="absolute left-0 top-10 z-20 min-w-[94px] rounded-xl border border-slate-200 bg-white p-1.5 shadow-lg">
-                        {(["en", "hy", "ru"] as const).map((code) => (
+                        {(["hy", "en", "ru"] as const).map((code) => (
                           <button
                             key={code}
                             type="button"

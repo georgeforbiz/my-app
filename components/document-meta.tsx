@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useLanguage } from "@/lib/i18n/language-context";
+import { DEFAULT_LANGUAGE } from "@/lib/i18n/locales";
 import { SITE_METADATA } from "@/lib/i18n/site-metadata";
 
 function setMeta(attr: "name" | "property", key: string, content: string) {
@@ -21,8 +22,9 @@ export function DocumentMeta() {
   useEffect(() => {
     try {
       if (typeof document === "undefined") return;
-      const lang = language === "en" || language === "hy" || language === "ru" ? language : "en";
-      const m = SITE_METADATA[lang] ?? SITE_METADATA.en;
+      const lang =
+        language === "en" || language === "hy" || language === "ru" ? language : DEFAULT_LANGUAGE;
+      const m = SITE_METADATA[lang] ?? SITE_METADATA[DEFAULT_LANGUAGE];
       document.title = m.title;
       setMeta("name", "description", m.description);
       setMeta("property", "og:title", m.title);

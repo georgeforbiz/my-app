@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { LANG_COOKIE, STORAGE_KEY } from "@/lib/i18n/constants";
-import type { Language } from "@/lib/i18n/locales";
+import { DEFAULT_LANGUAGE, type Language } from "@/lib/i18n/locales";
 
 export type { Language };
 
@@ -20,24 +20,26 @@ function parseLangCookie(): Language | null {
   return v === "en" || v === "hy" || v === "ru" ? v : null;
 }
 
+function isLanguage(value: string | null | undefined): value is Language {
+  return value === "en" || value === "hy" || value === "ru";
+}
+
 export function LanguageProvider({
   children,
-  initialLanguage = "en"
+  initialLanguage = DEFAULT_LANGUAGE
 }: {
   children: ReactNode;
   /** Cookie-derived default from the server layout — keeps SSR/hydration aligned with `<html lang>`. */
   initialLanguage?: Language;
 }) {
   const [language, setLanguageState] = useState<Language>(() =>
-    initialLanguage === "en" || initialLanguage === "hy" || initialLanguage === "ru"
-      ? initialLanguage
-      : "en"
+    isLanguage(initialLanguage) ? initialLanguage : DEFAULT_LANGUAGE
   );
 
   useEffect(() => {
     try {
       const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw === "en" || raw === "hy" || raw === "ru") {
+      if (isLanguage(raw)) {
         setLanguageState(raw);
         return;
       }
@@ -62,7 +64,7 @@ export function LanguageProvider({
     () => ({
       language,
       setLanguage: (next: Language) => {
-        if (next === "en" || next === "hy" || next === "ru") setLanguageState(next);
+        if (isLanguage(next)) setLanguageState(next);
       }
     }),
     [language]
