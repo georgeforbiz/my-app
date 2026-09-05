@@ -22,8 +22,12 @@ const heroSubtitleMobileEnClass =
 const heroSubtitleDesktopEnClass =
   "hidden w-full max-w-xl whitespace-nowrap text-xl font-semibold leading-relaxed text-white/90 md:block md:border-l-2 md:border-[#F2A800]/75 md:pl-4 md:text-left";
 
-/** HY/RU — mobile: 3 stacked lines (slightly larger); md+: one row. */
-const heroSubtitleMobileLocalizedClass =
+/** HY — mobile: larger stacked lines; md+: one row. */
+const heroSubtitleMobileHyClass =
+  "flex w-full min-w-0 flex-col gap-0.5 text-center text-[1.125rem] font-semibold leading-snug text-white/90 sm:text-xl md:hidden";
+
+/** RU — mobile: 3 stacked lines; md+: one row. */
+const heroSubtitleMobileRuClass =
   "flex w-full min-w-0 flex-col gap-0.5 text-center text-[0.9375rem] font-semibold leading-snug text-white/90 sm:text-base md:hidden";
 
 const heroSubtitleDesktopLocalizedClass =
@@ -45,9 +49,10 @@ function HeroSubtitle({ text, locale }: { text: string; locale: "en" | "hy" | "r
 
   if (locale === "hy" || locale === "ru") {
     const lines = localizedSubtitleLines(normalized, locale);
+    const mobileClass = locale === "hy" ? heroSubtitleMobileHyClass : heroSubtitleMobileRuClass;
     return (
       <>
-        <p className={heroSubtitleMobileLocalizedClass} aria-label={normalized}>
+        <p className={mobileClass} aria-label={normalized}>
           {lines.map((line) => (
             <span key={line} className="block">
               {line}
