@@ -425,7 +425,7 @@ const translations: Record<Locale, TranslationBundle> = {
     projectStatus: "Ակտիվ",
     fundsLabel: "Գումարը պահվում է",
     lockedNote: "3 փուլով կողպված",
-    stage1Name: "Նախապատրաստում",
+    stage1Name: "Նախնական փուլ",
     stage1Amount: "100,000 ֏",
     stage1State: "Արձակված",
     stage2Name: "Էլեկտրիկա և ջուր",
