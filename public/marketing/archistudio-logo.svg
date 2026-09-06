@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 220 64" fill="none" role="img" aria-label="ArchiStudio LLC">
+  <rect x="2" y="10" width="44" height="44" rx="10" fill="#0033A0"/>
+  <path d="M12 44 V24 L24 16 L36 24 V44 H28 V32 H20 V44 H12Z" fill="#F2A800"/>
+  <text x="58" y="30" fill="#0f172a" font-family="Arial, Helvetica, sans-serif" font-size="18" font-weight="700">ArchiStudio</text>
+  <text x="58" y="48" fill="#64748b" font-family="Arial, Helvetica, sans-serif" font-size="12" font-weight="600" letter-spacing="0.12em">LLC</text>
+</svg>

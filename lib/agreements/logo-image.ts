@@ -146,7 +146,8 @@ export function readProviderLogoUrl(value: unknown): string | null {
   if (
     !trimmed.startsWith("data:image/") &&
     !trimmed.startsWith("http://") &&
-    !trimmed.startsWith("https://")
+    !trimmed.startsWith("https://") &&
+    !(trimmed.startsWith("/") && !trimmed.includes(".."))
   ) {
     return null;
   }

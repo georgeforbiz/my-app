@@ -39,6 +39,9 @@ type TranslationBundle = {
   navPricing: string;
   btnProtectProject: string;
   btnSeeHow: string;
+  btnViewExample: string;
+  examplePopupIntro: string;
+  btnCloseExample: string;
   heroEyebrow: string;
   heroTitleLine1: string;
   heroTitleLine2: string;
@@ -64,12 +67,15 @@ type TranslationBundle = {
   stage1Name: string;
   stage1Amount: string;
   stage1State: string;
+  stage1PaymentDue: string;
   stage2Name: string;
   stage2Amount: string;
   stage2State: string;
+  stage2PaymentDue: string;
   stage3Name: string;
   stage3Amount: string;
   stage3State: string;
+  stage3PaymentDue: string;
   heroProposalStatus: string;
   heroProposalLabel: string;
   heroMilestonesLabel: string;
@@ -93,6 +99,8 @@ type TranslationBundle = {
   demoTotalAmount: string;
   demoTermsTitle: string;
   demoTermsBody: string;
+  demoScopeOfWork: string;
+  demoScopeExclusions: string;
   demoScrollHint: string;
   demoOfferLabel: string;
   demoAgreementTitle: string;
@@ -184,6 +192,10 @@ const translations: Record<Locale, TranslationBundle> = {
     navPricing: "Pricing",
     btnProtectProject: "Try for Free",
     btnSeeHow: "See How It Works",
+    btnViewExample: "View example agreement",
+    examplePopupIntro:
+      "This is a sample agreement. VSTAH allows you to fully customize terms, schedules, and fields to fit your business.",
+    btnCloseExample: "Close",
     heroEyebrow: "",
     heroTitleLine1: "Protect every deal",
     heroTitleLine2: "with a clear agreement",
@@ -209,19 +221,22 @@ const translations: Record<Locale, TranslationBundle> = {
     cardChip2: "Digital Work Agreement",
     projectLabel: "Project",
     projectId: "#AM-2841",
-    projectTitle: "Apartment Renovation",
+    projectTitle: "Architectural & Interior Design",
     projectStatus: "Active",
     fundsLabel: "Funds in safe",
     lockedNote: "Locked across 3 stages",
-    stage1Name: "Demolition & Prep",
-    stage1Amount: "150,000 ֏",
+    stage1Name: "Concept Design & Floor Plans",
+    stage1Amount: "400,000 ֏",
     stage1State: "Released",
-    stage2Name: "Plumbing & Electrical",
-    stage2Amount: "200,000 ֏",
+    stage1PaymentDue: "Upon Signing",
+    stage2Name: "3D Visualization & Renderings",
+    stage2Amount: "500,000 ֏",
     stage2State: "Locked",
-    stage3Name: "Final Finishing",
-    stage3Amount: "100,000 ֏",
+    stage2PaymentDue: "Sept 20, 2026",
+    stage3Name: "Final Architectural Drawings",
+    stage3Amount: "300,000 ֏",
     stage3State: "Pending",
+    stage3PaymentDue: "Oct 10, 2026",
     heroProposalStatus: "[Active: Signed]",
     heroProposalLabel: "Proposal",
     heroMilestonesLabel: "Project Milestones",
@@ -238,15 +253,19 @@ const translations: Record<Locale, TranslationBundle> = {
       "Interactive scrollable agreement demo with milestones and digital signature",
     demoProviderDetails: "Provider",
     demoClientDetails: "Client",
-    demoBusinessName: "BuildPro LLC",
+    demoBusinessName: "ArchiStudio LLC",
     demoClientName: "Anahit Hakobyan",
     demoBusinessPhone: "+374 91 234 567",
     demoClientPhone: "+374 99 111 222",
     demoTotalLabel: "Total",
-    demoTotalAmount: "450,000 ֏",
+    demoTotalAmount: "1,200,000 ֏",
     demoTermsTitle: "Terms",
     demoTermsBody:
-      "Scope, price, and payment schedule are locked once signed. Extra work requires a written update before it starts.",
+      "1. Binding Contract & Fixed Scope\nThis Agreement is a legally binding contract between ArchiStudio LLC and Anahit Hakobyan. All deliverables, timelines, and fees are locked upon signing.\n\n2. Out-of-Scope Work\nAny additional design revisions, structural changes, or extra requests require a written Change Order signed by both parties before work begins.\n\n3. Payment Terms & Timeline\nPayments must follow the agreed schedule. Work on subsequent project stages will only proceed once the previous milestone payment is received.\n\n4. Intellectual Property\nAll preliminary designs and 3D renderings remain the property of the Provider. Ownership of the final architectural drawings transfers to the Client only upon full payment.\n\n5. Limitation of Liability\nThe Provider is responsible solely for design deliverables and holds no liability for third-party contractor execution errors or required municipal permit approvals.",
+    demoScopeOfWork:
+      "Initial concept presentation and space layout options.\n\nFull 3D renderings and material visualisations.\n\nFinal technical drawings, lighting plans, and material specifications.",
+    demoScopeExclusions:
+      "Physical construction, demolition, or site labor.\n\nPurchases of furniture, lighting fixtures, or decor items.\n\nBuilding permit fees or official municipal approvals.",
     demoScrollHint: "Scroll to explore",
     demoOfferLabel: "Offer",
     demoAgreementTitle: "Safe Service Agreement",
@@ -441,6 +460,10 @@ const translations: Record<Locale, TranslationBundle> = {
     navPricing: "Գին",
     btnProtectProject: "Փորձել անվճար",
     btnSeeHow: "Տեսնել ինչպես է աշխատում",
+    btnViewExample: "Տեսնել օրինակ պայմանագիր",
+    examplePopupIntro:
+      "Սա օրինակելի պայմանագիր է։ VSTAH-ը թույլ է տալիս ամբողջությամբ հարմարեցնել պայմանները, ժամանակացույցը և դաշտերը ձեր բիզնեսին։",
+    btnCloseExample: "Փակել",
     heroEyebrow: "",
     heroTitleLine1: "Պաշտպանիր գործարքդ",
     heroTitleLine2: "հստակ պայմանագրով",
@@ -466,19 +489,22 @@ const translations: Record<Locale, TranslationBundle> = {
     cardChip2: "Թվային աշխատանքային պայմանագիր",
     projectLabel: "Նախագիծ",
     projectId: "#AM-2841",
-    projectTitle: "Բնակարանի վերանորոգում",
+    projectTitle: "Ճարտարապետական և ինտերիերի դիզայն",
     projectStatus: "Ակտիվ",
     fundsLabel: "Գումարը պահվում է",
     lockedNote: "3 փուլով կողպված",
-    stage1Name: "Նախնական փուլ",
-    stage1Amount: "100,000 ֏",
+    stage1Name: "Կոնցեպտ և հատակագծեր",
+    stage1Amount: "400,000 ֏",
     stage1State: "Արձակված",
-    stage2Name: "Էլեկտրիկա և ջուր",
-    stage2Amount: "200,000 ֏",
+    stage1PaymentDue: "Ստորագրման պահին",
+    stage2Name: "3D վիզուալիզացիա և ռենդերներ",
+    stage2Amount: "500,000 ֏",
     stage2State: "Կողպված",
-    stage3Name: "Վերջնահարդարում",
-    stage3Amount: "100,000 ֏",
+    stage2PaymentDue: "20 սեպտեմբերի, 2026",
+    stage3Name: "Վերջնական ճարտարապետական գծագրեր",
+    stage3Amount: "300,000 ֏",
     stage3State: "Սպասում",
+    stage3PaymentDue: "10 հոկտեմբերի, 2026",
     heroProposalStatus: "[Ակտիվ՝ ստորագրված]",
     heroProposalLabel: "Առաջարկ",
     heroMilestonesLabel: "Նախագծի փուլեր",
@@ -495,15 +521,19 @@ const translations: Record<Locale, TranslationBundle> = {
       "Ինտերակտիվ պայմանագրի դեմո՝ փուլերով և թվային ստորագրությամբ",
     demoProviderDetails: "Մատակարար",
     demoClientDetails: "Հաճախորդ",
-    demoBusinessName: "BuildPro LLC",
+    demoBusinessName: "ArchiStudio LLC",
     demoClientName: "Անահիտ Հակոբյան",
     demoBusinessPhone: "+374 91 234 567",
     demoClientPhone: "+374 99 111 222",
     demoTotalLabel: "Ընդամենը",
-    demoTotalAmount: "450,000 ֏",
+    demoTotalAmount: "1,200,000 ֏",
     demoTermsTitle: "Պայմաններ",
     demoTermsBody:
-      "Ծավալը, գինը և վճարման ժամանակացույցը ֆիքսվում են ստորագրումից հետո։ Լրացուցիչ աշխատանքը պահանջում է գրավոր թարմացում։",
+      "1. Պարտադիր պայմանագիր և ֆիքսված ծավալ\nՍույն պայմանագիրը իրավաբանորեն պարտադիր պայմանագիր է ArchiStudio LLC-ի և Անահիտ Հակոբյանի միջև։ Բոլոր մատակարարումները, ժամկետները և վճարները կողպվում են ստորագրումից հետո։\n\n2. Ծավալից դուրս աշխատանք\nՑանկացած լրացուցիչ դիզայնի վերանայում, կառուցվածքային փոփոխություն կամ լրացուցիչ հարցում պահանջում է երկու կողմերի ստորագրած գրավոր փոփոխման հանձնարարագիր՝ աշխատանքը սկսելուց առաջ։\n\n3. Վճարման պայմաններ և ժամանակացույց\nՎճարումները պետք է հետևեն համաձայնեցված ժամանակացույցին։ Հաջորդ փուլերի աշխատանքը կշարունակվի միայն նախորդ փուլի վճարումը ստանալուց հետո։\n\n4. Մտավոր սեփականություն\nԲոլոր նախնական դիզայնները և 3D ռենդերները մնում են Մատակարարի սեփականությունը։ Վերջնական ճարտարապետական գծագրերի սեփականությունը Հաճախորդին է փոխանցվում միայն ամբողջական վճարումից հետո։\n\n5. Պատասխանատվության սահմանափակում\nՄատակարարը պատասխանատու է միայն դիզայնի մատակարարումների համար և պատասխանատվություն չի կրում երրորդ կողմի կապալառուների սխալների կամ մունիցիպալ թույլտվությունների համար։",
+    demoScopeOfWork:
+      "Նախնական կոնցեպտի ներկայացում և տարածքի դասավորության տարբերակներ։\n\nԱմբողջական 3D ռենդերներ և նյութերի վիզուալիզացիա։\n\nՎերջնական տեխնիկական գծագրեր, լուսավորության պլաններ և նյութերի բնութագրեր։",
+    demoScopeExclusions:
+      "Ֆիզիկական շինարարություն, ապամոնտաժում կամ տեղում աշխատանք։\n\nԿահույքի, լուսատուների կամ դեկորի ձեռքբերում։\n\nՇինարարական թույլտվությունների վճարներ կամ պաշտոնական մունիցիպալ հաստատումներ։",
     demoScrollHint: "Ոլորեք՝ տեսնելու համար",
     demoOfferLabel: "Առաջարկ",
     demoAgreementTitle: "Անվտանգ ծառայության պայմանագիր",
@@ -698,6 +728,10 @@ const translations: Record<Locale, TranslationBundle> = {
     navPricing: "Тарифы",
     btnProtectProject: "Попробовать бесплатно",
     btnSeeHow: "Как это работает",
+    btnViewExample: "Смотреть пример соглашения",
+    examplePopupIntro:
+      "Это образец соглашения. VSTAH позволяет полностью настроить условия, графики и поля под ваш бизнес.",
+    btnCloseExample: "Закрыть",
     heroEyebrow: "",
     heroTitleLine1: "Защити каждую сделку",
     heroTitleLine2: "четким соглашением",
@@ -723,19 +757,22 @@ const translations: Record<Locale, TranslationBundle> = {
     cardChip2: "Цифровое соглашение на работы",
     projectLabel: "Проект",
     projectId: "#AM-2841",
-    projectTitle: "Ремонт квартиры",
+    projectTitle: "Архитектурный и интерьерный дизайн",
     projectStatus: "Активен",
     fundsLabel: "Средства удерживаются",
     lockedNote: "Удержание по 3 этапам",
-    stage1Name: "Демонтаж и подготовка",
-    stage1Amount: "150,000 ֏",
+    stage1Name: "Концепт и планировки",
+    stage1Amount: "400,000 ֏",
     stage1State: "Выплачено",
-    stage2Name: "Сантехника и электрика",
-    stage2Amount: "200,000 ֏",
+    stage1PaymentDue: "При подписании",
+    stage2Name: "3D-визуализация и рендеры",
+    stage2Amount: "500,000 ֏",
     stage2State: "Удерживается",
-    stage3Name: "Финишная отделка",
-    stage3Amount: "100,000 ֏",
+    stage2PaymentDue: "20 сентября 2026",
+    stage3Name: "Финальные архитектурные чертежи",
+    stage3Amount: "300,000 ֏",
     stage3State: "Ожидание",
+    stage3PaymentDue: "10 октября 2026",
     heroProposalStatus: "[Активно: подписано]",
     heroProposalLabel: "Предложение",
     heroMilestonesLabel: "Этапы проекта",
@@ -752,15 +789,19 @@ const translations: Record<Locale, TranslationBundle> = {
       "Интерактивное демо соглашения с этапами и цифровой подписью",
     demoProviderDetails: "Исполнитель",
     demoClientDetails: "Клиент",
-    demoBusinessName: "BuildPro LLC",
+    demoBusinessName: "ArchiStudio LLC",
     demoClientName: "Анаит Акопян",
     demoBusinessPhone: "+374 91 234 567",
     demoClientPhone: "+374 99 111 222",
     demoTotalLabel: "Итого",
-    demoTotalAmount: "450,000 ֏",
+    demoTotalAmount: "1,200,000 ֏",
     demoTermsTitle: "Условия",
     demoTermsBody:
-      "Объём, цена и график платежей фиксируются после подписи. Доп. работы требуют письменного обновления до начала.",
+      "1. Обязательный договор и фиксированный объём\nНастоящее Соглашение является юридически обязательным договором между ArchiStudio LLC и Анаит Акопян. Все результаты, сроки и оплаты фиксируются в момент подписания.\n\n2. Работы вне объёма\nЛюбые дополнительные правки дизайна, конструктивные изменения или дополнительные запросы требуют письменного Change Order, подписанного обеими сторонами, до начала работ.\n\n3. Условия оплаты и сроки\nОплаты должны следовать согласованному графику. Работы по следующим этапам начинаются только после получения оплаты за предыдущий этап.\n\n4. Интеллектуальная собственность\nВсе предварительные дизайны и 3D-рендеры остаются собственностью Исполнителя. Право собственности на финальные архитектурные чертежи переходит к Клиенту только после полной оплаты.\n\n5. Ограничение ответственности\nИсполнитель отвечает исключительно за дизайн-результаты и не несёт ответственности за ошибки сторонних подрядчиков или за получение муниципальных разрешений.",
+    demoScopeOfWork:
+      "Первичная презентация концепции и варианты планировки пространства.\n\nПолные 3D-рендеры и визуализация материалов.\n\nФинальные технические чертежи, планы освещения и спецификации материалов.",
+    demoScopeExclusions:
+      "Физическое строительство, демонтаж или работы на объекте.\n\nЗакупка мебели, светильников или предметов декора.\n\nСборы за строительные разрешения или официальные муниципальные согласования.",
     demoScrollHint: "Листайте, чтобы смотреть",
     demoOfferLabel: "Предложение",
     demoAgreementTitle: "Безопасное сервисное соглашение",

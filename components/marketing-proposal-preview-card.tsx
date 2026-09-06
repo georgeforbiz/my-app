@@ -17,12 +17,15 @@ export type ProposalPreviewCopy = {
   heroMilestonesLabel: string;
   stage1Name: string;
   stage1Amount: string;
+  stage1PaymentDue: string;
   heroStage1Status: string;
   stage2Name: string;
   stage2Amount: string;
+  stage2PaymentDue: string;
   heroStage2Status: string;
   stage3Name: string;
   stage3Amount: string;
+  stage3PaymentDue: string;
   heroStage3Status: string;
   heroSignatureName: string;
   heroDigitallyVerified: string;
@@ -42,6 +45,8 @@ export type ProposalPreviewCopy = {
   demoTotalAmount: string;
   demoTermsTitle: string;
   demoTermsBody: string;
+  demoScopeOfWork: string;
+  demoScopeExclusions: string;
   demoScrollHint: string;
   demoOfferLabel: string;
   demoAgreementTitle: string;
@@ -59,6 +64,51 @@ export type ProposalPreviewCopy = {
 function parseDramAmount(value: string): number {
   const n = Number(String(value).replace(/[^\d.]/g, ""));
   return Number.isFinite(n) ? n : 0;
+}
+
+export function buildMarketingDemoAgreement(t: ProposalPreviewCopy): AgreementDocumentData {
+  const milestones = [
+    {
+      title: t.stage1Name,
+      amount: parseDramAmount(t.stage1Amount),
+      payment_due: t.stage1PaymentDue
+    },
+    {
+      title: t.stage2Name,
+      amount: parseDramAmount(t.stage2Amount),
+      payment_due: t.stage2PaymentDue
+    },
+    {
+      title: t.stage3Name,
+      amount: parseDramAmount(t.stage3Amount),
+      payment_due: t.stage3PaymentDue
+    }
+  ];
+  const totalFromMilestones = milestones.reduce((sum, m) => sum + m.amount, 0);
+  const total = parseDramAmount(t.demoTotalAmount) || totalFromMilestones;
+
+  return {
+    id: "am2841-0000-4000-8000-000000000001",
+    created_at: "2026-03-15T10:00:00.000Z",
+    status: "signed",
+    business_name: t.demoBusinessName,
+    provider_phone: t.demoBusinessPhone,
+    provider_email: "hello@archistudio.am",
+    client_name: t.demoClientName,
+    client_phone: t.demoClientPhone,
+    client_email: "anahit@email.com",
+    project_title: t.projectTitle,
+    service_area: "Yerevan",
+    custom_terms: t.demoTermsBody,
+    scope_of_work: t.demoScopeOfWork,
+    scope_exclusions: t.demoScopeExclusions,
+    total_price: total,
+    vat_mode: "included",
+    payment_type: "milestones",
+    milestones,
+    client_signature: "/marketing/signature-mark.svg",
+    provider_logo_url: "/marketing/archistudio-logo.svg"
+  };
 }
 
 /** Scrollable, already-signed agreement demo inside the original phone frame size. */
@@ -81,35 +131,7 @@ export function MarketingAgreementDemo({
   const scrollVel = useRef(0);
   const transferring = useRef(false);
 
-  const demoAgreement = useMemo<AgreementDocumentData>(() => {
-    const milestones = [
-      { title: t.stage1Name, amount: parseDramAmount(t.stage1Amount) },
-      { title: t.stage2Name, amount: parseDramAmount(t.stage2Amount) },
-      { title: t.stage3Name, amount: parseDramAmount(t.stage3Amount) }
-    ];
-    const totalFromMilestones = milestones.reduce((sum, m) => sum + m.amount, 0);
-    const total = parseDramAmount(t.demoTotalAmount) || totalFromMilestones;
-
-    return {
-      id: "am2841-0000-4000-8000-000000000001",
-      created_at: "2026-03-15T10:00:00.000Z",
-      status: "signed",
-      business_name: t.demoBusinessName,
-      provider_phone: t.demoBusinessPhone,
-      provider_email: "hello@buildpro.am",
-      client_name: t.demoClientName,
-      client_phone: t.demoClientPhone,
-      client_email: "anahit@email.com",
-      project_title: t.projectTitle,
-      service_area: "Yerevan",
-      custom_terms: t.demoTermsBody,
-      total_price: total,
-      vat_mode: "included",
-      payment_type: "milestones",
-      milestones,
-      client_signature: "/marketing/signature-mark.svg"
-    };
-  }, [t]);
+  const demoAgreement = useMemo(() => buildMarketingDemoAgreement(t), [t]);
 
   useEffect(() => {
     const el = scrollRef.current;

@@ -178,6 +178,7 @@ export function AgreementDocumentView({
   embedded = false,
   compact = false,
   closingOnly = false,
+  logoBelowBadge = false,
   viewerUserId
 }: {
   agreement: AgreementDocumentData;
@@ -189,6 +190,8 @@ export function AgreementDocumentView({
   compact?: boolean;
   /** Show only total + signature + signed confirmation (marketing phone). */
   closingOnly?: boolean;
+  /** Place provider logo under the status badge (marketing example popup). */
+  logoBelowBadge?: boolean;
   /** Signed-in provider id — enables saved-logo fallback in dashboard preview. */
   viewerUserId?: string;
 }) {
@@ -467,7 +470,7 @@ export function AgreementDocumentView({
               )}
             </div>
             <div className="flex shrink-0 flex-col items-start gap-3 sm:items-end">
-              {providerLogo ? (
+              {!logoBelowBadge && providerLogo ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   key={agreement.id}
@@ -485,6 +488,15 @@ export function AgreementDocumentView({
               >
                 {phaseLabel}
               </span>
+              {logoBelowBadge && providerLogo ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  key={`${agreement.id}-logo-below`}
+                  src={providerLogoSrc ?? providerLogo}
+                  alt=""
+                  className="h-16 w-auto max-w-[200px] rounded-lg border border-slate-200/80 bg-white object-contain p-1.5 shadow-sm"
+                />
+              ) : null}
             </div>
           </div>
         )}
