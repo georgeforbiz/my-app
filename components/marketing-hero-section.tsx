@@ -81,9 +81,13 @@ function HeroSubtitle({ text, locale }: { text: string; locale: "en" | "hy" | "r
 const heroHeadlineClassEn =
   "mt-4 w-full min-w-0 font-black tracking-tight text-center text-[clamp(1.45rem,calc(4.8vw+0.4rem),3.35rem)] leading-[1.15] sm:mt-5 md:text-left md:leading-[1.12]";
 
-/** HY/RU translations run longer — keep the same 3-line breaks with a smaller scale. */
-const heroHeadlineClassLocalized =
+/** HY translations run longer — keep the same 3-line breaks with a smaller scale. */
+const heroHeadlineClassHy =
   "mt-4 w-full min-w-0 font-black tracking-tight text-center text-[clamp(1.15rem,calc(3.4vw+0.35rem),2.35rem)] leading-[1.18] sm:mt-5 md:text-left md:leading-[1.14]";
+
+/** RU — larger on mobile only; desktop cap stays the same. */
+const heroHeadlineClassRu =
+  "mt-4 w-full min-w-0 font-black tracking-tight text-center text-[clamp(1.45rem,calc(4.8vw+0.45rem),2.35rem)] leading-[1.16] sm:mt-5 md:text-left md:text-[clamp(1.15rem,calc(3.4vw+0.35rem),2.35rem)] md:leading-[1.14]";
 
 /** Keep each phrase on one row — no mid-line wraps like "with a clear / agreement". */
 const heroHeadlineRowClass = "block whitespace-nowrap max-md:mx-auto md:mt-1 lg:mt-1.5 first:mt-0";
@@ -92,15 +96,18 @@ function HeroHeadline({
   line1,
   line2,
   line3,
-  compact
+  locale
 }: {
   line1: string;
   line2: string;
   line3: string;
-  compact?: boolean;
+  locale: "en" | "hy" | "ru";
 }) {
+  const headlineClass =
+    locale === "ru" ? heroHeadlineClassRu : locale === "hy" ? heroHeadlineClassHy : heroHeadlineClassEn;
+
   return (
-    <h1 className={compact ? heroHeadlineClassLocalized : heroHeadlineClassEn}>
+    <h1 className={headlineClass}>
       <span className={heroHeadlineRowClass} style={{ color: ORANGE }}>
         {line1}
       </span>
@@ -120,7 +127,6 @@ export function MarketingHeroSection({
   locale: "en" | "hy" | "ru";
 }) {
   const isArmenian = locale === "hy";
-  const compactHeadline = locale === "hy" || locale === "ru";
   void isHy;
 
   const buttonsClass = isArmenian
@@ -143,7 +149,7 @@ export function MarketingHeroSection({
           line1={t.heroTitleLine1}
           line2={t.heroTitleLine2}
           line3={t.heroTitleLine3}
-          compact={compactHeadline}
+          locale={locale}
         />
         <div className={buttonsClass}>
           <Link href={ROUTES.register} className={primaryBtnClass}>
