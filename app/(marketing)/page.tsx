@@ -500,7 +500,7 @@ const translations: Record<Locale, TranslationBundle> = {
     demoBusinessPhone: "+374 91 234 567",
     demoClientPhone: "+374 99 111 222",
     demoTotalLabel: "Ընդամենը",
-    demoTotalAmount: "400,000 ֏",
+    demoTotalAmount: "450,000 ֏",
     demoTermsTitle: "Պայմաններ",
     demoTermsBody:
       "Ծավալը, գինը և վճարման ժամանակացույցը ֆիքսվում են ստորագրումից հետո։ Լրացուցիչ աշխատանքը պահանջում է գրավոր թարմացում։",
