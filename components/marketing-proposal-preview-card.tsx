@@ -321,15 +321,16 @@ export function MarketingAgreementDemo({
               <div className="relative h-[520px] shrink-0 bg-slate-100 font-sans">
                 <div
                   ref={scrollRef}
-                  className="absolute inset-0 touch-pan-y overflow-y-auto overscroll-none bg-white [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none]"
+                  className="absolute inset-0 overflow-hidden overscroll-none bg-white [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none]"
+                  style={{ touchAction: "pan-y" }}
                   tabIndex={0}
                   role="region"
                   aria-label={t.demoScrollHint}
                 >
-                  {/* Same document component / structure as the live agreement (mobile layout). */}
-                  <AgreementDocumentView agreement={demoAgreement} lang={locale} embedded compact closingOnly />
-
-                  <div className="flex justify-center bg-white pb-2.5 pt-1">
+                  <div className="h-full">
+                    <AgreementDocumentView agreement={demoAgreement} lang={locale} embedded compact closingOnly />
+                  </div>
+                  <div className="pointer-events-none absolute inset-x-0 bottom-2 z-[1] flex justify-center">
                     <div className="h-[5px] w-[118px] rounded-full bg-slate-900/20" aria-hidden />
                   </div>
                 </div>

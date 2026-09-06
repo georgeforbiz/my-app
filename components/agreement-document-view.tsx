@@ -339,12 +339,67 @@ export function AgreementDocumentView({
     ) : null;
 
   if (closingOnly) {
+    const totalAmount = Number(agreement.total_price || 0).toLocaleString("en-US", {
+      maximumFractionDigits: 2
+    });
+    const vatLine =
+      agreement.vat_mode === "exempt" ? tx.vatStatusExempt : tx.vatStatusIncluded;
+
     const closingCard = (
-      <div className="mx-auto w-full min-w-0 overflow-hidden bg-white">
-        <div className="space-y-4 px-3 py-4">
-          <div className="[&>div]:mt-0">{paymentTotal}</div>
-          {signatureBlock}
-          {signedSuccessBlock}
+      <div className="mx-auto flex h-full min-h-full w-full min-w-0 flex-col overflow-hidden bg-white px-3 pb-7 pt-3">
+        {/* Fixed-height slots — language text length must not move the signature */}
+        <div className="flex h-[118px] shrink-0 flex-col justify-center rounded-2xl bg-gradient-to-r from-[#0033A0] to-[#0033A0]/90 px-5 py-4 text-white shadow-md">
+          <p className="text-sm font-semibold leading-snug text-white/90 [overflow-wrap:anywhere]">
+            {tx.total}
+          </p>
+          <span className="mt-1.5 text-2xl font-black tabular-nums leading-none">{totalAmount} ֏</span>
+          <p className="mt-2.5 border-t border-white/20 pt-2.5 text-xs font-medium leading-snug text-white/70 [overflow-wrap:anywhere]">
+            {vatLine}
+          </p>
+        </div>
+
+        <section className="mt-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-md ring-1 ring-slate-900/[0.04]">
+          <div className="h-[78px] shrink-0 border-b border-slate-100 bg-gradient-to-r from-[#0033A0]/[0.07] to-slate-50/80 px-3 py-2.5">
+            <p className="truncate text-[9px] font-black uppercase tracking-[0.16em] text-[#0033A0]">
+              {tx.clientSignature}
+            </p>
+            <p className="mt-0.5 truncate text-sm font-bold leading-tight text-slate-900">
+              {agreement.client_name}
+            </p>
+            <span className="mt-1.5 inline-flex max-w-full items-center gap-1 truncate rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-bold text-emerald-800">
+              <CheckCircle2 className="h-3 w-3 shrink-0" aria-hidden />
+              <span className="truncate">{tx.signedAndApproved}</span>
+            </span>
+          </div>
+          <div className="flex min-h-0 flex-1 items-center justify-center bg-gradient-to-b from-slate-50/80 to-white px-3 py-3">
+            <div className="relative flex h-[88px] w-full max-w-[14rem] items-center justify-center rounded-xl bg-white shadow-inner ring-1 ring-slate-200/90">
+              <div
+                className="pointer-events-none absolute inset-x-4 bottom-2.5 border-b border-slate-300/90"
+                aria-hidden
+              />
+              {signatureImage ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={signatureImage}
+                  alt=""
+                  className="relative z-[1] h-14 w-auto max-w-[85%] object-contain"
+                />
+              ) : null}
+            </div>
+          </div>
+        </section>
+
+        <div className="mt-3 flex h-[96px] shrink-0 gap-2.5 rounded-2xl border border-emerald-200/90 bg-white p-3 shadow-sm ring-1 ring-emerald-100">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-emerald-100">
+            <CheckCircle2 className="h-5 w-5 text-emerald-600" aria-hidden />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-black leading-tight text-slate-900">{tx.signedAndApproved}</p>
+            <p className="mt-1 line-clamp-2 text-[11px] font-semibold leading-snug text-slate-700">
+              {tx.signedSuccessNote}
+            </p>
+            <p className="mt-0.5 truncate text-[10px] text-slate-500">{tx.signedSuccessHint}</p>
+          </div>
         </div>
       </div>
     );
