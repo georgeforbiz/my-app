@@ -1,9 +1,15 @@
 "use client";
 
-import Image from "next/image";
-import { Battery, Check, Clock, ShieldCheck, Signal, Sparkles, Wifi } from "lucide-react";
+import { useEffect, useMemo, useRef } from "react";
+import { Battery, Signal, Wifi } from "lucide-react";
+import {
+  AgreementDocumentView,
+  type AgreementDocumentData
+} from "@/components/agreement-document-view";
+import type { Language } from "@/lib/i18n/locales";
 
 export type ProposalPreviewCopy = {
+  projectLabel: string;
   projectId: string;
   projectTitle: string;
   heroProposalStatus: string;
@@ -26,34 +32,254 @@ export type ProposalPreviewCopy = {
   heroRow1Badge: string;
   heroAuditTrail: string;
   heroProposalMockupAria: string;
+  demoProviderDetails: string;
+  demoClientDetails: string;
+  demoBusinessName: string;
+  demoClientName: string;
+  demoBusinessPhone: string;
+  demoClientPhone: string;
+  demoTotalLabel: string;
+  demoTotalAmount: string;
+  demoTermsTitle: string;
+  demoTermsBody: string;
+  demoScrollHint: string;
+  demoOfferLabel: string;
+  demoAgreementTitle: string;
+  demoSignedSubtitle: string;
+  demoProjectHeader: string;
+  demoBusinessNameLabel: string;
+  demoClientNameLabel: string;
+  demoPhoneLabel: string;
+  demoPaymentSchedule: string;
+  demoScheduleStatus: string;
+  demoStatusSigned: string;
+  demoClientSignature: string;
 };
 
-export function MarketingProposalPreviewCard({ t }: { t: ProposalPreviewCopy }) {
-  const milestones = [
-    {
-      name: t.stage1Name,
-      amount: t.stage1Amount,
-      icon: Check,
-      accent: "border-l-emerald-500 bg-white ring-emerald-100/80",
-      iconWrap: "bg-emerald-100 text-emerald-600"
-    },
-    {
-      name: t.stage2Name,
-      amount: t.stage2Amount,
-      icon: Clock,
-      accent: "border-l-blue-500 bg-white ring-blue-100/80",
-      iconWrap: "bg-blue-100 text-blue-600"
-    },
-    {
-      name: t.stage3Name,
-      amount: t.stage3Amount,
-      icon: Sparkles,
-      accent: "border-l-amber-400 bg-white ring-amber-100/80",
-      iconWrap: "bg-[#FEF3C7] text-amber-600"
-    }
-  ] as const;
+function parseDramAmount(value: string): number {
+  const n = Number(String(value).replace(/[^\d.]/g, ""));
+  return Number.isFinite(n) ? n : 0;
+}
 
-  const statusLabel = t.heroProposalStatus.replace(/^\[|\]$/g, "").trim();
+/** Scrollable, already-signed agreement demo inside the original phone frame size. */
+export function MarketingAgreementDemo({
+  t,
+  locale
+}: {
+  t: ProposalPreviewCopy;
+  locale: Language;
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const touchY = useRef(0);
+  const touchVel = useRef(0);
+  const touchTime = useRef(0);
+  const chaining = useRef(false);
+  const rafId = useRef(0);
+  const smoothTimer = useRef(0);
+  const lastScrollTop = useRef(0);
+  const lastScrollTime = useRef(0);
+  const scrollVel = useRef(0);
+  const transferring = useRef(false);
+
+  const demoAgreement = useMemo<AgreementDocumentData>(() => {
+    const milestones = [
+      { title: t.stage1Name, amount: parseDramAmount(t.stage1Amount) },
+      { title: t.stage2Name, amount: parseDramAmount(t.stage2Amount) },
+      { title: t.stage3Name, amount: parseDramAmount(t.stage3Amount) }
+    ];
+    const totalFromMilestones = milestones.reduce((sum, m) => sum + m.amount, 0);
+    const total = parseDramAmount(t.demoTotalAmount) || totalFromMilestones;
+
+    return {
+      id: "am2841-0000-4000-8000-000000000001",
+      created_at: "2026-03-15T10:00:00.000Z",
+      status: "signed",
+      business_name: t.demoBusinessName,
+      provider_phone: t.demoBusinessPhone,
+      provider_email: "hello@buildpro.am",
+      client_name: t.demoClientName,
+      client_phone: t.demoClientPhone,
+      client_email: "anahit@email.com",
+      project_title: t.projectTitle,
+      service_area: "Yerevan",
+      custom_terms: t.demoTermsBody,
+      total_price: total,
+      vat_mode: "included",
+      payment_type: "milestones",
+      milestones,
+      client_signature: "/marketing/signature-mark.svg"
+    };
+  }, [t]);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const html = document.documentElement;
+    let smoothOff = false;
+    const EPS = 1.5;
+
+    const suppressPageSmooth = () => {
+      if (smoothOff) return;
+      html.classList.remove("scroll-smooth");
+      smoothOff = true;
+    };
+
+    const restorePageSmooth = () => {
+      if (!smoothOff) return;
+      html.classList.add("scroll-smooth");
+      smoothOff = false;
+    };
+
+    const scheduleRestoreSmooth = () => {
+      window.clearTimeout(smoothTimer.current);
+      smoothTimer.current = window.setTimeout(restorePageSmooth, 160);
+    };
+
+    const scrollPageBy = (dy: number) => {
+      if (dy === 0) return;
+      suppressPageSmooth();
+      const root = document.scrollingElement ?? html;
+      root.scrollTop += dy;
+    };
+
+    const atTop = () => el.scrollTop <= EPS;
+    const atBottom = () => el.scrollTop + el.clientHeight >= el.scrollHeight - EPS;
+
+    /** Desktop: own the wheel so leftovers spill to the page in one motion. */
+    const applyWheelDelta = (dy: number) => {
+      if (dy === 0) return;
+
+      if (dy > 0) {
+        const room = Math.max(0, el.scrollHeight - el.clientHeight - el.scrollTop);
+        if (room > 0.5) {
+          const used = Math.min(room, dy);
+          el.scrollTop += used;
+          scrollPageBy(dy - used);
+        } else {
+          scrollPageBy(dy);
+        }
+      } else {
+        const up = -dy;
+        const room = el.scrollTop;
+        if (room > 0.5) {
+          const used = Math.min(room, up);
+          el.scrollTop -= used;
+          scrollPageBy(-(up - used));
+        } else {
+          scrollPageBy(dy);
+        }
+      }
+    };
+
+    const flingPage = (pxPerFrame: number) => {
+      cancelAnimationFrame(rafId.current);
+      let v = pxPerFrame;
+      transferring.current = true;
+      const tick = () => {
+        v *= 0.94;
+        if (Math.abs(v) < 0.4) {
+          transferring.current = false;
+          scheduleRestoreSmooth();
+          return;
+        }
+        scrollPageBy(v);
+        rafId.current = requestAnimationFrame(tick);
+      };
+      rafId.current = requestAnimationFrame(tick);
+    };
+
+    const onScroll = () => {
+      const now = performance.now();
+      const st = el.scrollTop;
+      const dt = Math.max(1, now - lastScrollTime.current);
+      scrollVel.current = (st - lastScrollTop.current) / dt;
+      lastScrollTop.current = st;
+      lastScrollTime.current = now;
+
+      if (!transferring.current && !chaining.current && atBottom() && scrollVel.current > 0.12) {
+        flingPage(Math.min(scrollVel.current * 18, 48));
+      }
+    };
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      let dy = e.deltaY;
+      if (e.deltaMode === 1) dy *= 16;
+      else if (e.deltaMode === 2) dy *= el.clientHeight;
+
+      applyWheelDelta(dy);
+      scheduleRestoreSmooth();
+    };
+
+    const onTouchStart = (e: TouchEvent) => {
+      cancelAnimationFrame(rafId.current);
+      window.clearTimeout(smoothTimer.current);
+      transferring.current = false;
+      chaining.current = false;
+      touchY.current = e.touches[0]?.clientY ?? 0;
+      touchTime.current = performance.now();
+      touchVel.current = 0;
+      lastScrollTop.current = el.scrollTop;
+      lastScrollTime.current = performance.now();
+      scrollVel.current = 0;
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      const y = e.touches[0]?.clientY ?? 0;
+      const now = performance.now();
+      const dy = touchY.current - y;
+      const dt = Math.max(8, now - touchTime.current);
+      touchVel.current = touchVel.current * 0.5 + (dy / dt) * 0.5;
+
+      const goingDown = dy > 0;
+      const goingUp = dy < 0;
+      const hitBottom = goingDown && atBottom();
+      const hitTop = goingUp && atTop();
+
+      if (hitBottom || hitTop || chaining.current) {
+        if ((goingDown && atBottom()) || (goingUp && atTop())) {
+          chaining.current = true;
+          e.preventDefault();
+          scrollPageBy(dy);
+        } else {
+          chaining.current = false;
+        }
+      }
+
+      touchY.current = y;
+      touchTime.current = now;
+    };
+
+    const onTouchEnd = () => {
+      if (chaining.current && Math.abs(touchVel.current) > 0.05) {
+        flingPage(Math.sign(touchVel.current) * Math.min(Math.abs(touchVel.current) * 18, 48));
+      } else {
+        scheduleRestoreSmooth();
+      }
+      chaining.current = false;
+    };
+
+    el.addEventListener("scroll", onScroll, { passive: true });
+    el.addEventListener("wheel", onWheel, { passive: false });
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd, { passive: true });
+    el.addEventListener("touchcancel", onTouchEnd, { passive: true });
+    return () => {
+      cancelAnimationFrame(rafId.current);
+      window.clearTimeout(smoothTimer.current);
+      restorePageSmooth();
+      el.removeEventListener("scroll", onScroll);
+      el.removeEventListener("wheel", onWheel);
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+      el.removeEventListener("touchcancel", onTouchEnd);
+    };
+  }, []);
 
   return (
     <div className="w-full" aria-label={t.heroProposalMockupAria}>
@@ -76,7 +302,7 @@ export function MarketingProposalPreviewCard({ t }: { t: ProposalPreviewCopy }) 
             <span className="absolute -right-[3px] top-[116px] h-14 w-[3px] rounded-r-sm bg-slate-600" aria-hidden />
 
             <div className="relative overflow-hidden rounded-[2.2rem] bg-black ring-1 ring-white/10">
-              <div className="relative bg-white px-4 pb-1.5 pt-3">
+              <div className="relative z-[2] bg-white px-4 pb-1.5 pt-3">
                 <div
                   className="absolute left-1/2 top-2 z-10 h-[25px] w-[92px] -translate-x-1/2 rounded-full bg-black shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08)]"
                   aria-hidden
@@ -91,88 +317,21 @@ export function MarketingProposalPreviewCard({ t }: { t: ProposalPreviewCopy }) 
                 </div>
               </div>
 
-              <div className="bg-slate-50 font-sans">
-                <div className="border-b border-slate-100 bg-white px-4 py-3 sm:px-[18px]">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400">{t.heroProposalLabel}</p>
-                  <h3 className="mt-1 text-[13px] font-bold leading-snug text-slate-900">
-                    {t.projectId}
-                    <span className="font-semibold text-slate-400"> · </span>
-                    <span className="font-semibold text-slate-700">{t.projectTitle}</span>
-                  </h3>
-                  <span className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold text-emerald-700 ring-1 ring-emerald-200/80">
-                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
-                    {statusLabel}
-                  </span>
-                </div>
+              {/* Fixed screen height — never depends on translated copy or font metrics */}
+              <div className="relative h-[520px] shrink-0 bg-slate-100 font-sans">
+                <div
+                  ref={scrollRef}
+                  className="absolute inset-0 touch-pan-y overflow-y-auto overscroll-none bg-white [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none]"
+                  tabIndex={0}
+                  role="region"
+                  aria-label={t.demoScrollHint}
+                >
+                  {/* Same document component / structure as the live agreement (mobile layout). */}
+                  <AgreementDocumentView agreement={demoAgreement} lang={locale} embedded compact closingOnly />
 
-                <div className="space-y-3 px-4 py-3.5 sm:px-[18px]">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-400">
-                    {t.heroMilestonesLabel}
-                  </p>
-                  <ul className="space-y-2.5">
-                    {milestones.map((milestone) => {
-                      const Icon = milestone.icon;
-                      return (
-                        <li
-                          key={milestone.name}
-                          className={`flex items-center gap-3 rounded-xl border-l-[3px] px-3 py-2.5 ring-1 ${milestone.accent}`}
-                        >
-                          <span
-                            className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full ${milestone.iconWrap}`}
-                          >
-                            <Icon className="h-3.5 w-3.5" strokeWidth={2.5} />
-                          </span>
-                          <div className="flex min-w-0 flex-1 items-center justify-between gap-3">
-                            <p className="min-w-0 text-[11px] font-semibold leading-snug text-slate-900">
-                              {milestone.name}
-                            </p>
-                            <span className="shrink-0 text-[11px] font-bold tabular-nums text-slate-800">
-                              {milestone.amount}
-                            </span>
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-
-                <div className="border-t border-slate-200/80 bg-white px-4 pb-3 pt-3 sm:px-[18px]">
-                  <div className="rounded-lg border border-slate-200/90 bg-white p-2.5 shadow-sm">
-                    <p className="text-[8px] font-bold uppercase tracking-[0.16em] text-[#0033A0]">
-                      {t.heroSignatureLabel}
-                    </p>
-                    <div className="relative mt-1.5 overflow-hidden rounded-md bg-[linear-gradient(to_bottom,#f8fafc_0%,#ffffff_100%)] px-2.5 py-2 ring-1 ring-slate-200/80">
-                      <div
-                        className="pointer-events-none absolute inset-x-2.5 bottom-1.5 border-b border-slate-300/90"
-                        aria-hidden
-                      />
-                      <Image
-                        src="/marketing/signature-mark.svg"
-                        alt=""
-                        width={128}
-                        height={32}
-                        className="relative z-[1] mx-auto block h-6 w-auto max-w-[5.5rem] object-contain"
-                        aria-hidden
-                      />
-                    </div>
-                    <p className="mt-1.5 inline-flex items-center gap-1 text-[8px] font-semibold text-emerald-700">
-                      <ShieldCheck className="h-2.5 w-2.5" strokeWidth={2.5} aria-hidden />
-                      {t.heroDigitallyVerified}
-                    </p>
+                  <div className="flex justify-center bg-white pb-2.5 pt-1">
+                    <div className="h-[5px] w-[118px] rounded-full bg-slate-900/20" aria-hidden />
                   </div>
-
-                  <div className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-xl bg-emerald-600 py-2.5 text-[11px] font-bold text-white shadow-sm">
-                    <Check className="h-3.5 w-3.5" strokeWidth={2.75} aria-hidden />
-                    {t.heroRow1Badge}
-                  </div>
-
-                  <p className="mt-2 text-center text-[8px] font-medium leading-relaxed tracking-wide text-slate-400">
-                    {t.heroAuditTrail}
-                  </p>
-                </div>
-
-                <div className="flex justify-center bg-white pb-2.5 pt-0.5">
-                  <div className="h-[5px] w-[118px] rounded-full bg-slate-900/20" aria-hidden />
                 </div>
               </div>
 
@@ -187,3 +346,5 @@ export function MarketingProposalPreviewCard({ t }: { t: ProposalPreviewCopy }) 
     </div>
   );
 }
+
+export const MarketingProposalPreviewCard = MarketingAgreementDemo;

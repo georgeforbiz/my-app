@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { OutlineLightButton } from "@/components/vstah-button";
-import { MarketingProposalPreviewCard, type ProposalPreviewCopy } from "@/components/marketing-proposal-preview-card";
+import { MarketingAgreementDemo, type ProposalPreviewCopy } from "@/components/marketing-proposal-preview-card";
 import { ORANGE } from "@/lib/brand";
 import { ROUTES } from "@/lib/routes";
 
@@ -156,7 +156,7 @@ export function MarketingHeroSection({
       </div>
 
       <div className="relative flex w-full min-w-0 items-center justify-center overflow-visible pb-2 sm:pb-4 md:justify-end md:pb-0 vstah-animate-in">
-        <MarketingProposalPreviewCard t={t} />
+        <MarketingAgreementDemo t={t} locale={locale} />
       </div>
     </div>
   );

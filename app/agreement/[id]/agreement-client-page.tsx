@@ -329,7 +329,7 @@ export default function AgreementClientPage({
           offer: "Առաջարկ",
           title: "Անվտանգ ծառայության պայմանագիր",
           subtitle: "Ստուգեք տվյալները ստորագրելուց առաջ։",
-          subtitleSigned: "Պայմանագիրը պաշտոնապես կնքված և ստորագրված է",
+          subtitleSigned: "Պայմանագիրը պաշտոնապես կնքված և ստորագրված\u00A0է",
           client: "Հաճախորդի անուն",
           clientPhoneLabel: "Հեռախոս",
           clientEmailLabel: "Էլ․ փոստ",

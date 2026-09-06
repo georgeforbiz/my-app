@@ -83,6 +83,28 @@ type TranslationBundle = {
   heroSignCta: string;
   heroAuditTrail: string;
   heroProposalMockupAria: string;
+  demoProviderDetails: string;
+  demoClientDetails: string;
+  demoBusinessName: string;
+  demoClientName: string;
+  demoBusinessPhone: string;
+  demoClientPhone: string;
+  demoTotalLabel: string;
+  demoTotalAmount: string;
+  demoTermsTitle: string;
+  demoTermsBody: string;
+  demoScrollHint: string;
+  demoOfferLabel: string;
+  demoAgreementTitle: string;
+  demoSignedSubtitle: string;
+  demoProjectHeader: string;
+  demoBusinessNameLabel: string;
+  demoClientNameLabel: string;
+  demoPhoneLabel: string;
+  demoPaymentSchedule: string;
+  demoScheduleStatus: string;
+  demoStatusSigned: string;
+  demoClientSignature: string;
   cardTagline1: string;
   cardTagline2: string;
   feature1: string;
@@ -213,7 +235,30 @@ const translations: Record<Locale, TranslationBundle> = {
     heroSignCta: "Sign & Approve Proposal",
     heroAuditTrail: "Audit Trail: IP Verified • TimeStamped • Legal Record",
     heroProposalMockupAria:
-      "Interactive phone mockup of proposal AM-2841 with milestones and digital signature",
+      "Interactive scrollable agreement demo with milestones and digital signature",
+    demoProviderDetails: "Provider",
+    demoClientDetails: "Client",
+    demoBusinessName: "BuildPro LLC",
+    demoClientName: "Anahit Hakobyan",
+    demoBusinessPhone: "+374 91 234 567",
+    demoClientPhone: "+374 99 111 222",
+    demoTotalLabel: "Total",
+    demoTotalAmount: "450,000 ֏",
+    demoTermsTitle: "Terms",
+    demoTermsBody:
+      "Scope, price, and payment schedule are locked once signed. Extra work requires a written update before it starts.",
+    demoScrollHint: "Scroll to explore",
+    demoOfferLabel: "Offer",
+    demoAgreementTitle: "Safe Service Agreement",
+    demoSignedSubtitle: "Agreement Officially Executed & Signed",
+    demoProjectHeader: "Project / Service Name",
+    demoBusinessNameLabel: "Business Name",
+    demoClientNameLabel: "Client Name",
+    demoPhoneLabel: "Phone",
+    demoPaymentSchedule: "Payment Schedule",
+    demoScheduleStatus: "Status",
+    demoStatusSigned: "Signed",
+    demoClientSignature: "Client signature",
     cardTagline1: "Stop the disputes.",
     cardTagline2: "Start the renovation.",
     feature1: "Clear Milestones",
@@ -447,8 +492,30 @@ const translations: Record<Locale, TranslationBundle> = {
     heroSignCta: "Ստորագրել և հաստատել առաջարկը",
     heroAuditTrail: "Հետագծում՝ IP հաստատված • Ժամանակային կնիք • Իրավական գրառում",
     heroProposalMockupAria:
-      "Ինտերակտիվ հեռախոսի մակետ՝ AM-2841 առաջարկով, փուլերով և թվային ստորագրությամբ",
-
+      "Ինտերակտիվ պայմանագրի դեմո՝ փուլերով և թվային ստորագրությամբ",
+    demoProviderDetails: "Մատակարար",
+    demoClientDetails: "Հաճախորդ",
+    demoBusinessName: "BuildPro LLC",
+    demoClientName: "Անահիտ Հակոբյան",
+    demoBusinessPhone: "+374 91 234 567",
+    demoClientPhone: "+374 99 111 222",
+    demoTotalLabel: "Ընդամենը",
+    demoTotalAmount: "400,000 ֏",
+    demoTermsTitle: "Պայմաններ",
+    demoTermsBody:
+      "Ծավալը, գինը և վճարման ժամանակացույցը ֆիքսվում են ստորագրումից հետո։ Լրացուցիչ աշխատանքը պահանջում է գրավոր թարմացում։",
+    demoScrollHint: "Ոլորեք՝ տեսնելու համար",
+    demoOfferLabel: "Առաջարկ",
+    demoAgreementTitle: "Անվտանգ ծառայության պայմանագիր",
+    demoSignedSubtitle: "Պայմանագիրը պաշտոնապես կնքված և ստորագրված\u00A0է",
+    demoProjectHeader: "Նախագծի / ծառայության անվանում",
+    demoBusinessNameLabel: "Բիզնեսի անվանում",
+    demoClientNameLabel: "Հաճախորդի անուն",
+    demoPhoneLabel: "Հեռախոս",
+    demoPaymentSchedule: "Վճարման ժամանակացույց",
+    demoScheduleStatus: "Կարգավիճակ",
+    demoStatusSigned: "Ստորագրված",
+    demoClientSignature: "Հաճախորդի ստորագրություն",
     cardTagline1: "Վեճերին վերջ։",
     cardTagline2: "Նախագիծը առաջ։",
     feature1: "Հստակ փուլեր",
@@ -682,7 +749,30 @@ const translations: Record<Locale, TranslationBundle> = {
     heroSignCta: "Подписать и утвердить предложение",
     heroAuditTrail: "Аудит: IP проверен • Отметка времени • Юридическая запись",
     heroProposalMockupAria:
-      "Интерактивный макет телефона с предложением AM-2841, этапами и цифровой подписью",
+      "Интерактивное демо соглашения с этапами и цифровой подписью",
+    demoProviderDetails: "Исполнитель",
+    demoClientDetails: "Клиент",
+    demoBusinessName: "BuildPro LLC",
+    demoClientName: "Анаит Акопян",
+    demoBusinessPhone: "+374 91 234 567",
+    demoClientPhone: "+374 99 111 222",
+    demoTotalLabel: "Итого",
+    demoTotalAmount: "450,000 ֏",
+    demoTermsTitle: "Условия",
+    demoTermsBody:
+      "Объём, цена и график платежей фиксируются после подписи. Доп. работы требуют письменного обновления до начала.",
+    demoScrollHint: "Листайте, чтобы смотреть",
+    demoOfferLabel: "Предложение",
+    demoAgreementTitle: "Безопасное сервисное соглашение",
+    demoSignedSubtitle: "Соглашение официально заключено и подписано",
+    demoProjectHeader: "Название проекта / услуги",
+    demoBusinessNameLabel: "Название бизнеса",
+    demoClientNameLabel: "Имя клиента",
+    demoPhoneLabel: "Телефон",
+    demoPaymentSchedule: "График платежей",
+    demoScheduleStatus: "Статус",
+    demoStatusSigned: "Подписано",
+    demoClientSignature: "Подпись клиента",
     cardTagline1: "Меньше споров.",
     cardTagline2: "Быстрее проект.",
     feature1: "Четкие этапы",

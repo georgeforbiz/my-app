@@ -105,7 +105,7 @@ const labels: Record<Language, AgreementDocumentLabels> = {
     offer: "Առաջարկ",
     title: "Անվտանգ ծառայության պայմանագիր",
     subtitle: "Ստուգեք տվյալները ստորագրելուց առաջ։",
-    subtitleSigned: "Պայմանագիրը պաշտոնապես կնքված և ստորագրված է",
+    subtitleSigned: "Պայմանագիրը պաշտոնապես կնքված և ստորագրված\u00A0է",
     draftBanner: "Նախադիտում — դեռ չի պահպանվել։ Հղումը հասանելի կլինի ստեղծելուց հետո։",
     previewId: "Նախադիտում",
     agreementId: "ID",
