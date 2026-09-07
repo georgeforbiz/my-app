@@ -263,9 +263,9 @@ const translations: Record<Locale, TranslationBundle> = {
     demoTermsBody:
       "1. Binding Contract & Fixed Scope\nThis Agreement is a legally binding contract between ArchiStudio LLC and Anahit Hakobyan. All deliverables, timelines, and fees are locked upon signing.\n\n2. Out-of-Scope Work\nAny additional design revisions, structural changes, or extra requests require a written Change Order signed by both parties before work begins.\n\n3. Payment Terms & Timeline\nPayments must follow the agreed schedule. Work on subsequent project stages will only proceed once the previous milestone payment is received.\n\n4. Intellectual Property\nAll preliminary designs and 3D renderings remain the property of the Provider. Ownership of the final architectural drawings transfers to the Client only upon full payment.\n\n5. Limitation of Liability\nThe Provider is responsible solely for design deliverables and holds no liability for third-party contractor execution errors or required municipal permit approvals.",
     demoScopeOfWork:
-      "Initial concept presentation and space layout options.\n\nFull 3D renderings and material visualisations.\n\nFinal technical drawings, lighting plans, and material specifications.",
+      "Initial concept presentation and space layout options.\nFull 3D renderings and material visualisations.\nFinal technical drawings, lighting plans, and material specifications.",
     demoScopeExclusions:
-      "Physical construction, demolition, or site labor.\n\nPurchases of furniture, lighting fixtures, or decor items.\n\nBuilding permit fees or official municipal approvals.",
+      "Physical construction, demolition, or site labor.\nPurchases of furniture, lighting fixtures, or decor items.\nBuilding permit fees or official municipal approvals.",
     demoScrollHint: "Scroll to explore",
     demoOfferLabel: "Offer",
     demoAgreementTitle: "Safe Service Agreement",
@@ -531,9 +531,9 @@ const translations: Record<Locale, TranslationBundle> = {
     demoTermsBody:
       "1. Պարտադիր պայմանագիր և ֆիքսված ծավալ\nՍույն պայմանագիրը իրավաբանորեն պարտադիր պայմանագիր է ArchiStudio LLC-ի և Անահիտ Հակոբյանի միջև։ Բոլոր մատակարարումները, ժամկետները և վճարները կողպվում են ստորագրումից հետո։\n\n2. Ծավալից դուրս աշխատանք\nՑանկացած լրացուցիչ դիզայնի վերանայում, կառուցվածքային փոփոխություն կամ լրացուցիչ հարցում պահանջում է երկու կողմերի ստորագրած գրավոր փոփոխման հանձնարարագիր՝ աշխատանքը սկսելուց առաջ։\n\n3. Վճարման պայմաններ և ժամանակացույց\nՎճարումները պետք է հետևեն համաձայնեցված ժամանակացույցին։ Հաջորդ փուլերի աշխատանքը կշարունակվի միայն նախորդ փուլի վճարումը ստանալուց հետո։\n\n4. Մտավոր սեփականություն\nԲոլոր նախնական դիզայնները և 3D ռենդերները մնում են Մատակարարի սեփականությունը։ Վերջնական ճարտարապետական գծագրերի սեփականությունը Հաճախորդին է փոխանցվում միայն ամբողջական վճարումից հետո։\n\n5. Պատասխանատվության սահմանափակում\nՄատակարարը պատասխանատու է միայն դիզայնի մատակարարումների համար և պատասխանատվություն չի կրում երրորդ կողմի կապալառուների սխալների կամ մունիցիպալ թույլտվությունների համար։",
     demoScopeOfWork:
-      "Նախնական կոնցեպտի ներկայացում և տարածքի դասավորության տարբերակներ։\n\nԱմբողջական 3D ռենդերներ և նյութերի վիզուալիզացիա։\n\nՎերջնական տեխնիկական գծագրեր, լուսավորության պլաններ և նյութերի բնութագրեր։",
+      "Նախնական կոնցեպտի ներկայացում և տարածքի դասավորության տարբերակներ։\nԱմբողջական 3D ռենդերներ և նյութերի վիզուալիզացիա։\nՎերջնական տեխնիկական գծագրեր, լուսավորության պլաններ և նյութերի բնութագրեր։",
     demoScopeExclusions:
-      "Ֆիզիկական շինարարություն, ապամոնտաժում կամ տեղում աշխատանք։\n\nԿահույքի, լուսատուների կամ դեկորի ձեռքբերում։\n\nՇինարարական թույլտվությունների վճարներ կամ պաշտոնական մունիցիպալ հաստատումներ։",
+      "Ֆիզիկական շինարարություն, ապամոնտաժում կամ տեղում աշխատանք։\nԿահույքի, լուսատուների կամ դեկորի ձեռքբերում։\nՇինարարական թույլտվությունների վճարներ կամ պաշտոնական մունիցիպալ հաստատումներ։",
     demoScrollHint: "Ոլորեք՝ տեսնելու համար",
     demoOfferLabel: "Առաջարկ",
     demoAgreementTitle: "Անվտանգ ծառայության պայմանագիր",
@@ -799,9 +799,9 @@ const translations: Record<Locale, TranslationBundle> = {
     demoTermsBody:
       "1. Обязательный договор и фиксированный объём\nНастоящее Соглашение является юридически обязательным договором между ArchiStudio LLC и Анаит Акопян. Все результаты, сроки и оплаты фиксируются в момент подписания.\n\n2. Работы вне объёма\nЛюбые дополнительные правки дизайна, конструктивные изменения или дополнительные запросы требуют письменного Change Order, подписанного обеими сторонами, до начала работ.\n\n3. Условия оплаты и сроки\nОплаты должны следовать согласованному графику. Работы по следующим этапам начинаются только после получения оплаты за предыдущий этап.\n\n4. Интеллектуальная собственность\nВсе предварительные дизайны и 3D-рендеры остаются собственностью Исполнителя. Право собственности на финальные архитектурные чертежи переходит к Клиенту только после полной оплаты.\n\n5. Ограничение ответственности\nИсполнитель отвечает исключительно за дизайн-результаты и не несёт ответственности за ошибки сторонних подрядчиков или за получение муниципальных разрешений.",
     demoScopeOfWork:
-      "Первичная презентация концепции и варианты планировки пространства.\n\nПолные 3D-рендеры и визуализация материалов.\n\nФинальные технические чертежи, планы освещения и спецификации материалов.",
+      "Первичная презентация концепции и варианты планировки пространства.\nПолные 3D-рендеры и визуализация материалов.\nФинальные технические чертежи, планы освещения и спецификации материалов.",
     demoScopeExclusions:
-      "Физическое строительство, демонтаж или работы на объекте.\n\nЗакупка мебели, светильников или предметов декора.\n\nСборы за строительные разрешения или официальные муниципальные согласования.",
+      "Физическое строительство, демонтаж или работы на объекте.\nЗакупка мебели, светильников или предметов декора.\nСборы за строительные разрешения или официальные муниципальные согласования.",
     demoScrollHint: "Листайте, чтобы смотреть",
     demoOfferLabel: "Предложение",
     demoAgreementTitle: "Безопасное сервисное соглашение",
