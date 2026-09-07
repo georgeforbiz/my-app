@@ -159,8 +159,8 @@ export function normalizeAgreementRow(row: Record<string, unknown>): NormalizedA
     client_email: resolveClientEmail(row.client_email, rawCustomTerms),
     project_title,
     service_area: String(row.service_area ?? "").trim(),
-    custom_terms: stripEmailsFromTerms(
-      stripScopeFromTerms(stripPhonesFromTerms(stripVatModeFromTerms(rawCustomTerms)))
+    custom_terms: stripScopeFromTerms(
+      stripVatModeFromTerms(stripPhonesFromTerms(stripEmailsFromTerms(rawCustomTerms)))
     ),
     scope_of_work,
     scope_exclusions,
@@ -325,6 +325,13 @@ export function parseScopeFromTerms(customTerms: string): {
 /** Remove embedded scope blocks so Terms & Conditions does not duplicate them. */
 export function stripScopeFromTerms(customTerms: string): string {
   return customTerms.replace(SCOPE_BLOCK_RE, "").trim();
+}
+
+/** Hide internal metadata blocks (phones, emails, VAT, embedded scope) from Terms UI. */
+export function termsForDisplay(customTerms: string): string {
+  return stripScopeFromTerms(
+    stripVatModeFromTerms(stripPhonesFromTerms(stripEmailsFromTerms(customTerms)))
+  ).trim();
 }
 
 /** Embeds scope fields in contract text when dedicated DB columns are unavailable. */

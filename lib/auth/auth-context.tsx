@@ -20,7 +20,15 @@ import {
   type ProviderProfile,
   type ProviderProfileSettingsInput
 } from "./profile-fields";
-import { clearSigningOut, isSigningOut, markSigningOut, redirectToLoginAfterLogout } from "./constants";
+import {
+  clearPasswordRecovery,
+  clearSigningOut,
+  isPasswordRecovery,
+  isSigningOut,
+  markPasswordRecovery,
+  markSigningOut,
+  redirectToLoginAfterLogout
+} from "./constants";
 import { ROUTES } from "@/lib/routes";
 import { purgeBrowserSessionState } from "./clear-user-session";
 import { isLocalDeviceAuthAllowed, isMockAuthAllowed } from "./mock-auth-allowed";
@@ -29,6 +37,7 @@ import {
   mockLogin,
   mockLogout,
   mockRegister,
+  mockUpdatePassword,
   mockUpdateProfile,
   mockVerifyCredentials
 } from "./mock-storage";
@@ -56,9 +65,12 @@ export type SignUpMetadata = {
 type AuthContextValue = {
   user: AuthUser | null;
   loading: boolean;
+  /** True after clicking a password-reset email link (until password is updated or cleared). */
+  passwordRecovery: boolean;
   signIn: (email: string, password: string) => Promise<{ error?: string }>;
   resendConfirmation: (email: string) => Promise<{ error?: string }>;
   requestPasswordReset: (email: string) => Promise<{ error?: string }>;
+  updatePassword: (password: string) => Promise<{ error?: string }>;
   signUp: (
     email: string,
     password: string,
@@ -240,6 +252,7 @@ async function establishSessionFromLoginApi(
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [passwordRecovery, setPasswordRecovery] = useState(() => isPasswordRecovery());
   const signingOutRef = useRef(false);
 
   useEffect(() => {
@@ -313,6 +326,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (isSigningOut()) setUser(null);
           return;
         }
+        if (event === "PASSWORD_RECOVERY") {
+          markPasswordRecovery();
+          setPasswordRecovery(true);
+        }
         if (session?.user) {
           completeSignIn(signingOutRef);
           mockLogout();
@@ -321,6 +338,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         // Do not clear the user on transient null sessions during token refresh/init.
         if (event === "SIGNED_OUT") {
+          clearPasswordRecovery();
+          setPasswordRecovery(false);
           setUser(isLocalDeviceAuthAllowed() ? restoreLocalSession() : null);
         }
       });
@@ -464,10 +483,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const supabase = (await ensureSupabaseBrowser()) ?? getSupabaseBrowser();
     if (!supabase) return { error: "Email service is unavailable." };
     const redirectTo =
-      typeof window !== "undefined" ? `${window.location.origin}${ROUTES.login}` : undefined;
+      typeof window !== "undefined" ? `${window.location.origin}${ROUTES.resetPassword}` : undefined;
     const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
     return error ? { error: humanizeAuthError(error.message) } : {};
   }, []);
+
+  const updatePassword = useCallback(async (password: string) => {
+    if (password.length < 6) {
+      return { error: "Password must be at least 6 characters." };
+    }
+
+    if (user?.source === "mock") {
+      const result = mockUpdatePassword(user.id, password);
+      if (result.error) return { error: result.error };
+      clearPasswordRecovery();
+      setPasswordRecovery(false);
+      return {};
+    }
+
+    const supabase = (await ensureSupabaseBrowser()) ?? getSupabaseBrowser();
+    if (!supabase) return { error: "Password update is unavailable." };
+
+    try {
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) return { error: humanizeAuthError(error.message) };
+      clearPasswordRecovery();
+      setPasswordRecovery(false);
+      return {};
+    } catch (err) {
+      return {
+        error: humanizeAuthError(err instanceof Error ? err.message : "Could not update password.")
+      };
+    }
+  }, [user]);
 
   const signUp = useCallback(async (email: string, password: string, metadata?: SignUpMetadata) => {
     const trimmedEmail = email.trim();
@@ -650,15 +698,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       user,
       loading,
+      passwordRecovery,
       signIn,
       resendConfirmation,
       requestPasswordReset,
+      updatePassword,
       signUp,
       updateProfile,
       signOut,
       revalidateSession
     }),
-    [user, loading, signIn, resendConfirmation, requestPasswordReset, signUp, updateProfile, signOut, revalidateSession]
+    [
+      user,
+      loading,
+      passwordRecovery,
+      signIn,
+      resendConfirmation,
+      requestPasswordReset,
+      updatePassword,
+      signUp,
+      updateProfile,
+      signOut,
+      revalidateSession
+    ]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

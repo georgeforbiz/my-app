@@ -15,7 +15,7 @@ import { useLanguage } from "@/lib/i18n/language-context";
 export default function LoginPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { signIn, resendConfirmation, requestPasswordReset, user, loading } = useAuth();
+  const { signIn, resendConfirmation, requestPasswordReset, user, loading, passwordRecovery } = useAuth();
   const { language } = useLanguage();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -28,6 +28,8 @@ export default function LoginPage() {
   const [resetPending, setResetPending] = useState(false);
   const nextRoute = sanitizeNextRoute(searchParams.get("next"));
   const emailPrefill = searchParams.get("email") || "";
+  const openForgot = searchParams.get("forgot") === "1";
+  const resetDone = searchParams.get("reset") === "1";
   const tx =
     language === "hy"
       ? {
@@ -106,6 +108,10 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (loading) return;
+    if (passwordRecovery) {
+      router.replace(ROUTES.resetPassword);
+      return;
+    }
     if (!user) {
       clearSigningOut();
       return;
@@ -113,7 +119,7 @@ export default function LoginPage() {
     if (isSigningOut()) return;
     clearSigningOut();
     router.replace(nextRoute);
-  }, [user, loading, router, nextRoute]);
+  }, [user, loading, passwordRecovery, router, nextRoute]);
 
   useEffect(() => {
     router.prefetch(nextRoute);
@@ -124,6 +130,22 @@ export default function LoginPage() {
     setEmail(emailPrefill);
     setResetEmail(emailPrefill);
   }, [emailPrefill]);
+
+  useEffect(() => {
+    if (!openForgot) return;
+    setShowResetForm(true);
+  }, [openForgot]);
+
+  useEffect(() => {
+    if (!resetDone) return;
+    setInfo(
+      language === "hy"
+        ? "Գաղտնաբառը թարմացված է։ Մուտք գործեք նոր գաղտնաբառով։"
+        : language === "ru"
+          ? "Пароль обновлён. Войдите с новым паролем."
+          : "Password updated. Please sign in with your new password."
+    );
+  }, [resetDone, language]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();

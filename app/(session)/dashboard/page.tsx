@@ -268,8 +268,6 @@ type Tx = {
   freeLimitTitle: string;
   freeLimitMessage: string;
   freeLimitUpgrade: string;
-  mockTesting: string;
-  mockSwitchToFree: string;
   providerLogo: string;
   providerLogoHint: string;
   removeLogo: string;
@@ -419,8 +417,6 @@ const t: Record<Lang, Tx> = {
     freeLimitTitle: "Free limit reached",
     freeLimitMessage: "Upgrade to Pro for unlimited agreements",
     freeLimitUpgrade: "Upgrade (Mock)",
-    mockTesting: "Testing controls",
-    mockSwitchToFree: "Switch to Free (mock)",
     providerLogo: "Business logo (optional)",
     providerLogoHint: "PNG or JPEG — shown at the top of the agreement.",
     removeLogo: "Remove",
@@ -568,8 +564,6 @@ const t: Record<Lang, Tx> = {
     freeLimitTitle: "Անվճար սահմանաչափը լրացված է",
     freeLimitMessage: "Անցեք Պրո փաթեթին՝ անսահմանափակ պայմանագրերի համար",
     freeLimitUpgrade: "Թարմացնել (մոկ)",
-    mockTesting: "Փորձարկման կառավարում",
-    mockSwitchToFree: "Անվճար (մոկ)",
     providerLogo: "Բիզնեսի լոգո (ընտրովի)",
     providerLogoHint: "PNG կամ JPEG — ցուցադրվում է պայմանագրի վերևում։",
     removeLogo: "Հեռացնել",
@@ -717,8 +711,6 @@ const t: Record<Lang, Tx> = {
     freeLimitTitle: "Лимит бесплатного тарифа исчерпан",
     freeLimitMessage: "Перейдите на тариф Про для безлимитных соглашений",
     freeLimitUpgrade: "Улучшить (мок)",
-    mockTesting: "Тестовые переключатели",
-    mockSwitchToFree: "Вернуть бесплатный (мок)",
     providerLogo: "Логотип (необязательно)",
     providerLogoHint: "PNG или JPEG — отображается в шапке договора.",
     removeLogo: "Удалить",
@@ -1108,12 +1100,6 @@ export default function DashboardPage() {
     setMockPlan("pro");
     setLimitModalOpen(false);
     setToast(tx.upgradeNowMock);
-  };
-
-  const resetToFreeMock = () => {
-    if (!user?.id) return;
-    writeMockPlan("free", user.id);
-    setMockPlan("free");
   };
 
   const tryOpenCreate = () => {
@@ -3270,20 +3256,6 @@ export default function DashboardPage() {
                     </button>
                   </section>
                 ) : null}
-
-                <section className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm lg:col-span-2">
-                  <p className="font-semibold text-slate-700">{tx.mockTesting}</p>
-                  <p className="mt-1 text-slate-500">UI preview only — no payment processed.</p>
-                  {isPro ? (
-                    <button
-                      type="button"
-                      onClick={resetToFreeMock}
-                      className="mt-3 rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100"
-                    >
-                      {tx.mockSwitchToFree}
-                    </button>
-                  ) : null}
-                </section>
               </div>
             ) : null}
           </div>

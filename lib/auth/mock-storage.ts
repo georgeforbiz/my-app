@@ -131,6 +131,16 @@ export function mockGetSession(): MockUser | null {
   }
 }
 
+export function mockUpdatePassword(userId: string, password: string): { error?: string } {
+  const users = readUsers();
+  const index = users.findIndex((u) => u.id === userId);
+  if (index === -1) return { error: "Account not found." };
+  if (password.length < 6) return { error: "Password must be at least 6 characters." };
+  users[index] = { ...users[index], password };
+  writeUsers(users);
+  return {};
+}
+
 export function mockUpdateProfile(userId: string, profile: MockProfileUpdate): { user?: MockUser; error?: string } {
   const users = readUsers();
   const index = users.findIndex((u) => u.id === userId);

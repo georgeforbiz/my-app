@@ -18,6 +18,7 @@ import { isAgreementSigned } from "@/lib/agreements/status-rank";
 import { getAgreementDocumentLabels } from "@/lib/agreements/document-labels";
 import { withProviderLogoCacheBust } from "@/lib/agreements/logo-image";
 import { useAgreementProviderLogo } from "@/lib/agreements/use-agreement-provider-logo";
+import { termsForDisplay } from "@/lib/agreements/row";
 import { NAVY } from "@/lib/brand";
 import { AgreementPaymentTotal } from "@/components/agreement-payment-total";
 import type { VatMode } from "@/lib/agreements/vat";
@@ -205,7 +206,7 @@ export function AgreementDocumentView({
   const paymentScheduleRows = buildPaymentScheduleRows(agreement, tx);
   const showMilestoneTargetDates = paymentScheduleRows.some((row) => Boolean(row.targetDate));
   const showMilestonePaymentDue = paymentScheduleRows.some((row) => Boolean(row.paymentDue));
-  const terms = agreement.custom_terms?.trim() || "";
+  const terms = termsForDisplay(agreement.custom_terms ?? "");
   const providerLogo = useAgreementProviderLogo(agreement, viewerUserId) ?? null;
   const providerLogoSrc =
     withProviderLogoCacheBust(
@@ -606,6 +607,33 @@ export function AgreementDocumentView({
             </dl>
           </section>
         </div>
+        <section
+          className={`rounded-2xl border border-slate-200/80 bg-white shadow-sm ring-1 ring-slate-900/[0.03] ${
+            compact ? "p-3" : "p-5 sm:p-6"
+          }`}
+        >
+          <AgreementSectionTitle compact={compact}>{tx.termsAndConditions}</AgreementSectionTitle>
+          <pre
+            className={`mt-4 whitespace-pre-wrap break-words rounded-xl border border-slate-100 bg-slate-50/70 font-sans leading-7 text-slate-700 ${
+              compact
+                ? "max-h-40 overflow-y-auto p-3 text-xs"
+                : "max-h-[min(24rem,50vh)] overflow-y-auto p-4 text-sm sm:max-h-none sm:overflow-visible sm:p-5"
+            }`}
+          >
+            {terms ? formatEmbeddedDatesInTerms(terms) : "—"}
+          </pre>
+          {signed ? (
+            <div
+              className={`mt-4 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 font-bold text-emerald-800 ${
+                compact ? "px-2.5 py-1 text-[10px]" : "px-3 py-1.5 text-xs"
+              }`}
+            >
+              <CheckCircle2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              {tx.agreeTermsAccepted}
+            </div>
+          ) : null}
+        </section>
+
         {isDraft ||
         agreement.scope_of_work?.trim() ||
         agreement.scope_exclusions?.trim() ||
@@ -654,33 +682,6 @@ export function AgreementDocumentView({
             ) : null}
           </section>
         ) : null}
-
-        <section
-          className={`rounded-2xl border border-slate-200/80 bg-white shadow-sm ring-1 ring-slate-900/[0.03] ${
-            compact ? "p-3" : "p-5 sm:p-6"
-          }`}
-        >
-          <AgreementSectionTitle compact={compact}>{tx.termsAndConditions}</AgreementSectionTitle>
-          <pre
-            className={`mt-4 whitespace-pre-wrap break-words rounded-xl border border-slate-100 bg-slate-50/70 font-sans leading-7 text-slate-700 ${
-              compact
-                ? "max-h-40 overflow-y-auto p-3 text-xs"
-                : "max-h-[min(24rem,50vh)] overflow-y-auto p-4 text-sm sm:max-h-none sm:overflow-visible sm:p-5"
-            }`}
-          >
-            {terms ? formatEmbeddedDatesInTerms(terms) : "—"}
-          </pre>
-          {signed ? (
-            <div
-              className={`mt-4 inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 font-bold text-emerald-800 ${
-                compact ? "px-2.5 py-1 text-[10px]" : "px-3 py-1.5 text-xs"
-              }`}
-            >
-              <CheckCircle2 className="h-3.5 w-3.5 shrink-0" aria-hidden />
-              {tx.agreeTermsAccepted}
-            </div>
-          ) : null}
-        </section>
 
         <section
           className={`rounded-2xl border border-slate-200/80 bg-white shadow-sm ring-1 ring-slate-900/[0.03] ${

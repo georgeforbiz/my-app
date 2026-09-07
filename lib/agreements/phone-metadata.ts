@@ -1,8 +1,8 @@
 const CONTACT_PHONES_BLOCK =
-  /\n\n---\nvstah-contact-phones\nprovider:\s*([^\n]*)\nclient:\s*([^\n]*)\s*$/i;
+  /\n\n---\r?\nvstah-contact-phones\r?\nprovider:\s*([^\n\r]*)\r?\nclient:\s*([^\n\r]*)/i;
 
 const CONTACT_EMAILS_BLOCK =
-  /\n\n---\nvstah-contact-emails\nprovider:\s*([^\n]*)\nclient:\s*([^\n]*)\s*$/i;
+  /\n\n---\r?\nvstah-contact-emails\r?\nprovider:\s*([^\n\r]*)\r?\nclient:\s*([^\n\r]*)/i;
 
 export type AgreementPhones = {
   provider?: string;
@@ -13,6 +13,10 @@ export type AgreementEmails = {
   provider?: string;
   client?: string;
 };
+
+function normalizeNewlines(value: string): string {
+  return value.replace(/\r\n/g, "\n");
+}
 
 export function appendPhonesToTerms(
   customTerms: string,
@@ -26,11 +30,11 @@ export function appendPhonesToTerms(
 }
 
 export function stripPhonesFromTerms(customTerms: string): string {
-  return customTerms.replace(CONTACT_PHONES_BLOCK, "").trimEnd();
+  return normalizeNewlines(customTerms).replace(CONTACT_PHONES_BLOCK, "").trimEnd();
 }
 
 export function parsePhonesFromTerms(customTerms: string): AgreementPhones {
-  const match = customTerms.match(CONTACT_PHONES_BLOCK);
+  const match = normalizeNewlines(customTerms).match(CONTACT_PHONES_BLOCK);
   if (!match) return {};
   const provider = match[1]?.trim();
   const client = match[2]?.trim();
@@ -66,11 +70,11 @@ export function appendEmailsToTerms(
 }
 
 export function stripEmailsFromTerms(customTerms: string): string {
-  return customTerms.replace(CONTACT_EMAILS_BLOCK, "").trimEnd();
+  return normalizeNewlines(customTerms).replace(CONTACT_EMAILS_BLOCK, "").trimEnd();
 }
 
 export function parseEmailsFromTerms(customTerms: string): AgreementEmails {
-  const match = customTerms.match(CONTACT_EMAILS_BLOCK);
+  const match = normalizeNewlines(customTerms).match(CONTACT_EMAILS_BLOCK);
   if (!match) return {};
   const provider = match[1]?.trim();
   const client = match[2]?.trim();

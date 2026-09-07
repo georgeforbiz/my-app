@@ -1,6 +1,6 @@
 export type VatMode = "included" | "exempt";
 
-const VAT_MODE_TERMS_SUFFIX = /\n\n---\nvstah-vat-mode:\s*(included|exempt)\s*$/i;
+const VAT_MODE_TERMS_SUFFIX = /\n\n---\r?\nvstah-vat-mode:\s*(included|exempt)/i;
 
 export function normalizeVatMode(raw: unknown): VatMode {
   return raw === "exempt" ? "exempt" : "included";
@@ -14,11 +14,11 @@ export function appendVatModeToTerms(customTerms: string, mode: VatMode): string
 }
 
 export function stripVatModeFromTerms(customTerms: string): string {
-  return customTerms.replace(VAT_MODE_TERMS_SUFFIX, "").trimEnd();
+  return customTerms.replace(/\r\n/g, "\n").replace(VAT_MODE_TERMS_SUFFIX, "").trimEnd();
 }
 
 export function parseVatModeFromTerms(customTerms: string): VatMode | null {
-  const match = customTerms.match(VAT_MODE_TERMS_SUFFIX);
+  const match = customTerms.replace(/\r\n/g, "\n").match(VAT_MODE_TERMS_SUFFIX);
   if (!match?.[1]) return null;
   return match[1].toLowerCase() === "exempt" ? "exempt" : "included";
 }
