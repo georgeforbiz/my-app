@@ -81,6 +81,8 @@ export type NormalizedAgreement = {
   status: AgreementStatus;
   payment_status: "pending" | "escrow_held" | "released";
   client_signature?: string;
+  /** ISO timestamp when the client signed (if available). */
+  signed_at?: string;
   provider_logo_url?: string;
   created_at: string;
 };
@@ -184,6 +186,7 @@ export function normalizeAgreementRow(row: Record<string, unknown>): NormalizedA
           ? "escrow_held"
           : "pending",
     client_signature: String(row.client_signature ?? "").trim() || undefined,
+    signed_at: String(row.signed_at ?? "").trim() || undefined,
     provider_logo_url: String(row.provider_logo_url ?? "").trim() || undefined,
     created_at: String(row.created_at ?? "")
   };

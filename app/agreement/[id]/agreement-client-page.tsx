@@ -46,6 +46,7 @@ async function postAgreementAction(
   signatureSaved?: boolean;
   /** Confirmed non-empty `client_signature` on the row returned by PostgREST after update. */
   signatureStored?: boolean;
+  signed_at?: string | null;
 }> {
   if (isLocalAgreementId(agreementId)) {
     return { ok: false, status: 0, error: "Local agreement" };
@@ -67,6 +68,7 @@ async function postAgreementAction(
     alreadySigned?: boolean;
     signatureSaved?: boolean;
     signatureStored?: boolean;
+    signed_at?: string | null;
   };
   return { ok: res.ok, status: res.status, ...data };
 }
@@ -109,10 +111,12 @@ async function fetchStoredSignature(agreementId: string): Promise<string | null>
   }
 }
 
-function persistSignedLocally(agreement: Agreement, signature: string | null) {
+function persistSignedLocally(agreement: Agreement, signature: string | null, signedAt?: string) {
   writeSignedSession(agreement.id);
+  const resolvedSignedAt = signedAt?.trim() || agreement.signed_at || new Date().toISOString();
   const patch = {
     status: "signed" as const,
+    signed_at: resolvedSignedAt,
     ...(signature ? { client_signature: signature } : {})
   };
   const signed = { ...agreement, ...patch };
@@ -179,6 +183,7 @@ type Agreement = {
   status: AgreementStatus;
   payment_status: "pending" | "escrow_held" | "released";
   client_signature?: string;
+  signed_at?: string;
   provider_logo_url?: string;
   created_at: string;
 };
@@ -825,7 +830,7 @@ export default function AgreementClientPage({
     };
   }, [id, initialAgreement]);
 
-  const applySignedState = (signature: string | null) => {
+  const applySignedState = (signature: string | null, signedAt?: string) => {
     justSignedRef.current = true;
     setAgreement((prev) => {
       if (!prev) return prev;
@@ -833,6 +838,7 @@ export default function AgreementClientPage({
       const next = {
         ...prev,
         status: "signed" as const,
+        signed_at: signedAt?.trim() || prev.signed_at || new Date().toISOString(),
         ...(signature ? { client_signature: signature } : {})
       };
       writeSignedCache(next);
@@ -869,16 +875,19 @@ export default function AgreementClientPage({
         if (hasStoredClientSignature(local)) return local?.client_signature;
         if (hasSignatureDataUrl(withLogo.client_signature)) return withLogo.client_signature;
         return prev?.client_signature ?? local?.client_signature ?? withLogo.client_signature ?? undefined;
-      })()
+      })(),
+      signed_at: withLogo.signed_at ?? prev?.signed_at ?? local?.signed_at
     };
 
     // Never flash back to pending once we know the agreement is signed.
     if (isAgreementSigned(prev ?? merged) && !isAgreementSigned(merged)) {
       merged.status = (prev?.status ?? "signed") as AgreementStatus;
       merged.client_signature = prev?.client_signature ?? merged.client_signature;
+      merged.signed_at = prev?.signed_at ?? merged.signed_at;
     } else if (statusRank(merged.status) < statusRank(prevStatus)) {
       merged.status = prevStatus;
       merged.client_signature = prev?.client_signature ?? merged.client_signature;
+      merged.signed_at = prev?.signed_at ?? merged.signed_at;
     }
 
     if (isAgreementSigned(merged)) {
@@ -890,6 +899,7 @@ export default function AgreementClientPage({
         updateLocalAgreement(merged.id, {
           status: merged.status,
           client_signature: merged.client_signature ?? local.client_signature,
+          signed_at: merged.signed_at ?? local.signed_at,
           ...(provider_logo_url ? { provider_logo_url } : {})
         });
       }
@@ -1200,53 +1210,57 @@ export default function AgreementClientPage({
     }
 
     try {
+      const signedAt = new Date().toISOString();
       if (isLocalAgreementId(agreement.id)) {
         const next = updateLocalAgreement(agreement.id, {
           status: "signed",
+          signed_at: signedAt,
           ...(signature ? { client_signature: signature } : {})
         });
         if (!next) {
           setActionError(tx.signFailed);
           return;
         }
-        applySignedState(signature);
+        applySignedState(signature, signedAt);
         return;
       }
 
       const res = await postAgreementAction(agreement.id, { signature });
+      const responseSignedAt = res.signed_at?.trim() || signedAt;
       if (res.ok && res.signatureStored) {
-        persistSignedLocally(agreement, signature);
-        applySignedState(signature);
+        persistSignedLocally(agreement, signature, responseSignedAt);
+        applySignedState(signature, responseSignedAt);
         await fetchAgreement({ background: true });
         return;
       }
 
       if (res.ok && !res.signatureStored) {
-        await tryClientUpdate({ status: "signed", client_signature: signature });
+        await tryClientUpdate({ status: "signed", client_signature: signature, signed_at: signedAt });
         const snapshot = await fetchAgreementStatusFromServer(agreement.id);
         if (snapshot && hasStoredClientSignature(snapshot)) {
-          persistSignedLocally(agreement, signature);
-          applySignedState(signature);
+          persistSignedLocally(agreement, signature, signedAt);
+          applySignedState(signature, signedAt);
           await fetchAgreement({ background: true });
           return;
         }
       }
 
       if (res.alreadySigned && hasStoredClientSignature({ client_signature: signature })) {
-        persistSignedLocally(agreement, signature);
-        applySignedState(signature);
+        persistSignedLocally(agreement, signature, responseSignedAt);
+        applySignedState(signature, responseSignedAt);
         return;
       }
 
       const fallback = await tryClientUpdate({
         status: "signed",
-        client_signature: signature
+        client_signature: signature,
+        signed_at: signedAt
       });
       if (fallback.ok) {
         const snapshot = await fetchAgreementStatusFromServer(agreement.id);
         if (snapshot && hasStoredClientSignature(snapshot)) {
-          persistSignedLocally(agreement, signature);
-          applySignedState(signature);
+          persistSignedLocally(agreement, signature, signedAt);
+          applySignedState(signature, signedAt);
           await fetchAgreement({ background: true });
           return;
         }
@@ -1346,6 +1360,11 @@ export default function AgreementClientPage({
   const signatureImage = hasSignatureDataUrl(agreement.client_signature)
     ? agreement.client_signature!
     : null;
+  const signatureDate = agreement.signed_at?.trim()
+    ? formatDateDMY(agreement.signed_at)
+    : signed
+      ? formatDateDMY(agreement.created_at)
+      : "";
   const showSignForm = !signed;
   const providerLogoSrc =
     withProviderLogoCacheBust(
@@ -1693,10 +1712,7 @@ export default function AgreementClientPage({
           {signatureImage && signed ? (
             <section className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-md ring-1 ring-slate-900/[0.04]" aria-label={tx.clientSignature}>
               <div className="flex flex-wrap items-end justify-between gap-3 border-b border-slate-100 bg-gradient-to-r from-[#0033A0]/[0.07] to-slate-50/80 px-4 py-4 sm:px-6">
-                <div>
-                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#0033A0] sm:text-[11px]">{tx.clientSignature}</p>
-                  <p className="mt-1 text-base font-bold text-slate-900">{agreement.client_name}</p>
-                </div>
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#0033A0] sm:text-[11px]">{tx.clientSignature}</p>
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800">
                   <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden />
                   {tx.signedAndApproved}
@@ -1708,10 +1724,15 @@ export default function AgreementClientPage({
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
                     src={signatureImage}
-                    alt={`${agreement.client_name}, ${tx.clientSignature}`}
+                    alt={tx.clientSignature}
                     className="relative z-[1] mx-auto block h-auto max-h-32 w-auto max-w-full object-contain sm:max-h-40"
                   />
                 </div>
+                {signatureDate ? (
+                  <p className="mt-3 text-center text-sm font-semibold tabular-nums text-slate-700 sm:text-base">
+                    {signatureDate}
+                  </p>
+                ) : null}
               </div>
             </section>
           ) : null}

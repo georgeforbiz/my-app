@@ -107,6 +107,7 @@ export function buildMarketingDemoAgreement(t: ProposalPreviewCopy): AgreementDo
     payment_type: "milestones",
     milestones,
     client_signature: "/marketing/signature-mark.svg",
+    signed_at: "2026-03-15T10:00:00.000Z",
     provider_logo_url: "/marketing/archistudio-logo.svg"
   };
 }

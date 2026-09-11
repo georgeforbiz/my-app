@@ -14,8 +14,12 @@ export function writeAgreementCache(agreement: NormalizedAgreement) {
   try {
     const existing = readAgreementCache(agreement.id);
     const toWrite =
-      hasStoredClientSignature(existing) && isAgreementSigned(existing!) && !hasStoredClientSignature(agreement)
-        ? { ...agreement, client_signature: existing!.client_signature }
+  hasStoredClientSignature(existing) && isAgreementSigned(existing!) && !hasStoredClientSignature(agreement)
+        ? {
+            ...agreement,
+            client_signature: existing!.client_signature,
+            signed_at: agreement.signed_at ?? existing!.signed_at
+          }
         : agreement;
     localStorage.setItem(cacheKey(agreement.id), JSON.stringify(toWrite));
   } catch {
@@ -94,6 +98,7 @@ export function mergePreferSigned(
       ...server,
       status: cached.status === "completed" ? "completed" : "signed",
       client_signature: server.client_signature ?? cached.client_signature,
+      signed_at: server.signed_at ?? cached.signed_at,
       provider_phone: server.provider_phone ?? cached.provider_phone,
       client_phone: server.client_phone ?? cached.client_phone
     };
@@ -101,6 +106,7 @@ export function mergePreferSigned(
   return {
     ...server,
     client_signature: server.client_signature ?? cached.client_signature,
+    signed_at: server.signed_at ?? cached.signed_at,
     provider_logo_url: server.provider_logo_url ?? cached.provider_logo_url,
     provider_phone: server.provider_phone ?? cached.provider_phone,
     client_phone: server.client_phone ?? cached.client_phone

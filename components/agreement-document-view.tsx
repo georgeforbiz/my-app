@@ -51,6 +51,7 @@ export type AgreementDocumentData = {
   created_at: string;
   status?: "pending" | "signed" | "completed";
   client_signature?: string;
+  signed_at?: string;
   provider_id?: string;
   provider_logo_url?: string;
 };
@@ -253,6 +254,13 @@ export function AgreementDocumentView({
     />
   );
 
+  const signatureDate =
+    agreement.signed_at?.trim()
+      ? formatDateDMY(agreement.signed_at)
+      : signed
+        ? formatDateDMY(agreement.created_at)
+        : "";
+
   const signatureBlock =
     signatureImage && signed ? (
       <section className="overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-md ring-1 ring-slate-900/[0.04]">
@@ -267,9 +275,6 @@ export function AgreementDocumentView({
             }`}
           >
             {tx.clientSignature}
-          </p>
-          <p className={`mt-1 font-bold text-slate-900 ${compact || closingOnly ? "text-sm" : "text-base"}`}>
-            {agreement.client_name}
           </p>
           <span
             className={`mt-2 inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 font-bold text-emerald-800 ${
@@ -307,6 +312,15 @@ export function AgreementDocumentView({
               }`}
             />
           </div>
+          {signatureDate ? (
+            <p
+              className={`mt-3 text-center font-semibold tabular-nums text-slate-700 ${
+                compact || closingOnly ? "text-xs" : "text-sm sm:text-base"
+              }`}
+            >
+              {signatureDate}
+            </p>
+          ) : null}
         </div>
       </section>
     ) : null;
@@ -363,20 +377,17 @@ export function AgreementDocumentView({
         </div>
 
         <section className="mt-3 flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-md ring-1 ring-slate-900/[0.04]">
-          <div className="h-[78px] shrink-0 border-b border-slate-100 bg-gradient-to-r from-[#0033A0]/[0.07] to-slate-50/80 px-3 py-2.5">
+          <div className="h-[62px] shrink-0 border-b border-slate-100 bg-gradient-to-r from-[#0033A0]/[0.07] to-slate-50/80 px-3 py-2.5">
             <p className="truncate text-[9px] font-black uppercase tracking-[0.16em] text-[#0033A0]">
               {tx.clientSignature}
-            </p>
-            <p className="mt-0.5 truncate text-sm font-bold leading-tight text-slate-900">
-              {agreement.client_name}
             </p>
             <span className="mt-1.5 inline-flex max-w-full items-center gap-1 truncate rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[9px] font-bold text-emerald-800">
               <CheckCircle2 className="h-3 w-3 shrink-0" aria-hidden />
               <span className="truncate">{tx.signedAndApproved}</span>
             </span>
           </div>
-          <div className="flex min-h-0 flex-1 items-center justify-center bg-gradient-to-b from-slate-50/80 to-white px-3 py-3">
-            <div className="relative flex h-[88px] w-full max-w-[14rem] items-center justify-center rounded-xl bg-white shadow-inner ring-1 ring-slate-200/90">
+          <div className="flex min-h-0 flex-1 flex-col items-center justify-center bg-gradient-to-b from-slate-50/80 to-white px-3 py-3">
+            <div className="relative flex h-[80px] w-full max-w-[14rem] items-center justify-center rounded-xl bg-white shadow-inner ring-1 ring-slate-200/90">
               <div
                 className="pointer-events-none absolute inset-x-4 bottom-2.5 border-b border-slate-300/90"
                 aria-hidden
@@ -390,6 +401,11 @@ export function AgreementDocumentView({
                 />
               ) : null}
             </div>
+            {signatureDate ? (
+              <p className="mt-2 text-center text-xs font-semibold tabular-nums text-slate-700">
+                {signatureDate}
+              </p>
+            ) : null}
           </div>
         </section>
 
