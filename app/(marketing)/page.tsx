@@ -425,7 +425,7 @@ const translations: Record<Locale, TranslationBundle> = {
       name: "Pro",
       tagline: "Simple pricing",
       subtitle: "Start free, upgrade when ready",
-      price: "15,000 ֏ / month",
+      price: "7,000 ֏ / month",
       features: ["10 free agreements included", "Unlimited after upgrade"],
       cta: "Start Free Trial"
     },
@@ -693,7 +693,7 @@ const translations: Record<Locale, TranslationBundle> = {
       name: "Pro",
       tagline: "Պարզ գնագոյացում",
       subtitle: "Սկսեք անվճար, թարմացրեք, երբ պատրաստ լինեք",
-      price: "15,000 ֏ / ամիս",
+      price: "7,000 ֏ / ամիս",
       features: ["Ներառված է 10 անվճար պայմանագիր", "Անսահմանափակ՝ թարմացումից հետո"],
       cta: "Սկսել անվճար փորձաշրջանը"
     },
@@ -961,7 +961,7 @@ const translations: Record<Locale, TranslationBundle> = {
       name: "Pro",
       tagline: "Простые тарифы",
       subtitle: "Начните бесплатно, переходите на Pro, когда будете готовы",
-      price: "15,000 ֏ / месяц",
+      price: "7,000 ֏ / месяц",
       features: ["Включено 10 бесплатных договоров", "Безлимитно после перехода"],
       cta: "Начать бесплатный период"
     },
