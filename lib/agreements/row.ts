@@ -83,6 +83,8 @@ export type NormalizedAgreement = {
   client_signature?: string;
   /** ISO timestamp when the client signed (if available). */
   signed_at?: string;
+  /** Public Storage URL for the archived signed PDF (if generated). */
+  pdf_url?: string;
   provider_logo_url?: string;
   created_at: string;
 };
@@ -187,6 +189,7 @@ export function normalizeAgreementRow(row: Record<string, unknown>): NormalizedA
           : "pending",
     client_signature: String(row.client_signature ?? "").trim() || undefined,
     signed_at: String(row.signed_at ?? "").trim() || undefined,
+    pdf_url: String(row.pdf_url ?? "").trim() || undefined,
     provider_logo_url: String(row.provider_logo_url ?? "").trim() || undefined,
     created_at: String(row.created_at ?? "")
   };

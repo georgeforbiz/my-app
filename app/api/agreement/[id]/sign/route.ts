@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { recordActivityEvent } from "@/lib/admin/activity";
 import { isMissingColumnOrSchemaCacheError } from "@/lib/agreements/row";
+import { archiveSignedAgreementPdfById } from "@/lib/agreements/signed-pdf-storage";
 import { hasStoredClientSignature, isValidSignatureDataUrl } from "@/lib/agreements/status-rank";
 import { getAgreementServerClient } from "@/lib/supabase/agreement-server";
 
@@ -10,6 +11,7 @@ type AgreementSignRow = {
   status: string;
   client_signature?: string | null;
   signed_at?: string | null;
+  pdf_url?: string | null;
 };
 
 async function readAgreementRow(
@@ -18,7 +20,7 @@ async function readAgreementRow(
 ): Promise<AgreementSignRow | null> {
   const withSignedAt = await supabase
     .from("agreements")
-    .select("id,status,client_signature,signed_at")
+    .select("id,status,client_signature,signed_at,pdf_url")
     .eq("id", agreementId)
     .single();
 
@@ -29,11 +31,18 @@ async function readAgreementRow(
   if (isMissingColumnOrSchemaCacheError(withSignedAt.error?.message)) {
     const legacy = await supabase
       .from("agreements")
+      .select("id,status,client_signature,signed_at")
+      .eq("id", agreementId)
+      .single();
+    if (!legacy.error && legacy.data) return legacy.data as AgreementSignRow;
+
+    const basic = await supabase
+      .from("agreements")
       .select("id,status,client_signature")
       .eq("id", agreementId)
       .single();
-    if (legacy.error || !legacy.data) return null;
-    return legacy.data as AgreementSignRow;
+    if (basic.error || !basic.data) return null;
+    return basic.data as AgreementSignRow;
   }
 
   return null;
@@ -172,20 +181,32 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
       const patched = await patchClientSignature(supabase, agreementId, normalizedSignature, signedAt);
       const row = patched ?? existing;
       const signatureStored = hasStoredClientSignature(row);
+      const archived = signatureStored
+        ? await archiveSignedAgreementPdfById(supabase, agreementId)
+        : {};
       return NextResponse.json({
         ok: true,
         alreadySigned: true,
         status: row.status,
         signed_at: row.signed_at ?? null,
+        pdf_url: archived.pdfUrl ?? row.pdf_url ?? null,
         signatureSaved: true,
         signatureStored
       });
     }
+
+    let pdfUrl = existing.pdf_url ?? null;
+    if (!pdfUrl && hasStoredClientSignature(existing)) {
+      const archived = await archiveSignedAgreementPdfById(supabase, agreementId);
+      pdfUrl = archived.pdfUrl ?? null;
+    }
+
     return NextResponse.json({
       ok: true,
       alreadySigned: true,
       status: existing.status,
       signed_at: existing.signed_at ?? null,
+      pdf_url: pdfUrl,
       signatureStored: hasStoredClientSignature(existing)
     });
   }
@@ -229,10 +250,16 @@ export async function POST(request: NextRequest, { params }: { params: { id: str
     supabase
   );
 
+  const archived = await archiveSignedAgreementPdfById(supabase, agreementId);
+  if (archived.error) {
+    console.warn("[vstah] signed PDF archive failed:", archived.error);
+  }
+
   return NextResponse.json({
     ok: true,
     status: updatedRow.status,
     signed_at: updatedRow.signed_at ?? signedAt,
+    pdf_url: archived.pdfUrl ?? null,
     signatureSaved: true,
     signatureStored: true
   });
