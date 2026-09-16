@@ -3,8 +3,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { CheckCircle2, Loader2, Calendar, Hash, FileText, User, Building2, Briefcase, PenLine, Phone, Mail } from "lucide-react";
-import html2canvas from "html2canvas";
-import { jsPDF } from "jspdf";
 import { getSupabaseBrowser } from "@/lib/supabase/browser-client";
 import {
   getLocalAgreement,
@@ -1284,48 +1282,21 @@ export default function AgreementClientPage({
     "Funds will be released only upon client approval."
   ].join("\n");
 
-  const downloadRenderedAgreement = useCallback(async () => {
-    const node = printableRef.current;
-    if (!node || !agreement) return;
-
-    try {
-      const canvas = await html2canvas(node, { scale: 2, backgroundColor: "#ffffff", useCORS: true });
-      const imageData = canvas.toDataURL("image/png");
-
-      const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const pageHeight = pdf.internal.pageSize.getHeight();
-      const imgWidth = pageWidth;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-
-      let heightLeft = imgHeight;
-      let position = 0;
-
-      pdf.addImage(imageData, "PNG", 0, position, imgWidth, imgHeight);
-      heightLeft -= pageHeight;
-
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imageData, "PNG", 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
-      }
-
-      pdf.save(`agreement-${agreement.id}.pdf`);
-    } catch {
-      setActionError("Could not generate PDF. Try again or use Print.");
-    }
-  }, [agreement]);
-
   useEffect(() => {
     if (!shouldAutoDownload || loading || !agreement) return;
     if (downloadTriggeredRef.current) return;
     downloadTriggeredRef.current = true;
+    // Prefer server PDF endpoint — browsers often block auto pdf.save() from a new tab.
     const timerId = window.setTimeout(() => {
-      void downloadRenderedAgreement();
-    }, 450);
+      const a = document.createElement("a");
+      a.href = `/api/agreement/${encodeURIComponent(agreement.id)}/pdf`;
+      a.rel = "noopener noreferrer";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }, 200);
     return () => window.clearTimeout(timerId);
-  }, [shouldAutoDownload, loading, agreement, downloadRenderedAgreement]);
+  }, [shouldAutoDownload, loading, agreement]);
 
   if (loading && !agreement) {
     return (

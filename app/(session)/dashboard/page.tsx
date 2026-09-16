@@ -129,6 +129,7 @@ type Agreement = {
   status: AgreementStatus;
   payment_status: "pending" | "escrow_held" | "released";
   client_signature?: string;
+  pdf_url?: string;
   provider_logo_url?: string;
   created_at: string;
 };
@@ -1514,8 +1515,16 @@ export default function DashboardPage() {
       setToast(resolved.error ?? tx.linkNotPublished);
       return;
     }
-    const link = `${getAgreementPublicUrl(resolved.id)}?download=1`;
-    window.open(link, "_blank", "noopener,noreferrer");
+
+    // Always generate via API so layout upgrades show immediately
+    // (Storage `pdf_url` stays as the signed archive; download uses current builder).
+    const a = document.createElement("a");
+    a.href = `/api/agreement/${encodeURIComponent(resolved.id)}/pdf`;
+    a.target = "_blank";
+    a.rel = "noopener noreferrer";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
   };
 
   const resetForm = (nextContractTerms?: string) => {
