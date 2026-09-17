@@ -143,14 +143,33 @@ export function MarketingHeroSection({
 
   useEffect(() => {
     if (!exampleOpen) return;
-    const prev = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
+    const scrollY = window.scrollY;
+    const html = document.documentElement;
+    const body = document.body;
+    const prev = {
+      htmlOverflow: html.style.overflow,
+      bodyOverflow: body.style.overflow,
+      bodyPosition: body.style.position,
+      bodyTop: body.style.top,
+      bodyWidth: body.style.width
+    };
+    // Lock page scroll (incl. iOS) while the example modal is open.
+    html.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.width = "100%";
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") setExampleOpen(false);
     };
     window.addEventListener("keydown", onKey);
     return () => {
-      document.body.style.overflow = prev;
+      html.style.overflow = prev.htmlOverflow;
+      body.style.overflow = prev.bodyOverflow;
+      body.style.position = prev.bodyPosition;
+      body.style.top = prev.bodyTop;
+      body.style.width = prev.bodyWidth;
+      window.scrollTo(0, scrollY);
       window.removeEventListener("keydown", onKey);
     };
   }, [exampleOpen]);
@@ -201,17 +220,17 @@ export function MarketingHeroSection({
 
       {exampleOpen ? (
         <div
-          className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-900/55 p-2 sm:p-4"
+          className="fixed inset-0 z-[80] flex items-center justify-center overflow-hidden overscroll-none bg-slate-900/55 p-2 sm:p-4"
           role="dialog"
           aria-modal="true"
           aria-label={t.btnViewExample}
           onClick={() => setExampleOpen(false)}
         >
           <div
-            className="flex max-h-[94vh] w-full max-w-[min(100%,56rem)] flex-col overflow-hidden rounded-2xl border border-slate-200/80 bg-gradient-to-b from-slate-100 via-[#f8fafc] to-slate-200/90 shadow-xl"
+            className="flex max-h-[94vh] w-full max-w-[min(100%,56rem)] flex-col overflow-hidden overscroll-contain rounded-2xl border border-slate-200/80 bg-gradient-to-b from-slate-100 via-[#f8fafc] to-slate-200/90 shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-start justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3">
+            <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3">
               <p className="min-w-0 flex-1 text-sm font-semibold leading-snug text-slate-800">
                 {t.examplePopupIntro}
               </p>
@@ -224,7 +243,7 @@ export function MarketingHeroSection({
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto p-2 sm:p-4">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain p-2 sm:p-4">
               <AgreementDocumentView agreement={exampleAgreement} lang={locale} embedded logoBelowBadge />
             </div>
             <div className="flex border-t border-slate-200 bg-white p-4">
