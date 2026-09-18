@@ -280,10 +280,10 @@ const translations: Record<Locale, TranslationBundle> = {
     demoClientSignature: "Client signature",
     cardTagline1: "Stop the disputes.",
     cardTagline2: "Start the renovation.",
-    feature1: "Clear Milestones",
-    feature2: "Instant Signatures",
-    feature3: "No Extra Favors",
-    feature4: "Built for Armenia",
+    feature1: "Defined Scope",
+    feature2: "Sign on Phone",
+    feature3: "Payment Schedule",
+    feature4: "Made for Local Pros",
     painPointsTitle: 'No more "That\'s not what we talked about"',
     painPoints: [
       {
@@ -548,10 +548,10 @@ const translations: Record<Locale, TranslationBundle> = {
     demoClientSignature: "Հաճախորդի ստորագրություն",
     cardTagline1: "Վեճերին վերջ։",
     cardTagline2: "Նախագիծը առաջ։",
-    feature1: "Հստակ փուլեր",
-    feature2: "Ակնթարթային ստորագրություն",
-    feature3: "Զրո լրացուցիչ աշխատանք",
-    feature4: "Ստեղծված Հայաստանի համար",
+    feature1: "Հստակ ծավալ",
+    feature2: "Ստորագրություն հեռախոսով",
+    feature3: "Վճարումների գրաֆիկ",
+    feature4: "Տեղական մասնագետների համար",
     painPointsTitle: "Այլևս ոչ մի «Մենք սրա մասին չենք պայմանավորվել»",
     painPoints: [
       {
@@ -816,10 +816,10 @@ const translations: Record<Locale, TranslationBundle> = {
     demoClientSignature: "Подпись клиента",
     cardTagline1: "Меньше споров.",
     cardTagline2: "Быстрее проект.",
-    feature1: "Четкие этапы",
-    feature2: "Мгновенные подписи",
-    feature3: "Ноль лишней работы",
-    feature4: "Создано для Армении",
+    feature1: "Чёткий объём",
+    feature2: "Подпись с телефона",
+    feature3: "График платежей",
+    feature4: "Для местных специалистов",
     painPointsTitle: "Больше никаких «Мы об этом не договаривались»",
     painPoints: [
       {

@@ -1,8 +1,8 @@
 "use client";
 
-import { FileSignature, Layers, MapPin, ShieldCheck } from "lucide-react";
+import { ListTree, MapPinned, Signature, Wallet } from "lucide-react";
 import { Reveal } from "@/components/reveal";
-import { ORANGE } from "@/lib/brand";
+import { NAVY } from "@/lib/brand";
 
 type FeatureCopy = {
   feature1: string;
@@ -11,58 +11,54 @@ type FeatureCopy = {
   feature4: string;
 };
 
-const FEATURE_ICONS = [Layers, FileSignature, ShieldCheck, MapPin] as const;
-
-const FEATURE_BG = "linear-gradient(168deg, #1a5596 0%, #2878c8 52%, #3d8ee0 100%)";
-
-const FEATURE_TEXT =
-  "text-[13px] font-black leading-tight tracking-tight text-white sm:text-sm";
+/** Defined Scope · Sign on Phone · Payment Schedule · Made for Local Pros */
+const FEATURE_ICONS = [ListTree, Signature, Wallet, MapPinned] as const;
 
 function featureLabel(text: string): string {
   return text.replace(/\n/g, " ").replace(/\.\s*$/, "").trim();
 }
 
-function FeatureContent({ label, Icon }: { label: string; Icon: (typeof FEATURE_ICONS)[number] }) {
-  return (
-    <div className="flex items-center gap-3">
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white ring-1 ring-white/60 sm:h-10 sm:w-10">
-        <Icon className="h-[16px] w-[16px] sm:h-[17px] sm:w-[17px]" style={{ color: ORANGE }} strokeWidth={2.75} aria-hidden />
-      </span>
-      <p className={`min-w-0 ${FEATURE_TEXT}`}>{label}</p>
-    </div>
-  );
-}
-
 export function MarketingFeaturesSection({ t }: { t: FeatureCopy }) {
   const items = [t.feature1, t.feature2, t.feature3, t.feature4].map((text, idx) => ({
     label: featureLabel(text),
-    Icon: FEATURE_ICONS[idx] ?? Layers,
+    Icon: FEATURE_ICONS[idx] ?? ListTree,
     key: idx
   }));
 
-  const cellClass =
-    "flex min-h-[4.25rem] items-center justify-start px-5 py-4 sm:min-h-[4.5rem] sm:px-6 sm:py-5 md:justify-center md:px-4";
-
   return (
-    <section className="bg-white px-4 py-10 md:py-12">
-      <div className="mx-auto w-full max-w-7xl">
-        <Reveal>
-          <ul className="grid grid-cols-1 gap-3 md:grid-cols-4 md:gap-0 md:overflow-hidden md:rounded-[1.75rem] md:shadow-[0_20px_48px_-22px_rgba(15,61,110,0.5)]">
-            {items.map(({ label, Icon, key }, idx) => (
+    <section className="bg-white px-4 py-14 sm:px-6 md:px-8 md:py-16 lg:px-10">
+      <div className="mx-auto w-full max-w-[90rem]">
+        <ul className="grid w-full grid-cols-1 gap-8 sm:grid-cols-2 sm:gap-10 md:grid-cols-4 md:gap-0">
+          {items.map(({ label, Icon, key }, idx) => (
+            <Reveal key={key} delay={idx * 70}>
               <li
-                key={key}
                 className={[
-                  cellClass,
-                  "rounded-[1.25rem] shadow-[0_16px_40px_-20px_rgba(15,61,110,0.4)] md:rounded-none md:shadow-none",
-                  idx > 0 ? "md:border-l md:border-white/15" : ""
+                  "group flex w-full flex-col items-center gap-4 px-3 text-center sm:px-4 md:px-8 lg:px-10",
+                  idx > 0 ? "md:border-l md:border-slate-200/70" : ""
                 ].join(" ")}
-                style={{ background: FEATURE_BG }}
               >
-                <FeatureContent label={label} Icon={Icon} />
+                <span
+                  className="flex h-14 w-14 items-center justify-center rounded-2xl transition duration-300 group-hover:-translate-y-0.5 sm:h-16 sm:w-16"
+                  style={{
+                    background:
+                      "linear-gradient(145deg, rgba(0,51,160,0.10) 0%, rgba(242,168,0,0.12) 100%)",
+                    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.65)"
+                  }}
+                >
+                  <Icon
+                    className="h-6 w-6 sm:h-7 sm:w-7"
+                    style={{ color: NAVY }}
+                    strokeWidth={2.1}
+                    aria-hidden
+                  />
+                </span>
+                <p className="w-full max-w-[16rem] text-base font-semibold leading-snug tracking-[-0.01em] text-slate-800 sm:text-lg">
+                  {label}
+                </p>
               </li>
-            ))}
-          </ul>
-        </Reveal>
+            </Reveal>
+          ))}
+        </ul>
       </div>
     </section>
   );
